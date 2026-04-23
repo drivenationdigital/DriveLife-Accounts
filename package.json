@@ -6,7 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "cloudways:restart": "pm2 restart ce-nextadmin-app",
+    "cloudways:stop": "pm2 stop ce-nextadmin-app",
+    "cloudways:logs": "pm2 logs ce-nextadmin-app",
+    "cloudways:reload": "pm2 reload ce-nextadmin-app --update-env",
+    "cloudways:deploy": "npm run build && npm run cloudways:restart",
+    "pm2:create": "pm2 start npm --name ce-nextadmin-app -- start"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.2",
