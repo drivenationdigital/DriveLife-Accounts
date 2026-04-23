@@ -1,0 +1,168 @@
+export type EventStatus = "published" | "draft" | "cancelled";
+export type OrderStatus = "paid" | "pending" | "refunded";
+export type ShowCarStatus =
+  | "pending"
+  | "awaiting-payment"
+  | "confirmed"
+  | "rejected";
+export type ShowCarCategory = "classic" | "retro" | "modern" | "supercar";
+export type ApplicationStatus = "pending" | "approved" | "rejected";
+export type TicketStatus = "active" | "soldout";
+export type CarPhotoClass =
+  | "car-1"
+  | "car-2"
+  | "car-3"
+  | "car-4"
+  | "car-5"
+  | "car-6"
+  | "car-7";
+
+export interface EventDetail {
+  id: string;
+  title: string;
+  status: EventStatus;
+  date: string;
+  timeRange: string;
+  location: string;
+  url: string;
+  slug: string;
+}
+
+export interface Ticket {
+  id: string;
+  name: string;
+  sold: number;
+  capacity: number;
+  status: TicketStatus;
+}
+
+export interface Order {
+  id: string;
+  customerName: string;
+  customerEmail: string;
+  quantity: number;
+  amount: number;
+  status: OrderStatus;
+  date: string;
+}
+
+export interface ShowCar {
+  id: string;
+  model: string;          // e.g. "1987 Porsche 911 Carrera"
+  year: string;
+  make: string;
+  modelName: string;
+  reg: string;
+  ownerFirstName: string;
+  ownerLastName: string;
+  ownerEmail: string;
+  ownerPhone: string;
+  instagram: string;
+  tiktok: string;
+  club: string;
+  description: string;
+  photoClass: CarPhotoClass;
+  category: ShowCarCategory;
+  status: ShowCarStatus;
+  appliedLabel: string;
+  updatedLabel: string;
+}
+
+export interface Club {
+  id: string;
+  name: string;
+  membersAttending: number;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  description: string;
+  appliedLabel: string;
+  updatedLabel: string;
+  status: ApplicationStatus;
+}
+
+export interface Trader {
+  id: string;
+  name: string;
+  category: string;
+  pitch: string;
+  power: string;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+  instagram: string;
+  tiktok: string;
+  appliedLabel: string;
+  status: ApplicationStatus;
+}
+
+export interface Notification {
+  id: string;
+  kind: "car" | "order" | "club" | "warn";
+  message: string;
+  time: string;
+  unread: boolean;
+}
+
+export interface Discount {
+  id: string;
+  code: string;
+  displayAmount: string;       // "10%" or "£5.00"
+  statusLabel: string;         // "Active" / "Ended 2 days ago"
+  activeState: "active" | "upcoming" | "ended";
+  usage: number;
+  maxUsage: number | null;     // null = unlimited
+}
+
+export interface CategoryStat {
+  category: ShowCarCategory;
+  confirmed: number;
+  capacity: number;
+}
+
+/** Feature flags + counts per section, sourced from the API. */
+export interface FeatureSection {
+  enabled: boolean;
+  counts: {
+    applied: number;
+    approved: number;
+    confirmed: number;
+    rejected: number;
+    total: number;
+  };
+}
+
+export interface EventFeatures {
+  show_cars: FeatureSection;
+  car_clubs: FeatureSection;
+  traders: FeatureSection;
+}
+
+export interface EventData {
+  event: EventDetail;
+  kpis: {
+    totalOrders: number;
+    ordersThisWeek: number;
+    ticketsSold: number;
+    ticketsSoldRecent: number;
+    netSales: number;
+    fees: number;
+  };
+  tickets: Ticket[];
+  orders: Order[];
+  discounts: Discount[];
+  showCars: ShowCar[];
+  clubs: Club[];
+  traders: Trader[];
+  notifications: Notification[];
+  categoryStats: CategoryStat[];
+  features: EventFeatures;
+}
+
+export type TabKey = "overview" | "orders" | "showcars" | "clubs" | "traders";
+
+export type DetailType = "showcar" | "club" | "trader";
+export type DetailPayload =
+  | { type: "showcar"; data: ShowCar }
+  | { type: "club"; data: Club }
+  | { type: "trader"; data: Trader };

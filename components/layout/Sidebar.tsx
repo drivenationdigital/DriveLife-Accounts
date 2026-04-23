@@ -1,0 +1,148 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState, type ReactNode } from "react";
+import { useUI } from "@/context/UIContext";
+import { cx } from "@/lib/utils";
+import {
+  DashboardIcon,
+  TicketIcon,
+  BookmarkIcon,
+  CalendarIcon,
+  CarIcon,
+  BuildingIcon,
+  SettingsIcon,
+  UserIcon,
+} from "@/components/ui/Icons";
+
+interface NavItemProps {
+  icon: ReactNode;
+  label: string;
+  active?: boolean;
+  badge?: string | number;
+  href?: string;
+  onClick?: () => void;
+}
+
+function NavItem({ icon, label, active, badge, href, onClick }: NavItemProps) {
+  const className = cx("nav-item", active && "active");
+  const content = (
+    <>
+      <span className="nav-icon">{icon}</span>
+      {label}
+      {badge !== undefined && <span className="nav-badge">{badge}</span>}
+    </>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} className={className} onClick={onClick}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <div className={className} onClick={onClick}>
+      {content}
+    </div>
+  );
+}
+
+export function Sidebar() {
+  const { closeSidebar } = useUI();
+  const pathname = usePathname();
+  // Local state for items that don't have routes yet.
+  const [activeKey, setActiveKey] = useState<string>("");
+
+  const handleClick = (key: string) => {
+    setActiveKey(key);
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 900px)").matches
+    ) {
+      closeSidebar();
+    }
+  };
+
+  const isDashboard = pathname === "/";
+  const isEvents =
+    pathname === "/events" || pathname.startsWith("/events/");
+
+  return (
+    <aside className="sidebar">
+      <div className="nav-section">
+        <NavItem
+          icon={<DashboardIcon />}
+          label="Dashboard"
+          href="/"
+          active={isDashboard}
+          onClick={() => handleClick("")}
+        />
+      </div>
+
+      <div className="nav-section">
+        <div className="nav-label">Attending</div>
+        <NavItem
+          icon={<TicketIcon />}
+          label="My Tickets"
+          active={activeKey === "my-tickets"}
+          onClick={() => handleClick("my-tickets")}
+        />
+        <NavItem
+          icon={<BookmarkIcon />}
+          label="Saved Events"
+          active={activeKey === "saved-events"}
+          onClick={() => handleClick("saved-events")}
+        />
+      </div>
+
+      <div className="nav-section">
+        <div className="nav-label">Organising</div>
+        <NavItem
+          icon={<CalendarIcon />}
+          label="My Events"
+          badge="12"
+          href="/events"
+          active={isEvents}
+          onClick={() => handleClick("")}
+        />
+        <NavItem
+          icon={<CarIcon />}
+          label="My Clubs"
+          active={activeKey === "my-clubs"}
+          onClick={() => handleClick("my-clubs")}
+        />
+        <NavItem
+          icon={<BuildingIcon />}
+          label="My Venues"
+          active={activeKey === "my-venues"}
+          onClick={() => handleClick("my-venues")}
+        />
+      </div>
+
+      <div className="nav-divider" />
+
+      <div className="nav-section">
+        <div className="nav-label">Account</div>
+        <NavItem
+          icon={<SettingsIcon />}
+          label="Settings"
+          active={activeKey === "settings"}
+          onClick={() => handleClick("settings")}
+        />
+        <NavItem
+          icon={<UserIcon />}
+          label="My Account"
+          active={activeKey === "account"}
+          onClick={() => handleClick("account")}
+        />
+      </div>
+    </aside>
+  );
+}
+
+export function SidebarOverlay() {
+  const { closeSidebar } = useUI();
+  return <div className="sidebar-overlay" onClick={closeSidebar} />;
+}
