@@ -61,12 +61,22 @@ export type EventDateFilter = 1 | 2;
 export interface OrganiserEventsParams {
   filter_eventtype?: EventTypeFilter;
   filter_eventdate?: EventDateFilter;
+  page?: number;
+  per_page?: number;
+}
+
+export interface PaginationMeta {
+  page: number;
+  per_page: number;
+  total: number;
+  total_pages: number;
+  has_more: boolean;
 }
 
 export interface OrganiserEventsResponse {
   success: true;
-  count: number;
   events: EventRecord[];
+  pagination: PaginationMeta;
   empty_state: EmptyState;
 }
 
@@ -182,6 +192,8 @@ export interface ApiSalesKpis {
   gross_revenue: number;
   total_fees: number;
   net_revenue: number;
+  orders_this_week: number;
+  tickets_sold_recent: number;
 }
 
 export interface ApiOrdersMeta {

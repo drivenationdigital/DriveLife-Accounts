@@ -326,14 +326,20 @@ export function mapEventResponse(resp: EventResponse): EventData {
     event: mapEventDetail(resp.event),
     kpis: {
       totalOrders: sales.kpis.order_count,
-      ordersThisWeek: 0,
+      // Fall back to 0 so older API responses (without these fields) don't
+      // break — once the WP side is deployed this will always be populated.
+      ordersThisWeek: sales.kpis.orders_this_week ?? 0,
       ticketsSold: sales.kpis.ticket_count,
-      ticketsSoldRecent: 0,
+      ticketsSoldRecent: sales.kpis.tickets_sold_recent ?? 0,
       netSales: sales.kpis.net_revenue,
       fees: sales.kpis.total_fees,
     },
     tickets: sales.tickets.map(mapTicket),
     orders: sales.orders.map(mapOrder),
+    // The initial /event response returns ~5 recent orders for the Overview
+    // card — not a full page. Leave pagination null until the Orders tab
+    // fires /event/orders and calls applyOrdersPage().
+    ordersPagination: null,
     discounts: sales.discounts.map(mapDiscount),
     showCars,
     clubs,
@@ -349,21 +355,26 @@ export function mapEventResponse(resp: EventResponse): EventData {
   };
 }
 
-/** Merge newly-fetched orders into existing EventData. */
-export function mergeAdditionalOrders(
+/**
+ * Replace the orders list with a specific paginated page. Unlike the old
+ * `mergeAdditionalOrders`, this doesn't preserve earlier results — each
+ * page is a standalone view.
+ */
+export function applyOrdersPage(
   existing: EventData,
-  newOrders: ApiOrder[]
-): EventData {
-  const mapped = newOrders.map(mapOrder);
-  const seen = new Set(existing.orders.map((o) => o.id));
-  const merged = [...existing.orders];
-  for (const o of mapped) {
-    if (!seen.has(o.id)) {
-      merged.push(o);
-      seen.add(o.id);
-    }
+  newOrders: ApiOrder[],
+  pagination: {
+    page: number;
+    perPage: number;
+    total: number;
+    totalPages: number;
   }
-  return { ...existing, orders: merged };
+): EventData {
+  return {
+    ...existing,
+    orders: newOrders.map(mapOrder),
+    ordersPagination: pagination,
+  };
 }
 
 /** Merge newly-fetched show-cars (dedupes by id). */

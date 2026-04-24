@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { currency, statusPillClass } from "@/lib/utils";
 import {
@@ -15,23 +16,46 @@ import {
   SearchIcon,
   MoreHorizontalIcon,
 } from "@/components/ui/Icons";
+import { Pagination } from "@/components/ui/Pagination";
 
 export function OrdersTab() {
-  const { orders, kpis } = useEventData();
+  const { orders, kpis, ordersPagination } = useEventData();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
-  // Heuristic: if we have fewer orders in context than the KPI total, the
-  // Orders tab's lazy fetch is still in flight.
-  const isLoadingMore = kpis.totalOrders > orders.length;
+  // While the Orders tab's first fetch is in flight, ordersPagination is
+  // null and `orders` still holds the 5 recent orders from the overview
+  // load. Show a subtle loading state in that case.
+  const isFirstLoad = ordersPagination === null;
+
+  const setPage = (next: number) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    if (next <= 1) {
+      params.delete("ordersPage");
+    } else {
+      params.set("ordersPage", String(next));
+    }
+    const qs = params.toString();
+    router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const subtitle = buildSubtitle(
+    ordersPagination,
+    kpis.netSales,
+    isFirstLoad,
+    orders.length
+  );
 
   return (
     <div className="section">
       <div className="section-header">
         <div>
           <div className="section-title">All Orders</div>
-          <div className="section-subtitle">
-            Showing {orders.length} of {kpis.totalOrders} ·{" "}
-            {currency(kpis.netSales)} net sales
-          </div>
+          <div className="section-subtitle">{subtitle}</div>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
           <button type="button" className="btn btn-secondary">
@@ -54,7 +78,13 @@ export function OrdersTab() {
       </div>
 
       <div className="section-body flush">
-        <table className="table">
+        <table
+          className="table"
+          style={{
+            opacity: isFirstLoad ? 0.55 : 1,
+            transition: "opacity 120ms",
+          }}
+        >
           <thead>
             <tr>
               <th>Order</th>
@@ -113,20 +143,35 @@ export function OrdersTab() {
             ))}
           </tbody>
         </table>
-        {isLoadingMore && (
-          <div
-            style={{
-              padding: "14px 24px",
-              color: "var(--muted)",
-              fontSize: 13,
-              textAlign: "center",
-              borderTop: "1px solid var(--border)",
-            }}
-          >
-            Loading more orders…
-          </div>
+
+        {ordersPagination && (
+          <Pagination
+            page={ordersPagination.page}
+            totalPages={ordersPagination.totalPages}
+            onPageChange={setPage}
+          />
         )}
       </div>
     </div>
   );
+}
+
+function buildSubtitle(
+  pagination: { page: number; perPage: number; total: number } | null,
+  netSales: number,
+  isFirstLoad: boolean,
+  fallbackLength: number
+): string {
+  if (isFirstLoad) {
+    return fallbackLength > 0
+      ? `Loading orders · ${currency(netSales)} net sales`
+      : `Loading orders…`;
+  }
+  if (!pagination) return `${currency(netSales)} net sales`;
+
+  const { page, perPage, total } = pagination;
+  if (total === 0) return "No orders yet";
+  const first = (page - 1) * perPage + 1;
+  const last = Math.min(page * perPage, total);
+  return `Showing ${first}–${last} of ${total} · ${currency(netSales)} net sales`;
 }

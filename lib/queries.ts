@@ -40,6 +40,8 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
   const normalised: OrganiserEventsParams = {
     filter_eventtype: params.filter_eventtype ?? 1,
     filter_eventdate: params.filter_eventdate ?? 1,
+    page: params.page ?? 1,
+    per_page: params.per_page ?? 20,
   };
 
   return useQuery<OrganiserEventsResponse>({
@@ -47,6 +49,7 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
     queryFn: () =>
       apiPost<OrganiserEventsResponse>("/organiser-events", normalised),
     staleTime: 30_000,
+    placeholderData: (prev) => prev, // keep last page's data visible while loading the next
   });
 }
 
@@ -87,6 +90,7 @@ export function useEventOrders(
       }),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,
+    placeholderData: (prev) => prev, // keep previous page visible while loading next
   });
 }
 

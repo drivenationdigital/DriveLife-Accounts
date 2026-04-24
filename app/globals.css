@@ -1,6 +1,12 @@
 /* Imported directly into the root layout. Preserves the original CarEvents
  * design system (colour tokens, typography scale, component styles). */
 
+
+ /* import tailwind */
+ @tailwind base;
+ @tailwind components;
+ @tailwind utilities;
+
 :root {
   --font-display: 'Right Grotesk Narrow', 'Barlow Condensed', 'Oswald', ui-sans-serif, system-ui, sans-serif;
   --bg: #f6f3ec;

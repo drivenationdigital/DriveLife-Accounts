@@ -124,6 +124,8 @@ export const mockEventData: EventData = {
     { id: "tr-5", name: "Performance Dynamics",  category: "Tuning",                        pitch: "6m × 3m", power: "Required · 2kW", contactName: "Mike Davies",  contactEmail: "mike@performdynamics.uk",        contactPhone: "+44 7700 667 443", instagram: "@performdynamics",  tiktok: "@performdynamics",  appliedLabel: "Applied 1w ago", status: "approved" },
   ],
 
+  ordersPagination: null,
+
   discounts: [
     {
       id: "d1",

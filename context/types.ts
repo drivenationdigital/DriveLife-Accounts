@@ -120,6 +120,15 @@ export interface CategoryStat {
   capacity: number;
 }
 
+/** Pagination metadata for the orders tab. `null` means we only have the
+ * first N recent orders from the main /event load — not a paginated page. */
+export interface OrdersPagination {
+  page: number;
+  perPage: number;
+  total: number;
+  totalPages: number;
+}
+
 /** Feature flags + counts per section, sourced from the API. */
 export interface FeatureSection {
   enabled: boolean;
@@ -150,6 +159,8 @@ export interface EventData {
   };
   tickets: Ticket[];
   orders: Order[];
+  /** Non-null when the Orders tab's paginated /event/orders has loaded. */
+  ordersPagination: OrdersPagination | null;
   discounts: Discount[];
   showCars: ShowCar[];
   clubs: Club[];
