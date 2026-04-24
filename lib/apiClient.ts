@@ -2,7 +2,7 @@ import { readTokenClient, clearTokenClient } from "./authCookies";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
-  "https://yoursite.com/wp-json/dl-accounts/v1";
+  "https://www.carevents.com/uk/wp-json/dl-accounts/v1";
 
 function buildHeaders(): HeadersInit {
   const headers: Record<string, string> = {
