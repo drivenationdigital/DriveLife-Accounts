@@ -26,6 +26,8 @@ export interface RecurringInfo {
   child_last_dates: string[];
 }
 
+export type EventPricingType = "free" | "ticketed";
+
 export interface EventRecord {
   id: number;
   encrypted_id: string;
@@ -42,6 +44,15 @@ export interface EventRecord {
   is_repeating: boolean;
   is_recurring: boolean;
   recurring: RecurringInfo | null;
+  /** Added by the WP `dl_accounts_event_pricing_type()` helper. May be
+   * absent on responses from older deployments — fall back to "free". */
+  type?: EventPricingType;
+  /** The card UI shows location too; surfaced on list responses when
+   * available. Falls back to undefined for older deployments. */
+  location?: {
+    name: string | null;
+    address: string | null;
+  };
 }
 
 export interface EmptyState {
@@ -63,6 +74,7 @@ export interface OrganiserEventsParams {
   filter_eventdate?: EventDateFilter;
   page?: number;
   per_page?: number;
+  search?: string;
 }
 
 export interface PaginationMeta {
@@ -77,6 +89,7 @@ export interface OrganiserEventsResponse {
   success: true;
   events: EventRecord[];
   pagination: PaginationMeta;
+  search?: string;
   empty_state: EmptyState;
 }
 

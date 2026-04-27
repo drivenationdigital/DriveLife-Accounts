@@ -42,6 +42,8 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
     filter_eventdate: params.filter_eventdate ?? 1,
     page: params.page ?? 1,
     per_page: params.per_page ?? 20,
+    // Empty string treated as no filter — same as omitting it.
+    search: params.search?.trim() || undefined,
   };
 
   return useQuery<OrganiserEventsResponse>({

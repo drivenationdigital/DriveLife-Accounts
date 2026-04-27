@@ -1,181 +1,286 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useOrganiserEvents } from "@/lib/queries";
 import type { EventRecord } from "@/lib/apiTypes";
 import { Pagination } from "@/components/ui/Pagination";
+import { EventCard } from "@/components/event/EventCard";
+import { EventsTableView } from "@/components/event/EventsTableView";
+import {
+  EventGridSkeleton,
+  EventsTableSkeleton,
+} from "@/components/event/EventsSkeleton";
 
 const PER_PAGE = 20;
+const SEARCH_DEBOUNCE_MS = 350;
+
+type TabKey = "active" | "past";
+type ViewKey = "grid" | "table";
 
 export default function MyEventsPage() {
-  // Suspense boundary is required because EventsList reads searchParams.
   return (
-    <Suspense fallback={<LoadingRow />}>
-      <EventsList />
-    </Suspense>
+    <div className="events-page">
+      <Suspense fallback={<LoadingShell />}>
+        <EventsContent />
+      </Suspense>
+    </div>
   );
 }
 
-function EventsList() {
+function EventsContent() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  const tab: TabKey = (searchParams?.get("tab") === "past" ? "past" : "active");
+  const view: ViewKey = (searchParams?.get("view") === "table" ? "table" : "grid");
   const page = Math.max(1, parseInt(searchParams?.get("page") ?? "1", 10) || 1);
+  const urlSearch = searchParams?.get("q") ?? "";
 
-  const { data, isLoading, isError, error, refetch, isFetching, isPlaceholderData } =
-    useOrganiserEvents({
-      filter_eventtype: 1,
-      filter_eventdate: 1,
-      page,
-      per_page: PER_PAGE,
-    });
+  // Local input mirrors the URL on mount, then debounces back to the URL
+  // so we don't push history entries on every keystroke.
+  const [searchInput, setSearchInput] = useState(urlSearch);
+  const lastUrlSearchRef = useRef(urlSearch);
 
-  const setPage = (next: number) => {
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    if (next <= 1) {
-      params.delete("page");
-    } else {
-      params.set("page", String(next));
+  // If the URL changes externally (back button, deep link), sync the input.
+  useEffect(() => {
+    if (urlSearch !== lastUrlSearchRef.current) {
+      lastUrlSearchRef.current = urlSearch;
+      setSearchInput(urlSearch);
     }
+  }, [urlSearch]);
+
+  // Debounce input → URL.
+  useEffect(() => {
+    if (searchInput === urlSearch) return; // already in sync
+    const t = setTimeout(() => {
+      lastUrlSearchRef.current = searchInput;
+      // Pushing search resets to page 1 (different result set).
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      if (searchInput.trim() === "") params.delete("q");
+      else params.set("q", searchInput);
+      params.delete("page");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(t);
+    // We intentionally exclude `router`/`pathname`/`searchParams` from deps:
+    // they're stable enough and we only want this effect firing on input change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchInput, urlSearch]);
+
+  const filterEventDate = tab === "past" ? 2 : 1;
+
+  const {
+    data,
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+    isPlaceholderData,
+  } = useOrganiserEvents({
+    filter_eventtype: 1,
+    filter_eventdate: filterEventDate,
+    page,
+    per_page: PER_PAGE,
+    search: urlSearch,
+  });
+
+  // ── URL helpers ─────────────────────────────────────────────────────
+  const updateParams = (
+    updates: Record<string, string | null>,
+    { keepPage = false }: { keepPage?: boolean } = {}
+  ) => {
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    for (const [k, v] of Object.entries(updates)) {
+      if (v === null || v === "") params.delete(k);
+      else params.set(k, v);
+    }
+    if (!keepPage) params.delete("page");
     const qs = params.toString();
     router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
-    // Scroll to top on page change so the user sees the new page's first row.
+  };
+
+  const setTab = (next: TabKey) => {
+    updateParams({ tab: next === "active" ? null : "past" });
+  };
+  const setView = (next: ViewKey) => {
+    updateParams({ view: next === "grid" ? null : "table" }, { keepPage: true });
+  };
+  const setPage = (next: number) => {
+    updateParams({ page: next <= 1 ? null : String(next) }, { keepPage: true });
     if (typeof window !== "undefined") {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
+  const activeCount = tab === "active" ? data?.pagination.total : undefined;
+  const pastCount = tab === "past" ? data?.pagination.total : undefined;
+
+  const goToEvent = (ev: EventRecord) => {
+    router.push(`/events/${ev.encrypted_id}`);
+  };
+
+  // First-time loading (no data yet) — show skeleton matching the chosen view.
+  // Subsequent loads use placeholderData (previous data dimmed) instead.
+  const showSkeleton = isLoading && !data;
+
   return (
-    <div className="section">
-      <div className="section-header">
-        <div>
-          <div className="section-title">My Events</div>
-          <div className="section-subtitle">{buildSubtitle(data, isLoading, page)}</div>
+    <>
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-title">My Events</h1>
+          <p className="page-sub">Manage all the events you&apos;re organising.</p>
+        </div>
+        <div className="page-header-actions">
+          <button
+            type="button"
+            className="btn-gold"
+            onClick={() => router.push("/events/new")}
+          >
+            <PlusIcon />
+            New Event
+          </button>
         </div>
       </div>
 
-      <div className="section-body flush">
-        {isLoading && <LoadingRow />}
+      <div className="tabs">
+        <button
+          type="button"
+          className={`tab ${tab === "active" ? "active" : ""}`}
+          onClick={() => setTab("active")}
+        >
+          Active Events
+          {activeCount !== undefined && (
+            <span className="tab-count">{activeCount}</span>
+          )}
+        </button>
+        <button
+          type="button"
+          className={`tab ${tab === "past" ? "active" : ""}`}
+          onClick={() => setTab("past")}
+        >
+          Past Events
+          {pastCount !== undefined && (
+            <span className="tab-count">{pastCount}</span>
+          )}
+        </button>
+      </div>
 
-        {isError && (
-          <ErrorRow
-            message={(error as Error)?.message ?? "Failed to load events"}
-            onRetry={() => refetch()}
-            retrying={isFetching}
+      <div className="toolbar">
+        <div className="search-field">
+          <SearchIcon />
+          <input
+            type="search"
+            placeholder="Search events by name…"
+            aria-label="Search events"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
           />
-        )}
+        </div>
+        <div className="view-toggle" role="tablist" aria-label="View mode">
+          <button
+            type="button"
+            className={`view-toggle-btn ${view === "grid" ? "active" : ""}`}
+            onClick={() => setView("grid")}
+            role="tab"
+            aria-selected={view === "grid"}
+          >
+            <GridIcon />
+            <span className="view-label">Grid</span>
+          </button>
+          <button
+            type="button"
+            className={`view-toggle-btn ${view === "table" ? "active" : ""}`}
+            onClick={() => setView("table")}
+            role="tab"
+            aria-selected={view === "table"}
+          >
+            <TableIcon />
+            <span className="view-label">Table</span>
+          </button>
+        </div>
+      </div>
 
-        {data && data.pagination.total === 0 && (
-          <EmptyState
-            title={data.empty_state?.title}
-            content={data.empty_state?.content}
-          />
-        )}
+      {showSkeleton &&
+        (view === "grid" ? <EventGridSkeleton /> : <EventsTableSkeleton />)}
 
-        {data && data.pagination.total > 0 && (
-          <>
-            <EventsTable
+      {isError && (
+        <ErrorState
+          message={(error as Error)?.message ?? "Failed to load events"}
+          onRetry={() => refetch()}
+          retrying={isFetching}
+        />
+      )}
+
+      {data && data.pagination.total === 0 && (
+        <EmptyState
+          title={
+            urlSearch ? "No matches" : data.empty_state?.title
+          }
+          content={
+            urlSearch
+              ? `No events match "${urlSearch}".`
+              : data.empty_state?.content
+          }
+          tab={tab}
+        />
+      )}
+
+      {data && data.pagination.total > 0 && (
+        <>
+          {view === "grid" ? (
+            <div
+              className="event-grid"
+              style={{
+                opacity: isPlaceholderData ? 0.55 : 1,
+                transition: "opacity 120ms",
+              }}
+            >
+              {data.events.map((ev) => (
+                <EventCard key={ev.id} event={ev} onClick={goToEvent} />
+              ))}
+            </div>
+          ) : (
+            <EventsTableView
               events={data.events}
+              onRowClick={goToEvent}
               dimmed={isPlaceholderData}
-              onRowClick={(ev) => router.push(`/events/${ev.encrypted_id}`)}
             />
+          )}
+
+          <div style={{ marginTop: 24 }}>
             <Pagination
               page={data.pagination.page}
               totalPages={data.pagination.total_pages}
               onPageChange={setPage}
               disabled={isFetching}
             />
-          </>
-        )}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+// ─── States ─────────────────────────────────────────────────────────────
+
+function LoadingShell() {
+  return (
+    <>
+      <div className="page-header">
+        <div className="page-header-text">
+          <h1 className="page-title">My Events</h1>
+          <p className="page-sub">Loading…</p>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 
-function buildSubtitle(
-  data: { pagination: { total: number; page: number; per_page: number } } | undefined,
-  isLoading: boolean,
-  page: number
-): string {
-  if (isLoading) return "Loading…";
-  if (!data) return "";
-  const { total, per_page } = data.pagination;
-  if (total === 0) return "0 events";
-  const first = (page - 1) * per_page + 1;
-  const last = Math.min(page * per_page, total);
-  return `Showing ${first}–${last} of ${total} event${total === 1 ? "" : "s"}`;
-}
-
-// ─── Table ────────────────────────────────────────────────────────────
-
-function EventsTable({
-  events,
-  onRowClick,
-  dimmed,
-}: {
-  events: EventRecord[];
-  onRowClick: (ev: EventRecord) => void;
-  dimmed?: boolean;
-}) {
-  return (
-    <table
-      className="table"
-      style={{ opacity: dimmed ? 0.55 : 1, transition: "opacity 120ms" }}
-    >
-      <thead>
-        <tr>
-          <th>Event</th>
-          <th>Date</th>
-          <th>Status</th>
-          <th>Type</th>
-        </tr>
-      </thead>
-      <tbody>
-        {events.map((ev) => (
-          <tr
-            key={ev.id}
-            onClick={() => onRowClick(ev)}
-            style={{ cursor: "pointer" }}
-          >
-            <td>
-              <div className="customer-name">
-                {ev.is_pinned && (
-                  <span style={{ color: "var(--gold)", marginRight: 6 }}>★</span>
-                )}
-                {ev.title}
-              </div>
-            </td>
-            <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
-              {formatDateCell(ev)}
-            </td>
-            <td>
-              <span className={`pill capitalize ${pillForStatus(ev.post_status)}`}>
-                {ev.post_status}
-              </span>
-            </td>
-            <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
-              {ev.post_type === "club_events" ? "Club event" : "Event"}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  );
-}
-
-// ─── State rows ───────────────────────────────────────────────────────
-
-function LoadingRow() {
-  return (
-    <div style={{ padding: 40, textAlign: "center", color: "var(--muted)" }}>
-      Loading your events…
-    </div>
-  );
-}
-
-function ErrorRow({
+function ErrorState({
   message,
   onRetry,
   retrying,
@@ -185,7 +290,7 @@ function ErrorRow({
   retrying: boolean;
 }) {
   return (
-    <div style={{ padding: 40, textAlign: "center" }}>
+    <div style={{ padding: 60, textAlign: "center" }}>
       <div style={{ color: "var(--danger)", marginBottom: 12 }}>{message}</div>
       <button
         type="button"
@@ -202,63 +307,112 @@ function ErrorRow({
 function EmptyState({
   title,
   content,
+  tab,
 }: {
   title?: string;
   content?: string;
+  tab: TabKey;
 }) {
+  const fallbackTitle =
+    tab === "active" ? "No active events" : "No past events";
   return (
-    <div style={{ padding: 40, textAlign: "center" }}>
-      <h3
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: 20,
-          marginBottom: 8,
-        }}
-      >
-        {title || "No events yet"}
-      </h3>
-      <p style={{ color: "var(--muted)" }}>
-        {content || "Create your first event to get started."}
+    <div className="empty-state">
+      <div className="empty-state-icon">
+        <CalendarIcon />
+      </div>
+      <h3>{title || fallbackTitle}</h3>
+      <p>
+        {content ||
+          (tab === "active"
+            ? "Create your first event to get started."
+            : "Past events will show up here once they're done.")}
       </p>
     </div>
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────
+// ─── Icons ────────────────────────────────────────────────────────────
 
-function formatDateCell(ev: EventRecord): string {
-  if (ev.is_recurring && ev.recurring) return ev.recurring.display || "Recurring";
-
-  const first = ev.first_date?.start_date;
-  const last = ev.last_date?.end_date ?? ev.last_date?.start_date;
-  if (!first) return "—";
-
-  if (!last || first === last) return formatDate(first);
-  return `${formatDate(first)} — ${formatDate(last)}`;
+function PlusIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+    >
+      <line x1="12" y1="5" x2="12" y2="19" />
+      <line x1="5" y1="12" x2="19" y2="12" />
+    </svg>
+  );
 }
 
-function formatDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+function SearchIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
 }
 
-function pillForStatus(postStatus: string): "paid" | "pending" | "refunded" {
-  switch (postStatus) {
-    case "publish":
-      return "paid";
-    case "future":
-    case "draft":
-      return "pending";
-    case "cancelled":
-      return "refunded";
-    default:
-      return "pending";
-  }
+function GridIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function TableIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <line x1="3" y1="6" x2="21" y2="6" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <line x1="3" y1="18" x2="21" y2="18" />
+    </svg>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <line x1="16" y1="2" x2="16" y2="6" />
+      <line x1="8" y1="2" x2="8" y2="6" />
+      <line x1="3" y1="10" x2="21" y2="10" />
+    </svg>
+  );
 }
