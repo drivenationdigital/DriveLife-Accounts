@@ -421,3 +421,167 @@ export interface MeResponse {
   success: true;
   user: AuthUser;
 }
+
+// ============================================================
+// Load event for editing — GET /event-edit?eid=...
+// ============================================================
+//
+// Mirrors the response shape from dl-accounts-event-edit.php.
+// Field names match the PHP keys exactly; the FE-side mapper in
+// lib/eventMapper.ts converts these to the editor's
+// EventCreateState shape (camelCase, branded ids, enum unions).
+
+/** Single date pair from the ACF `event_dates` repeater. Times are
+ *  HH:MM strings; "00:00" is the default placeholder when no time
+ *  has been set. `exclude_time` is per-row in storage but the legacy
+ *  UI only exposes an event-wide checkbox. */
+export interface ApiEventDateRow {
+  start_date: string;   // "YYYY-MM-DD" or ""
+  end_date: string;
+  start_time: string;   // "HH:MM" or ""
+  end_time: string;
+  exclude_time: boolean;
+}
+
+export interface ApiEventRecurring {
+  /** "week" | "month" | "custom". Stored as string to round-trip
+   *  any future modes without breaking the type. */
+  type: string;
+  /** Day of the week for `type=week` — "monday" | … | "sunday". */
+  week: string;
+  /** "first_sunday" etc for `type=month`. May be a slug or a label
+   *  depending on legacy save state — FE mapper handles both. */
+  month: string;
+  /** Pairs with the "Repeat until cancelled" checkbox. */
+  repeat_until_cancelled: boolean;
+}
+
+/** Raw ticket row from the cc_tickets custom table. Many columns are
+ *  null/optional because the table is shared between tickets,
+ *  sections, and upsells. The mapper picks out the bits the editor
+ *  needs for each kind. */
+export interface ApiEventTicket {
+  ID: string;
+  event_id: string;
+  ticket_id: string;
+  encrypted_ticket_id: string;
+  name: string;
+  price: string;
+  stock: string;
+  stock_sold: string | null;
+  stock_status: string;
+  product_image: string;
+  product_image_thumbnail: string;
+  product_status: string; // 'publish' | 'draft' | 'trash' (trash filtered server-side)
+  visibility: string;
+  description: string;
+  // Booleans normalised server-side from "0"/"1"/null.
+  ticket_section: boolean;
+  contact_details_required: boolean;
+  car_details_required: boolean;
+  concours: boolean;
+  request_attendance_details: boolean;
+  request_vehicle_photo: boolean;
+  request_car_club: boolean;
+  hidden_ticket: boolean;
+  secret_code_ticket: boolean;
+  secret_code: string;
+  // Date strings: "YYYY-MM-DD HH:MM:SS" or null.
+  ticket_date_start: string | null;
+  ticket_date_end: string | null;
+  display_order: string | null;
+  max_tickets: string;
+  limit_per_order: string;
+  // Upsell-only columns; usually null on plain tickets.
+  upsell_item: string | null;
+  upsell_image: string;
+  category_id: string | null;
+  collection_delivery: string | null;
+  collection_information: string | null;
+  required_tickets: string | null;
+  discount_code: string | null;
+  secondary_email: string;
+}
+
+/** Raw discount/coupon row. */
+export interface ApiEventDiscount {
+  ID: string;
+  encrypted_id: string;
+  event_id: string;
+  coupon_code: string;
+  start_date: string | null; // "YYYY-MM-DD HH:MM:SS"
+  end_date: string | null;
+  status: string;            // "active" | "inactive" | other
+  discount_amount: string;
+  discount_type: string;     // "percentage" | "fixed" | …
+  /** Comma-separated ticket_id values. */
+  allowed_products: string;
+  max_usage_per_coupon: string;
+  max_usage_per_user: string;
+  max_products_per_basket: string;
+}
+
+export interface ApiEventEditResponse {
+  success: true;
+  event_id: number;
+  encrypted_id: string;
+  post_type: string;
+  host: {
+    club?: string;
+    venue?: string;
+    organisation?: string;
+  };
+  basics: {
+    title: string;
+    category_ids: number[];
+    location: string;
+    location_coords: { lat: number; lng: number } | null;
+  };
+  dates: {
+    timezone: string;
+    is_recurring: boolean;
+    is_recurring_child: boolean;
+    recurring_parent_id: string | null;
+    date_rows: ApiEventDateRow[];
+    is_multi_day: boolean;
+    is_multi_timeslot: boolean;
+    exclude_time: boolean;
+    recurring: ApiEventRecurring | null;
+  };
+  description: {
+    description: string;
+    website_url: string;
+    public_email: string;
+    public_phone: string;
+    facebook_url: string;
+    instagram_url: string;
+    tiktok_url: string;
+  };
+  media: {
+    cover_image: string | null;
+    gallery: string[];
+  };
+  tickets: {
+    ticket_type: 1 | 2 | 3;        // 1=none, 2=CE, 3=external
+    pass_fees_to_customer: 0 | 1;  // 1=pass, 0=absorb
+    show_attendees: boolean;
+    requires_registration: boolean;
+    entry_details: string;
+    external_tickets_url: string;
+    external_entry_details: string;
+    event_tickets_information: string;
+    ticket_terms_and_conditions: string;
+    on_the_gate: boolean;
+    on_gate_details: string;
+    tickets: ApiEventTicket[];
+  };
+  discounts: ApiEventDiscount[];
+  publish: {
+    /** Raw WP status — FE mapper converts to draft/published/scheduled. */
+    status: string;
+    scheduled_date: string | null; // "YYYY-MM-DD" when status='future'
+    scheduled_time: string | null; // "HH:MM"
+    visibility: 1 | 2;             // 1=public, 2=private
+    permalink: string;
+  };
+}

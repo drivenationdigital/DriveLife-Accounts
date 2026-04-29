@@ -138,7 +138,7 @@ function EventsContent() {
           <button
             type="button"
             className="btn-gold"
-            onClick={() => router.push("/events/new")}
+            onClick={() => router.push("/events/create")}
           >
             <PlusIcon />
             New Event

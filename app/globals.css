@@ -1,3 +1,77 @@
+/* ============================================================
+ * Tailwind CSS v4 — selective import (no preflight)
+ * ============================================================
+ *
+ * v4 splits its bundle into three pieces that we import individually:
+ *   - tailwindcss/theme      → the CSS-variable theme (default colors,
+ *                              spacing scale, etc.)
+ *   - tailwindcss/preflight  → opinionated reset (zeroes h1 margins,
+ *                              ul list-style, button styles, …)
+ *                              SKIPPED — the existing CarEvents design
+ *                              system below assumes browser defaults.
+ *   - tailwindcss/utilities  → all the utility classes (bg-*, text-*,
+ *                              flex, lg:hidden, etc.)
+ *
+ * The `@layer` declaration line establishes layer order so utilities
+ * still win the cascade over any unlayered design-system rules — this
+ * is the v4 equivalent of v3's `corePlugins.preflight = false`.
+ *
+ * `@source` directives use explicit ts/tsx globs rather than bare
+ * folder paths. v4 auto-detects most files via the import graph, but
+ * explicit globs guarantee that route-group folders like
+ * `app/(editor)/` (where the parens can interfere with implicit
+ * scanning) are picked up. */
+@layer theme, base, components, utilities;
+
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
+@source "../app/**/*.{ts,tsx}";
+@source "../components/**/*.{ts,tsx}";
+@source "../context/**/*.{ts,tsx}";
+@source "../lib/**/*.{ts,tsx}";
+
+/* ============================================================
+ * Custom theme tokens
+ * ============================================================
+ *
+ * v4 reads CSS variables under `@theme` and turns them into utility
+ * classes automatically — `--color-gold-500` becomes `bg-gold-500`,
+ * `text-gold-500`, `border-gold-500`, etc. Same for `--font-*`.
+ *
+ * The `gold-*` and `ink-*` palettes match the design tokens used in
+ * the event-create mockup (Caffeine & Machine warm gold + neutral
+ * grayscale). The default Tailwind palette is preserved alongside —
+ * `bg-emerald-500`, `bg-white`, etc. all still work. */
+@theme {
+  --color-gold-50:  #fdfaf3;
+  --color-gold-100: #f7eed6;
+  --color-gold-200: #ecd9a4;
+  --color-gold-300: #dcbd72;
+  --color-gold-400: #cba75f;
+  --color-gold-500: #b89855;
+  --color-gold-600: #9a7f45;
+  --color-gold-700: #7a6538;
+  --color-gold-800: #5c4c2b;
+  --color-gold-900: #3e331d;
+
+  --color-ink-50:  #fafafa;
+  --color-ink-100: #f1f1f1;
+  --color-ink-200: #e5e5e5;
+  --color-ink-300: #b8b8b8;
+  --color-ink-400: #8a8a8a;
+  --color-ink-500: #5c5c5c;
+  --color-ink-700: #292929;
+  --color-ink-900: #0f0f0f;
+
+  /* font-display — the fallback chain ends in Barlow Condensed, which
+   * the root layout actually loads via Google Fonts. So users without
+   * the proprietary Right Grotesk / Archivo Narrow installed locally
+   * still get a narrow display style for headings. */
+  --font-display: "Right Grotesk Narrow", "Archivo Narrow",
+    "Barlow Condensed", "Oswald", ui-sans-serif, system-ui, sans-serif;
+}
+
 /* Imported directly into the root layout. Preserves the original CarEvents
  * design system (colour tokens, typography scale, component styles). */
 
@@ -34,20 +108,34 @@
   --shadow: 0 1px 3px rgba(22, 21, 19, 0.06), 0 1px 2px rgba(22, 21, 19, 0.04);
   --shadow-lg: 0 4px 14px rgba(22, 21, 19, 0.08), 0 2px 4px rgba(22, 21, 19, 0.04);
 }
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { min-height: 100%; }
-body {
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
-  background: var(--bg);
-  color: var(--ink);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+/* Base reset — placed inside `@layer base` so Tailwind utility classes
+ * (which live in `@layer utilities`) can win over it. Without the layer
+ * wrapper, these rules are unlayered, and unlayered rules always beat
+ * any layered rule regardless of specificity. That meant `.px-4` and
+ * `.bg-gold-500` got struck through in DevTools because shorthand
+ * `padding:` and `background:` from `*` and `button` here were winning.
+ *
+ * The layer order declared at the top of this file is:
+ *   theme, base, components, utilities
+ * so `base` is below `utilities` in the cascade and gets overridden by
+ * any utility class. Dashboard pages that don't use utility classes are
+ * unaffected — there's nothing competing with the reset there. */
+@layer base {
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { min-height: 100%; }
+  body {
+    font-family: 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  a { color: inherit; text-decoration: none; }
+  ul { list-style: none; }
 }
-button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
-a { color: inherit; text-decoration: none; }
-ul { list-style: none; }
 
 /* ============ TOP BAR ============ */
 .topbar {
@@ -1728,4 +1816,51 @@ ul { list-style: none; }
 }
 .events-page .skeleton-row td {
   pointer-events: none;
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+   Generic skeleton primitives — usable anywhere in the app.
+   The `.events-page .skeleton-shimmer` selector above was page-scoped;
+   this one is global. Same animation, same look.
+   ───────────────────────────────────────────────────────────────────── */
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bg-2) 0%,
+    var(--surface) 50%,
+    var(--bg-2) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Event view (detail page) skeleton — coarse hero + tab strip + content
+   block. Doesn't try to mimic individual KPI cards / tables, so it
+   doesn't drift when the content changes. */
+
+.event-skeleton-hero {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
+  margin-bottom: 18px;
+}
+.event-skeleton-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+  padding-bottom: 14px;
+}
+.event-skeleton-content {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 28px;
 }

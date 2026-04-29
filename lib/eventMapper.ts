@@ -125,6 +125,7 @@ function mapEventDetail(core: ApiEventCore): EventDetail {
     location: locationParts.join(", ") || "—",
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
+    encryptedId: core.encrypted_id,
   };
 }
 

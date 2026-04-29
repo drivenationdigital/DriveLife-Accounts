@@ -1,0 +1,336 @@
+"use client";
+
+import { useState } from "react";
+
+import { type Ticket, type TicketId } from "@/context/EventCreateContext";
+import { formatEditorDate } from "@/lib/formatEditorDate";
+import { makeLocalId } from "@/lib/makeLocalId";
+
+import { EditorDrawer } from "./EditorDrawer";
+import { FullScreenDatePicker } from "./FullScreenDatePicker";
+
+/**
+ * Ticket add/edit drawer.
+ *
+ * State seeding pattern:
+ *   - All form fields are seeded via `useState(() => …)` from the
+ *     `editing` prop at mount time. No `useEffect` re-syncs state.
+ *   - The parent (TicketsPanel) passes a `key` that changes per open
+ *     so this component fully unmounts/remounts each time, giving
+ *     fresh initial values without effect-driven cascades.
+ *
+ * The two date fields share a single `FullScreenDatePicker`,
+ * switched via the same `pickerTarget` discriminated union pattern
+ * used in DatesPanel.
+ */
+type DateTarget = "saleStart" | "saleEnd";
+
+export function TicketDrawer({
+  open,
+  editing,
+  onClose,
+  onSave,
+  onRemove,
+}: {
+  open: boolean;
+  editing: Ticket | null;
+  onClose: () => void;
+  onSave: (ticket: Ticket) => void;
+  onRemove: (id: TicketId) => void;
+}) {
+  // Numeric inputs are stored as strings so the user can clear them
+  // without React turning empty into NaN. We parse on save.
+  const [name, setName] = useState(() => editing?.name ?? "");
+  const [additionalInfo, setAdditionalInfo] = useState(
+    () => editing?.additionalInfo ?? "",
+  );
+  const [quantity, setQuantity] = useState(() =>
+    editing && Number.isFinite(editing.quantity)
+      ? String(editing.quantity)
+      : "",
+  );
+  const [price, setPrice] = useState(() =>
+    editing && Number.isFinite(editing.price) ? String(editing.price) : "",
+  );
+  const [limitPerOrder, setLimitPerOrder] = useState(() =>
+    editing && Number.isFinite(editing.limitPerOrder)
+      ? String(editing.limitPerOrder)
+      : "",
+  );
+  const [saleStart, setSaleStart] = useState<string | null>(
+    () => editing?.saleStart ?? null,
+  );
+  const [saleEnd, setSaleEnd] = useState<string | null>(
+    () => editing?.saleEnd ?? null,
+  );
+  const [requireCarDetails, setRequireCarDetails] = useState(
+    () => editing?.requireCarDetails ?? false,
+  );
+  const [requireCarClubName, setRequireCarClubName] = useState(
+    () => editing?.requireCarClubName ?? false,
+  );
+  const [individualAttendeeDetails, setIndividualAttendeeDetails] = useState(
+    () => editing?.individualAttendeeDetails ?? false,
+  );
+  const [requestVehiclePhoto, setRequestVehiclePhoto] = useState(
+    () => editing?.requestVehiclePhoto ?? false,
+  );
+  const [isSecret, setIsSecret] = useState(() => editing?.isSecret ?? false);
+
+  const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
+
+  const handleSave = () => {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const id = editing?.id ?? (makeLocalId("tkt") as TicketId);
+    const ticket: Ticket = {
+      kind: "ticket",
+      id,
+      name: trimmed,
+      additionalInfo: additionalInfo.trim(),
+      quantity: Math.max(0, parseFloat(quantity)),
+      price: Math.max(0, parseFloat(price)),
+      limitPerOrder: parseFloat(limitPerOrder),
+      saleStart,
+      saleEnd,
+      requireCarDetails,
+      requireCarClubName,
+      individualAttendeeDetails,
+      requestVehiclePhoto,
+      isSecret,
+    };
+    onSave(ticket);
+    onClose();
+  };
+
+  const renderDateField = (target: DateTarget, value: string | null) => (
+    <button
+      type="button"
+      className={`date-field ${value ? "" : "is-empty"}`}
+      onClick={() => setPickerTarget(target)}
+    >
+      <i className="fa-regular fa-calendar df-icon" aria-hidden />
+      <span className="df-display">
+        {value ? formatEditorDate(value) : "Select date"}
+      </span>
+      <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
+    </button>
+  );
+
+  return (
+    <>
+      <EditorDrawer
+        open={open}
+        onClose={onClose}
+        eyebrow="Ticket"
+        title={editing ? "Edit ticket" : "Add ticket"}
+        footer={
+          <>
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 rounded-lg transition"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={!name.trim()}
+              className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
+            >
+              {editing ? "Save changes" : "Save ticket"}
+            </button>
+            {editing && (
+              <button
+                type="button"
+                onClick={() => {
+                  onRemove(editing.id);
+                  onClose();
+                }}
+                aria-label="Delete ticket"
+                className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center shrink-0"
+              >
+                <i className="fa-solid fa-trash text-sm" aria-hidden />
+              </button>
+            )}
+          </>
+        }
+      >
+        <div>
+          <label className="block text-sm font-semibold text-ink-900 mb-2">
+            Ticket name <span className="text-gold-600">*</span>
+          </label>
+          <input
+            type="text"
+            className="input"
+            placeholder="e.g. Early Bird Entry"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            autoFocus
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-ink-900 mb-2">
+            Additional information
+          </label>
+          <textarea
+            rows={2}
+            className="textarea"
+            placeholder="What's included? Any special terms?"
+            value={additionalInfo}
+            onChange={(e) => setAdditionalInfo(e.target.value)}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+              Quantity
+            </label>
+            <input
+              type="number"
+              inputMode="numeric"
+              className="input"
+              placeholder="100"
+              value={quantity}
+              onChange={(e) => setQuantity(e.target.value)}
+              min={0}
+            />
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+              Price (£)
+            </label>
+            <input
+              type="number"
+              inputMode="decimal"
+              step="0.01"
+              className="input"
+              placeholder="0.00"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              min={0}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+              On sale from
+            </label>
+            {renderDateField("saleStart", saleStart)}
+          </div>
+          <div>
+            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+              On sale until
+            </label>
+            {renderDateField("saleEnd", saleEnd)}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+            Limit per order
+          </label>
+          <input
+            type="number"
+            inputMode="numeric"
+            className="input"
+            placeholder="e.g. 4"
+            value={limitPerOrder}
+            onChange={(e) => setLimitPerOrder(e.target.value)}
+            min={1}
+          />
+        </div>
+
+        <div className="pt-3 border-t border-ink-200">
+          <p className="text-sm font-semibold text-ink-900 mb-3">
+            Extra requirements
+          </p>
+          <div className="space-y-2">
+            <RequirementToggle
+              title="Require car details"
+              description="Make, model & registration"
+              checked={requireCarDetails}
+              onChange={setRequireCarDetails}
+            />
+            <RequirementToggle
+              title="Require car club name"
+              checked={requireCarClubName}
+              onChange={setRequireCarClubName}
+            />
+            <RequirementToggle
+              title="Individual attendee details"
+              description="Collect info per ticketholder"
+              checked={individualAttendeeDetails}
+              onChange={setIndividualAttendeeDetails}
+            />
+            <RequirementToggle
+              title="Request vehicle photo"
+              checked={requestVehiclePhoto}
+              onChange={setRequestVehiclePhoto}
+            />
+            <RequirementToggle
+              title="Secret ticket"
+              description="Only accessible via code"
+              checked={isSecret}
+              onChange={setIsSecret}
+            />
+          </div>
+        </div>
+      </EditorDrawer>
+
+      {/* Datepicker shared between both date fields. The drawer's own
+          portal stacks z-50; the picker's overlay stacks z-60 so it
+          sits above the drawer correctly. */}
+      <FullScreenDatePicker
+        open={pickerTarget !== null}
+        title={pickerTarget === "saleStart" ? "On sale from" : "On sale until"}
+        value={
+          pickerTarget === "saleStart"
+            ? saleStart
+            : pickerTarget === "saleEnd"
+              ? saleEnd
+              : null
+        }
+        onClose={() => setPickerTarget(null)}
+        onChange={(next) => {
+          if (pickerTarget === "saleStart") setSaleStart(next);
+          else if (pickerTarget === "saleEnd") setSaleEnd(next);
+        }}
+      />
+    </>
+  );
+}
+
+function RequirementToggle({
+  title,
+  description,
+  checked,
+  onChange,
+}: {
+  title: string;
+  description?: string;
+  checked: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 p-3 bg-ink-50 rounded-lg cursor-pointer">
+      <div>
+        <p className="text-sm font-medium text-ink-900">{title}</p>
+        {description && <p className="text-xs text-ink-500">{description}</p>}
+      </div>
+      <span className="switch">
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onChange(e.target.checked)}
+        />
+        <span className="slider" />
+      </span>
+    </label>
+  );
+}

@@ -1,0 +1,906 @@
+/* Custom CSS for the event-create editor.
+ *
+ * Tailwind handles layout/spacing/typography. This file covers the bits
+ * that don't translate cleanly to utilities: form controls with focus
+ * rings + iOS quirks, custom checkboxes, the sidebar/tab pseudo-element
+ * underlines and number badges, and the panel fade-in.
+ *
+ * All rules are name-scoped (`.input`, `.cb-label`, `.side-tab`, etc.)
+ * — the editor pages live in the (editor) route group and import this
+ * file via the layout, so no global pollution. */
+
+/* ------------------------------------------------------------------
+ * Display font — match the original mockup's typographic feel.
+ *
+ * Tailwind v4 generates `.font-display` from the `--font-display`
+ * theme token, but only sets `font-family`. The original mockup
+ * also applied weight 700, condensed stretch (so the narrow font
+ * variant is selected when available), tighter tracking, and all-
+ * caps. We layer those on here, scoped under `.event-editor` so the
+ * rule doesn't leak into the existing dashboard pages — they may
+ * use `.font-display` too and don't want their headings forced into
+ * uppercase. */
+.event-editor .font-display {
+  font-weight: 700;
+  font-stretch: condensed;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------------
+ * Utility — hide scrollbars for the horizontal mobile tab bar.
+ * Touch-action / overscroll keep horizontal scroll snappy on mobile
+ * without rubber-banding the page. */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  scrollbar-width: none;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ------------------------------------------------------------------
+ * Panel fade-in. React swaps the panel by mounting/unmounting; the
+ * `is-active` class is applied immediately on mount, triggering the
+ * keyframes. */
+.panel {
+  display: none;
+}
+.panel.is-active {
+  display: block;
+  animation: panelIn 0.28s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes panelIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ------------------------------------------------------------------
+ * Form fields. Explicit CSS rather than @apply — keeps these portable
+ * if we ever swap CSS pipelines. */
+.input,
+.textarea,
+.select {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: #0f0f0f;
+  font-size: 15px;
+  line-height: 1.4;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  font-family: inherit;
+}
+.textarea {
+  padding: 14px;
+  resize: vertical;
+}
+.input::placeholder,
+.textarea::placeholder {
+  color: #8a8a8a;
+}
+.input:focus,
+.textarea:focus,
+.select:focus {
+  outline: none;
+  border-color: #b89855;
+  box-shadow: 0 0 0 4px rgba(184, 152, 85, 0.14);
+}
+.select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1L6 6L11 1' stroke='%238a8a8a' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 2.25rem;
+}
+/* Reserves space for an absolutely positioned icon at left-4 (≈16px). */
+.input.has-icon {
+  padding-left: 2.75rem;
+}
+
+/* iOS Safari fix — native time/date controls have an internal min-width
+ * inside their shadow DOM that can overflow a 100%-width container.
+ * Neutralising -webkit-appearance removes that inner chrome while keeping
+ * the native picker UX intact. font-size:16px prevents the iOS auto-zoom
+ * on focus that triggers below 16px. */
+input[type="time"],
+input[type="date"],
+input[type="datetime-local"] {
+  -webkit-appearance: none;
+  appearance: none;
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  width: 100%;
+  font-size: 16px;
+  font-family: inherit;
+  line-height: 1.4;
+}
+input[type="time"]::-webkit-date-and-time-value,
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
+/* ------------------------------------------------------------------
+ * Mobile horizontal tab bar — `.tab` is the button, `.tab-num` is the
+ * little numbered badge. Active tab gets a gold underline drawn via
+ * ::after so it slides cleanly. */
+.tab {
+  position: relative;
+  white-space: nowrap;
+}
+.tab.is-active {
+  color: #0f0f0f;
+}
+.tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: -1px;
+  height: 2px;
+  background: #b89855;
+  border-radius: 2px;
+}
+.tab-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f1f1;
+  color: #5c5c5c;
+  transition: all 0.2s;
+}
+.tab.is-active .tab-num {
+  background: #b89855;
+  color: #fff;
+}
+.tab.is-complete .tab-num {
+  background: #0f0f0f;
+  color: #fff;
+}
+.tab.is-complete .tab-num::before {
+  content: "\f00c";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 10px;
+}
+.tab.is-complete .tab-num .num-text {
+  display: none;
+}
+
+/* ------------------------------------------------------------------
+ * Chips (used in segmented selectors throughout panels). Active state
+ * tightens left padding to make room for the check icon. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  color: #292929;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+.chip:hover {
+  border-color: #dcbd72;
+}
+.chip.is-active {
+  background: #fdfaf3;
+  border-color: #b89855;
+  color: #5c4c2b;
+  padding-left: 10px;
+}
+.chip .check {
+  display: none;
+  width: 14px;
+  height: 14px;
+  color: #b89855;
+}
+.chip.is-active .check {
+  display: inline-block;
+}
+
+/* ------------------------------------------------------------------
+ * Custom checkbox — the native input is visually hidden, the .cb-box
+ * span is the visible affordance. We use input:checked + .cb-box to
+ * paint the gold fill + drawn-with-borders tick mark. */
+.cb-label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  cursor: pointer;
+  user-select: none;
+}
+.cb-label input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+.cb-box {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  border: 1.5px solid #d4d4d4;
+  background: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.cb-label:hover .cb-box {
+  border-color: #b89855;
+}
+.cb-label input:focus-visible + .cb-box {
+  box-shadow: 0 0 0 3px rgba(184, 152, 85, 0.25);
+}
+.cb-label input:checked + .cb-box {
+  background: #b89855;
+  border-color: #b89855;
+}
+.cb-label input:checked + .cb-box::after {
+  content: "";
+  width: 10px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(0, -1px);
+}
+.cb-label .cb-text {
+  font-size: 14px;
+  color: #292929;
+  line-height: 1.3;
+}
+.cb-label:hover .cb-text {
+  color: #0f0f0f;
+}
+
+/* ------------------------------------------------------------------
+ * Date field trigger — a button styled to look like an input, opens
+ * the fullscreen datepicker. */
+.date-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 16px 20px;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  font-size: 15px;
+  color: #0f0f0f;
+  transition: all 0.15s;
+}
+.date-field:hover {
+  border-color: #cba75f;
+}
+.date-field:focus {
+  outline: none;
+  border-color: #b89855;
+  box-shadow: 0 0 0 4px rgba(184, 152, 85, 0.14);
+}
+.date-field .df-icon {
+  color: #8a8a8a;
+}
+.date-field .df-display {
+  flex: 1;
+}
+.date-field.is-empty .df-display {
+  color: #8a8a8a;
+}
+.date-field .df-chev {
+  color: #b8b8b8;
+  font-size: 11px;
+}
+
+/* ------------------------------------------------------------------
+ * Fullscreen datepicker overlay. Mobile: full-screen sheet. Desktop:
+ * centred dialog with rounded corners + max-width. */
+.fsdp-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(15, 15, 15, 0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  animation: fsdpIn 0.22s ease-out;
+}
+@keyframes fsdpIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.fsdp-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  animation: fsdpSlide 0.28s cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+@keyframes fsdpSlide {
+  from {
+    transform: translateY(16px);
+    opacity: 0.85;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+@media (min-width: 640px) {
+  .fsdp-overlay {
+    padding: 2.5rem;
+    align-items: center;
+    justify-content: center;
+  }
+  .fsdp-panel {
+    flex: 0 1 auto;
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 5rem);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.25);
+  }
+}
+.fsdp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px;
+  border-bottom: 1px solid #e5e5e5;
+}
+.fsdp-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px 24px;
+  display: flex;
+  flex-direction: column;
+}
+.fsdp-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0 20px;
+}
+.fsdp-month-label {
+  font-family: "Right Grotesk Narrow", "Archivo Narrow", system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  color: #0f0f0f;
+  letter-spacing: -0.005em;
+  text-transform: uppercase;
+}
+.fsdp-nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  border: 1px solid #e5e5e5;
+  background: #fff;
+  color: #292929;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+}
+.fsdp-nav-btn:hover {
+  border-color: #b89855;
+  color: #b89855;
+}
+.fsdp-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  margin-bottom: 6px;
+}
+.fsdp-weekday {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8a8a8a;
+  text-align: center;
+  padding: 8px 0;
+}
+.fsdp-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.fsdp-day {
+  aspect-ratio: 1/1;
+  max-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: #292929;
+  border-radius: 10px;
+  transition: all 0.12s;
+}
+.fsdp-day:hover:not(.is-muted):not(.is-selected) {
+  background: #fdfaf3;
+  color: #5c4c2b;
+}
+.fsdp-day.is-muted {
+  color: #d4d4d4;
+}
+.fsdp-day.is-today {
+  box-shadow: inset 0 0 0 1.5px #b89855;
+  color: #5c4c2b;
+}
+.fsdp-day.is-selected {
+  background: #b89855 !important;
+  color: #fff !important;
+  box-shadow: none;
+}
+.fsdp-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border-top: 1px solid #e5e5e5;
+  background: #fafafa;
+}
+.fsdp-quickbtn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  color: #5c5c5c;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.fsdp-quickbtn:hover {
+  color: #0f0f0f;
+  background: #fff;
+}
+body.fsdp-open {
+  overflow: hidden;
+}
+body.editor-drawer-open {
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------
+ * Application-link card, copy-row, embed-block (used in Show Cars +
+ * Car Clubs panels). */
+.app-links-card {
+  background: linear-gradient(135deg, #fdfaf3 0%, #ffffff 100%);
+  border: 1px solid #ecd9a4;
+  border-radius: 16px;
+  padding: 20px;
+}
+.link-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.link-row input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 12px 14px;
+  font-size: 13px;
+  background: transparent;
+  font-family: inherit;
+  color: #292929;
+}
+.link-row .link-icon {
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  color: #8a8a8a;
+  border-right: 1px solid #e5e5e5;
+}
+.link-row .copy-btn {
+  padding: 0 16px;
+  background: #fafafa;
+  border: none;
+  border-left: 1px solid #e5e5e5;
+  color: #292929;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.link-row .copy-btn:hover {
+  background: #b89855;
+  color: #fff;
+}
+.link-row .copy-btn.is-copied {
+  background: #047857;
+  color: #fff;
+}
+.embed-block {
+  position: relative;
+  background: #0f0f0f;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.embed-block pre {
+  margin: 0;
+  padding: 16px 16px 16px 18px;
+  font-family: "SFMono-Regular", "Consolas", "Menlo", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #ecd9a4;
+  overflow-x: auto;
+  white-space: pre;
+}
+.embed-block .copy-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.embed-block .copy-btn:hover {
+  background: #b89855;
+  border-color: #b89855;
+}
+.embed-block .copy-btn.is-copied {
+  background: #047857;
+  border-color: #047857;
+}
+
+/* ------------------------------------------------------------------
+ * Segmented control. */
+.seg {
+  display: inline-flex;
+  padding: 4px;
+  background: #f1f1f1;
+  border-radius: 12px;
+  gap: 2px;
+}
+.seg-btn {
+  flex: 1;
+  padding: 8px 14px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #5c5c5c;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  transition: all 0.18s;
+}
+.seg-btn.is-active {
+  background: #fff;
+  color: #0f0f0f;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+/* ------------------------------------------------------------------
+ * Toggle switch. */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 26px;
+  flex-shrink: 0;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  inset: 0;
+  background: #e5e5e5;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+.slider::before {
+  content: "";
+  position: absolute;
+  height: 20px;
+  width: 20px;
+  left: 3px;
+  top: 3px;
+  background: #fff;
+  border-radius: 50%;
+  transition: 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+.switch input:checked + .slider {
+  background: #b89855;
+}
+.switch input:checked + .slider::before {
+  transform: translateX(18px);
+}
+
+/* ------------------------------------------------------------------
+ * Image upload dropzone + gallery tiles. */
+.dropzone {
+  border: 2px dashed #e5e5e5;
+  border-radius: 16px;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+.dropzone:hover,
+.dropzone.is-dragover {
+  border-color: #b89855;
+  background: #fdfaf3;
+}
+.gallery-tile {
+  position: relative;
+  aspect-ratio: 1/1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fafafa;
+}
+.gallery-tile .tile-actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.gallery-tile:hover .tile-actions {
+  opacity: 1;
+}
+
+/* ------------------------------------------------------------------
+ * Ticket card hover + AI sparkle. */
+.ticket-card {
+  transition: all 0.2s;
+}
+.ticket-card:hover {
+  border-color: #dcbd72;
+  box-shadow: 0 2px 8px rgba(184, 152, 85, 0.08);
+}
+@keyframes sparkle {
+  0%,
+  100% {
+    transform: scale(1) rotate(0);
+  }
+  50% {
+    transform: scale(1.2) rotate(15deg);
+  }
+}
+.ai-sparkle {
+  animation: sparkle 2.2s ease-in-out infinite;
+  display: inline-block;
+}
+
+/* ------------------------------------------------------------------
+ * Desktop sidebar navigation. The active state has a left rail drawn
+ * with ::before so it doesn't shift any content. */
+.side-tab {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+.side-tab:hover {
+  background: #fafafa;
+}
+.side-tab.is-active {
+  background: #fdfaf3;
+}
+.side-tab.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: #b89855;
+  border-radius: 0 3px 3px 0;
+}
+.side-num {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f1f1f1;
+  color: #5c5c5c;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.side-tab.is-active .side-num {
+  background: #b89855;
+  color: #fff;
+}
+.side-tab.is-complete .side-num {
+  background: #0f0f0f;
+  color: #fff;
+}
+.side-tab.is-complete .side-num .num-text {
+  display: none;
+}
+.side-tab.is-complete .side-num::before {
+  content: "\f00c";
+  font-family: "Font Awesome 6 Free";
+  font-weight: 900;
+  font-size: 11px;
+}
+.side-tab-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #292929;
+  line-height: 1.3;
+}
+.side-tab.is-active .side-tab-label {
+  color: #5c4c2b;
+}
+.side-tab-sub {
+  font-size: 12px;
+  color: #8a8a8a;
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* Reduce motion */
+@media (prefers-reduced-motion: reduce) {
+  .panel.is-active,
+  .fsdp-overlay,
+  .fsdp-panel,
+  .ai-sparkle {
+    animation: none !important;
+  }
+  .input,
+  .textarea,
+  .select,
+  .chip,
+  .tab-num,
+  .side-tab,
+  .side-num,
+  .seg-btn,
+  .slider,
+  .slider::before,
+  .dropzone,
+  .ticket-card {
+    transition: none !important;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * Skeleton shimmer — used by panels that need a loading placeholder
+ * (e.g. BasicsPanel's category grid while /event-categories is in
+ * flight).
+ *
+ * Scoped under .event-editor so it doesn't collide with the existing
+ * `.events-page .skeleton-shimmer` rule in globals.css (different
+ * surface, different bg colours). Animation is identical timing-wise
+ * so the two skeletons feel consistent if a user moves between pages. */
+.event-editor .skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #f1f1f1 0%,
+    #fafafa 50%,
+    #f1f1f1 100%
+  );
+  background-size: 200% 100%;
+  animation: editor-skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+@keyframes editor-skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .event-editor .skeleton-shimmer {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------------------
+ * TipTap content area
+ *
+ * The shared `EditorTextarea` renders TipTap output inside `.tiptap`.
+ * We're not using Tailwind preflight in the editor scope, so list
+ * markers + paragraph spacing need to be re-asserted explicitly.
+ *
+ * Scoped under .event-editor so it doesn't leak to other places that
+ * might use ProseMirror in the future.
+ * ------------------------------------------------------------------ */
+.event-editor .tiptap {
+  outline: none;
+}
+.event-editor .tiptap p {
+  margin: 0 0 0.75em 0;
+  line-height: 1.55;
+}
+.event-editor .tiptap p:last-child {
+  margin-bottom: 0;
+}
+.event-editor .tiptap ul {
+  list-style: disc;
+  padding-left: 1.5rem;
+  margin: 0 0 0.75em 0;
+}
+.event-editor .tiptap ol {
+  list-style: decimal;
+  padding-left: 1.5rem;
+  margin: 0 0 0.75em 0;
+}
+.event-editor .tiptap li {
+  margin: 0.15rem 0;
+}
+.event-editor .tiptap li > p {
+  margin: 0;
+}
+.event-editor .tiptap a {
+  color: var(--gold-700, #927437);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.event-editor .tiptap strong {
+  font-weight: 600;
+}
+.event-editor .tiptap em {
+  font-style: italic;
+}
+.event-editor .tiptap s {
+  text-decoration: line-through;
+}

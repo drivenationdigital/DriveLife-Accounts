@@ -26,6 +26,7 @@ export interface EventDetail {
   location: string;
   url: string;
   slug: string;
+  encryptedId: string;
 }
 
 export interface Ticket {

@@ -22,9 +22,11 @@ import {
   CircleSlashIcon,
   TrashIcon,
 } from "@/components/ui/Icons";
+import { useRouter } from "next/navigation";
 
 export function EventHero() {
   const { event } = useEventData();
+  const router = useRouter();
 
   const copyUrl = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -59,7 +61,14 @@ export function EventHero() {
           </div>
 
           <div className="event-url">
-            <LinkIcon style={{ width: 14, height: 14, flexShrink: 0, color: "var(--muted)" }} />
+            <LinkIcon
+              style={{
+                width: 14,
+                height: 14,
+                flexShrink: 0,
+                color: "var(--muted)",
+              }}
+            />
             <a href={`https://${event.url}`}>{event.url}</a>
             <button
               type="button"
@@ -73,7 +82,13 @@ export function EventHero() {
         </div>
 
         <div className="event-actions">
-          <button type="button" className="btn btn-primary">
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              router.push("/events/new?eid=" + event.encryptedId);
+            }}
+          >
             <EditIcon /> Edit Event
           </button>
           <button type="button" className="btn btn-secondary">

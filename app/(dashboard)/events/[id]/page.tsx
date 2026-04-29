@@ -19,6 +19,7 @@ import { EventProvider } from "@/context/EventContext";
 import { Breadcrumb } from "@/components/event/Breadcrumb";
 import { EventHero } from "@/components/event/EventHero";
 import { EventTabs } from "@/components/event/EventTabs";
+import { EventDetailSkeleton } from "@/components/event/EventDetailSkeleton";
 
 const ORDERS_PER_PAGE = 20;
 
@@ -29,7 +30,7 @@ export default function EventDetailPage() {
       fallback={
         <>
           <Breadcrumb />
-          <StatusBlock>Loading event…</StatusBlock>
+          <EventDetailSkeleton />
         </>
       }
     >
@@ -111,7 +112,7 @@ function EventDetailContent() {
     return (
       <>
         <Breadcrumb />
-        <StatusBlock>Loading event…</StatusBlock>
+        <EventDetailSkeleton />
       </>
     );
   }
