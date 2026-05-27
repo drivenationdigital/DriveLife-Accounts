@@ -8,6 +8,7 @@ import {
   XIcon,
   ChevRightIcon,
 } from "@/components/ui/Icons";
+import { useRouter } from "next/navigation";
 
 type CreateType = "event" | "club" | "venue";
 
@@ -38,10 +39,20 @@ const options: Array<{
 ];
 
 export function CreateModal() {
+  const router = useRouter();
   const { createModalOpen, closeCreateModal } = useUI();
 
   const handleCreate = (type: CreateType) => {
-    console.log("Create:", type);
+    switch (type) {
+      case "event":
+        router.push("/events/create");
+        break;
+      case "club":
+        break;
+      case "venue":
+        break;
+    }
+
     closeCreateModal();
   };
 
