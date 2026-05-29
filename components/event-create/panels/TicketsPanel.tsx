@@ -6,11 +6,21 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   useEventCreate,
   type Ticket,
+  type TicketId,
   type TicketSection,
+  type SectionId,
   type TicketSourceMode,
 } from "@/context/EventCreateContext";
 import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  useSaveTicketRow,
+  useDeleteTicketRow,
+  useReorderTicketRows,
+  mapTicketToBody,
+  mapSectionToBody,
+} from "@/lib/ticketMutations";
+import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
 import { TicketDrawer } from "../TicketDrawer";
@@ -110,6 +120,7 @@ export function TicketsPanel() {
     if (moved) {
       next.splice(targetIdx, 0, moved);
       dispatch({ type: "REORDER_TICKET_LIST", items: next });
+      persistOrder(next);
     }
     onDragEnd();
   };
@@ -124,10 +135,126 @@ export function TicketsPanel() {
     next[idx] = b;
     next[target] = a;
     dispatch({ type: "REORDER_TICKET_LIST", items: next });
+    persistOrder(next);
   };
 
   const setMode = (mode: TicketSourceMode) =>
     dispatch({ type: "SET_FIELD", key: "ticketSource", value: mode });
+
+  // ============================================================
+  // Per-row save / delete / reorder mutations.
+  //
+  // Two save-mutation instances (one per drawer) so each drawer
+  // gets its own isPending / error state — they can't bleed into
+  // each other.
+  //
+  // The delete mutation is shared by the inline list buttons and
+  // the drawer "Remove" buttons; only one delete can be in flight
+  // at a time so a single instance is fine.
+  // ============================================================
+  const ticketSaver = useSaveTicketRow();
+  const sectionSaver = useSaveTicketRow();
+  const ticketRemover = useDeleteTicketRow();
+  const reorderer = useReorderTicketRows();
+
+  /** True once a server eid exists. Per-row saves require it; without
+   *  it the user must publish the event basics first so a draft post
+   *  is created and we have an event to attach tickets to. */
+  const eid = state.encryptedId;
+
+  /** Pull a human message out of whatever the mutation threw. */
+  const errorText = (err: Error | null): string | null =>
+    err
+      ? err instanceof ApiError
+        ? err.message
+        : err.message || "Save failed."
+      : null;
+
+  /** Save a ticket — closes the drawer only on success. */
+  const handleSaveTicket = async (t: Ticket, isUpdate: boolean) => {
+    if (!eid) return;
+    try {
+      const res = await ticketSaver.mutateAsync({
+        eid,
+        id: t.id,
+        body: mapTicketToBody(t),
+      });
+      // Swap the local synthetic id for the server's raw post id.
+      // /event-edit returns plain ids (not encrypted), so the editor
+      // state needs to match — saving here as encrypted_id would mean
+      // a later refresh produces a different id and the row wouldn't
+      // match the one in state.
+      const persisted: Ticket = { ...t, id: String(res.ticket_id) as TicketId };
+      dispatch(
+        isUpdate
+          ? { type: "UPDATE_TICKET", ticket: persisted }
+          : { type: "ADD_TICKET", ticket: persisted },
+      );
+      setTicketDrawerOpen(false);
+    } catch {
+      // Error stays on ticketSaver.error and renders inside the drawer
+      // via the errorMessage prop; drawer stays open.
+    }
+  };
+
+  /** Save a section — same flow as handleSaveTicket. */
+  const handleSaveSection = async (s: TicketSection, isUpdate: boolean) => {
+    if (!eid) return;
+    try {
+      const res = await sectionSaver.mutateAsync({
+        eid,
+        id: s.id,
+        body: mapSectionToBody(s),
+      });
+      const persisted: TicketSection = {
+        ...s,
+        id: String(res.ticket_id) as SectionId,
+      };
+      dispatch(
+        isUpdate
+          ? { type: "UPDATE_SECTION", section: persisted }
+          : { type: "ADD_SECTION", section: persisted },
+      );
+      setSectionDrawerOpen(false);
+    } catch {
+      // Drawer stays open; error surfaces via sectionSaver.error.
+    }
+  };
+
+  /** Remove a ticket — optimistic UI only AFTER server confirms, since
+   *  rollback for a deletion would be jarring. */
+  const handleRemoveTicket = async (id: TicketId) => {
+    if (!eid) return;
+    try {
+      await ticketRemover.mutateAsync({ eid, id });
+      dispatch({ type: "REMOVE_TICKET", id });
+      setTicketDrawerOpen(false);
+    } catch {
+      // Leave the row in place; surface error on the drawer if open.
+    }
+  };
+
+  const handleRemoveSection = async (id: SectionId) => {
+    if (!eid) return;
+    try {
+      await ticketRemover.mutateAsync({ eid, id });
+      dispatch({ type: "REMOVE_SECTION", id });
+      setSectionDrawerOpen(false);
+    } catch {
+      // Same as ticket — leave in place.
+    }
+  };
+
+  /** Persist the current ticketList ordering. Fired by the reorder
+   *  helpers AFTER they've already dispatched locally — so the visual
+   *  order updates immediately and the server catches up in the
+   *  background. A reorder failure logs but doesn't roll back; the
+   *  next save / refresh will reconcile. */
+  const persistOrder = (items: typeof state.ticketList) => {
+    if (!eid) return;
+    const ids = items.map((it) => String(it.encryptedTicketID));
+    reorderer.mutate({ eid, ids });
+  };
 
   const isCE = state.ticketSource === "ce";
   const isExternal = state.ticketSource === "external";
@@ -322,9 +449,7 @@ export function TicketsPanel() {
                           ticket={item}
                           showFees={state.ticketFeeMode === "pass"}
                           onEdit={() => openEditTicket(item)}
-                          onDelete={() =>
-                            dispatch({ type: "REMOVE_TICKET", id: item.id })
-                          }
+                          onDelete={() => handleRemoveTicket(item.id)}
                           onMoveUp={() => moveItem(idx, -1)}
                           onMoveDown={() => moveItem(idx, 1)}
                           canMoveUp={idx > 0}
@@ -334,9 +459,7 @@ export function TicketsPanel() {
                         <SectionRow
                           section={item}
                           onEdit={() => openEditSection(item)}
-                          onDelete={() =>
-                            dispatch({ type: "REMOVE_SECTION", id: item.id })
-                          }
+                          onDelete={() => handleRemoveSection(item.id)}
                           onMoveUp={() => moveItem(idx, -1)}
                           onMoveDown={() => moveItem(idx, 1)}
                           canMoveUp={idx > 0}
@@ -457,29 +580,35 @@ export function TicketsPanel() {
         key={`tkt-${ticketDrawerOpen ? "open" : "closed"}-${editingTicket?.id ?? "new"}`}
         open={ticketDrawerOpen}
         editing={editingTicket}
-        onClose={() => setTicketDrawerOpen(false)}
-        onSave={(t) => {
-          if (editingTicket) {
-            dispatch({ type: "UPDATE_TICKET", ticket: t });
-          } else {
-            dispatch({ type: "ADD_TICKET", ticket: t });
-          }
+        onClose={() => {
+          // Reset any error from a previous failed save so the next
+          // open of the drawer starts clean.
+          ticketSaver.reset();
+          setTicketDrawerOpen(false);
         }}
-        onRemove={(id) => dispatch({ type: "REMOVE_TICKET", id })}
+        onSave={(t) => handleSaveTicket(t, editingTicket !== null)}
+        onRemove={(id) => handleRemoveTicket(id)}
+        isSaving={ticketSaver.isPending}
+        isDeleting={ticketRemover.isPending}
+        errorMessage={
+          errorText(ticketSaver.error) ?? errorText(ticketRemover.error)
+        }
       />
       <SectionDrawer
         key={`sec-${sectionDrawerOpen ? "open" : "closed"}-${editingSection?.id ?? "new"}`}
         open={sectionDrawerOpen}
         editing={editingSection}
-        onClose={() => setSectionDrawerOpen(false)}
-        onSave={(s) => {
-          if (editingSection) {
-            dispatch({ type: "UPDATE_SECTION", section: s });
-          } else {
-            dispatch({ type: "ADD_SECTION", section: s });
-          }
+        onClose={() => {
+          sectionSaver.reset();
+          setSectionDrawerOpen(false);
         }}
-        onRemove={(id) => dispatch({ type: "REMOVE_SECTION", id })}
+        onSave={(s) => handleSaveSection(s, editingSection !== null)}
+        onRemove={(id) => handleRemoveSection(id)}
+        isSaving={sectionSaver.isPending}
+        isDeleting={ticketRemover.isPending}
+        errorMessage={
+          errorText(sectionSaver.error) ?? errorText(ticketRemover.error)
+        }
       />
     </section>
   );

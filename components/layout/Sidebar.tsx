@@ -66,8 +66,8 @@ export function Sidebar() {
   };
 
   const isDashboard = pathname === "/";
-  const isEvents =
-    pathname === "/events" || pathname.startsWith("/events/");
+  const isEvents = pathname === "/events" || pathname.startsWith("/events/");
+  const isAccount = pathname === "/account";
 
   return (
     <aside className="sidebar">
@@ -134,8 +134,9 @@ export function Sidebar() {
         <NavItem
           icon={<UserIcon />}
           label="My Account"
-          active={activeKey === "account"}
-          onClick={() => handleClick("account")}
+          href="/account"
+          active={isAccount}
+          onClick={() => handleClick("")}
         />
       </div>
     </aside>

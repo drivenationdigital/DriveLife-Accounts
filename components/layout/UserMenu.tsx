@@ -14,7 +14,10 @@ import {
   LogoutIcon,
 } from "@/components/ui/Icons";
 
-function initialsOf(name: string | undefined, email: string | undefined): string {
+function initialsOf(
+  name: string | undefined,
+  email: string | undefined,
+): string {
   if (name) {
     const parts = name.trim().split(/\s+/);
     if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
@@ -43,7 +46,7 @@ export function UserMenu() {
             <div className="user-email">{email}</div>
           </div>
         </div>
-        <DropdownItem as="a" href="#">
+        <DropdownItem as="a" href="/account">
           <UserIcon /> My Account
         </DropdownItem>
         <DropdownItem as="a" href="#">

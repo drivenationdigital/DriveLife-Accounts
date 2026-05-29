@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
+import { useEditorSave } from "@/lib/useEditorSave";
 
 /**
  * Sticky topbar for the event editor.
@@ -19,6 +21,27 @@ import { useEventCreate } from "@/context/EventCreateContext";
  */
 export function EditorTopBar() {
   const { state } = useEventCreate();
+  const router = useRouter();
+  const { run, phase, isSaving } = useEditorSave();
+
+  // The topbar's rocket is an explicit "go live" — it publishes
+  // regardless of the panel selection, except when the user has set up
+  // a schedule (in which case we honour it and save as scheduled).
+  const onPublish = async () => {
+    if (isSaving) return;
+    try {
+      const res = await run({
+        overrideStatus: state.status === "scheduled" ? "scheduled" : "published",
+      });
+      // Drafts stay in the editor; anything live/scheduled goes to the
+      // event view. (post_status from the API: publish | future | draft.)
+      if (res.post_status !== "draft") {
+        router.push(`/events/${res.encrypted_id}`);
+      }
+    } catch {
+      // Error surfaces via `phase` on the status pill below.
+    }
+  };
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-200">
@@ -53,11 +76,9 @@ export function EditorTopBar() {
         {/* Spacer for desktop — pushes actions to the right edge. */}
         <div className="hidden lg:block flex-1" />
 
-        {/* Save status pill — md+ only (mobile keeps the bar uncluttered). */}
-        <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-ink-500">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" aria-hidden />
-          Saved
-        </span>
+        {/* Save status pill — md+ only (mobile keeps the bar uncluttered).
+            Reflects the shared save mutation state. */}
+        <SaveStatusPill phase={phase} />
 
         {/* Preview button — sm+ (no value squeezing it onto a phone). */}
         <button
@@ -71,12 +92,47 @@ export function EditorTopBar() {
         {/* Publish — primary CTA. Label hides on phones, icon stays. */}
         <button
           type="button"
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition shadow-sm"
+          onClick={onPublish}
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          <i className="fa-solid fa-rocket text-xs" aria-hidden />
-          <span className="hidden sm:inline">Publish</span>
+          <i
+            className={`text-xs ${
+              isSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-rocket"
+            }`}
+            aria-hidden
+          />
+          <span className="hidden sm:inline">
+            {isSaving ? "Publishing…" : "Publish"}
+          </span>
         </button>
       </div>
     </header>
+  );
+}
+
+/**
+ * Live save indicator. Mirrors the four phases of the shared save
+ * mutation. Idle (before the first save) reads "Not saved yet" so the
+ * pill never claims a state that isn't true.
+ */
+function SaveStatusPill({ phase }: { phase: "idle" | "saving" | "saved" | "error" }) {
+  const config = {
+    idle: { dot: "bg-ink-300", label: "Not saved yet", pulse: false },
+    saving: { dot: "bg-amber-500", label: "Saving…", pulse: true },
+    saved: { dot: "bg-emerald-500", label: "Saved", pulse: false },
+    error: { dot: "bg-red-500", label: "Couldn’t save", pulse: false },
+  }[phase];
+
+  return (
+    <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-ink-500">
+      <span
+        className={`w-1.5 h-1.5 rounded-full ${config.dot} ${
+          config.pulse ? "animate-pulse" : ""
+        }`}
+        aria-hidden
+      />
+      {config.label}
+    </span>
   );
 }

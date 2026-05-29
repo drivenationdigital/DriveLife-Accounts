@@ -116,6 +116,12 @@ export type Ticket = {
   individualAttendeeDetails: boolean;
   requestVehiclePhoto: boolean;
   isSecret: boolean;
+  /** When `isSecret` is true, the code buyers enter at checkout to
+   *  unlock the ticket. Optional so existing call sites that build a
+   *  Ticket without it keep typechecking — drawers / mappers default
+   *  to empty when absent. */
+  secretCode?: string;
+  encryptedTicketID: string | null; // API returns "" for non-secret tickets; we want null for the editor's logic to treat as unset
 };
 
 /** A divider in the ticket list. Sits *between* tickets to group
@@ -129,6 +135,11 @@ export type TicketSection = {
    *  secret code that buyers enter at checkout. Visual cue in the
    *  list is a small lock badge. */
   isSecret: boolean;
+  /** Code buyers enter at checkout to unlock this section. Optional
+   *  so existing call sites keep typechecking; drawers default to
+   *  empty when absent. */
+  secretCode?: string;
+  encryptedTicketID: string | null; // API returns "" for non-secret sections; we want null for the editor's logic to treat as unset
 };
 
 /** The ticket list is a flat array of either kind. Discriminated by
@@ -295,13 +306,16 @@ export type ShowCarCategory = {
 /** Curated icon set for trader categories — matches the mockup. */
 export type TraderIcon = "utensils" | "shirt" | "wrench" | "handshake";
 
-export const TRADER_ICONS: { id: TraderIcon; faClass: string; label: string }[] =
-  [
-    { id: "utensils", faClass: "fa-solid fa-utensils", label: "Food & drink" },
-    { id: "shirt", faClass: "fa-solid fa-shirt", label: "Apparel" },
-    { id: "wrench", faClass: "fa-solid fa-wrench", label: "Tools / parts" },
-    { id: "handshake", faClass: "fa-solid fa-handshake", label: "Sponsors" },
-  ];
+export const TRADER_ICONS: {
+  id: TraderIcon;
+  faClass: string;
+  label: string;
+}[] = [
+  { id: "utensils", faClass: "fa-solid fa-utensils", label: "Food & drink" },
+  { id: "shirt", faClass: "fa-solid fa-shirt", label: "Apparel" },
+  { id: "wrench", faClass: "fa-solid fa-wrench", label: "Tools / parts" },
+  { id: "handshake", faClass: "fa-solid fa-handshake", label: "Sponsors" },
+];
 
 export type TraderCategory = {
   id: TraderCategoryId;
@@ -341,12 +355,12 @@ export type EventCreateState = {
   // Both shapes coexist in state so toggling between modes doesn't
   // wipe the user's entries.
   dateType: "single" | "recurring";
-  startDate: string | null;          // ISO yyyy-mm-dd
+  startDate: string | null; // ISO yyyy-mm-dd
   endDate: string | null;
-  startTime: string;                 // 24h "HH:MM"
+  startTime: string; // 24h "HH:MM"
   endTime: string;
-  hideTimes: boolean;                // hides times on event page
-  uniqueTimesPerDay: boolean;        // multi-day events with daily times
+  hideTimes: boolean; // hides times on event page
+  uniqueTimesPerDay: boolean; // multi-day events with daily times
   /**
    * When `uniqueTimesPerDay` is on, each calendar day in the range
    * gets its own start/end times. Stored as an array keyed by date
@@ -361,8 +375,8 @@ export type EventCreateState = {
    * restores the per-day values.
    */
   perDayTimes: Array<{
-    date: string;       // "YYYY-MM-DD"
-    startTime: string;  // "HH:MM"
+    date: string; // "YYYY-MM-DD"
+    startTime: string; // "HH:MM"
     endTime: string;
   }>;
   recurringFrequency: "weekly" | "monthly" | "custom";
@@ -557,6 +571,7 @@ const INITIAL_STATE: EventCreateState = {
       requireCarClubName: false,
       individualAttendeeDetails: false,
       requestVehiclePhoto: false,
+      encryptedTicketID: null,
       isSecret: false,
     },
     {
@@ -573,6 +588,7 @@ const INITIAL_STATE: EventCreateState = {
       requireCarClubName: false,
       individualAttendeeDetails: false,
       requestVehiclePhoto: false,
+      encryptedTicketID: null,
       isSecret: false,
     },
     {
@@ -590,6 +606,7 @@ const INITIAL_STATE: EventCreateState = {
       individualAttendeeDetails: false,
       requestVehiclePhoto: false,
       isSecret: false,
+      encryptedTicketID: null,
     },
   ],
   ticketFeeMode: "pass",
@@ -820,11 +837,21 @@ export type EventCreateAction =
   // ticket/discount lists.
   | {
       type: "ADD_CUSTOM_DATE";
-      row: { id: string; date: string | null; startTime: string; endTime: string };
+      row: {
+        id: string;
+        date: string | null;
+        startTime: string;
+        endTime: string;
+      };
     }
   | {
       type: "UPDATE_CUSTOM_DATE";
-      row: { id: string; date: string | null; startTime: string; endTime: string };
+      row: {
+        id: string;
+        date: string | null;
+        startTime: string;
+        endTime: string;
+      };
     }
   | { type: "REMOVE_CUSTOM_DATE"; id: string }
   | { type: "SET_GALLERY"; items: EditorImage[] }

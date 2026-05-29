@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { type Ticket, type TicketId } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -31,12 +32,21 @@ export function TicketDrawer({
   onClose,
   onSave,
   onRemove,
+  isSaving = false,
+  isDeleting = false,
+  errorMessage = null,
 }: {
   open: boolean;
   editing: Ticket | null;
   onClose: () => void;
   onSave: (ticket: Ticket) => void;
   onRemove: (id: TicketId) => void;
+  /** Server save in flight — disable inputs/buttons, label changes. */
+  isSaving?: boolean;
+  /** Server delete in flight — disable buttons, label changes. */
+  isDeleting?: boolean;
+  /** Server-side failure to surface inline above the footer. */
+  errorMessage?: string | null;
 }) {
   // Numeric inputs are stored as strings so the user can clear them
   // without React turning empty into NaN. We parse on save.
@@ -76,13 +86,35 @@ export function TicketDrawer({
     () => editing?.requestVehiclePhoto ?? false,
   );
   const [isSecret, setIsSecret] = useState(() => editing?.isSecret ?? false);
+  const [secretCode, setSecretCode] = useState(() => editing?.secretCode ?? "");
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
+
+  // Auto-fill a code when the user flips the secret toggle ON for the
+  // first time. Wrapped so we don't overwrite a code the user already
+  // typed (or one loaded from /event-edit on a returning visit).
+  const handleToggleSecret = (next: boolean) => {
+    setIsSecret(next);
+    if (next && !secretCode.trim()) {
+      setSecretCode(generateSecretCode());
+    }
+  };
 
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     const id = editing?.id ?? (makeLocalId("tkt") as TicketId);
+
+    // Belt-and-braces: if the user managed to save with secret on but
+    // an empty code (e.g. cleared the input then hit save), generate
+    // one so the server never sees an inconsistent payload — a secret
+    // ticket with no code can't be unlocked.
+    let finalCode = secretCode.trim();
+    if (isSecret && !finalCode) {
+      finalCode = generateSecretCode();
+      setSecretCode(finalCode);
+    }
+
     const ticket: Ticket = {
       kind: "ticket",
       id,
@@ -98,9 +130,13 @@ export function TicketDrawer({
       individualAttendeeDetails,
       requestVehiclePhoto,
       isSecret,
+      secretCode: finalCode,
+      encryptedTicketID: editing?.encryptedTicketID ?? null, // preserve existing code if present; new tickets default to null which the server treats as non-secret
     };
     onSave(ticket);
-    onClose();
+    // No onClose() here — the caller drives the drawer's open state
+    // around the async save, so the drawer stays open on error and
+    // closes only when the panel sees a successful mutation.
   };
 
   const renderDateField = (target: DateTarget, value: string | null) => (
@@ -125,36 +161,59 @@ export function TicketDrawer({
         eyebrow="Ticket"
         title={editing ? "Edit ticket" : "Add ticket"}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!name.trim()}
-              className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
-            >
-              {editing ? "Save changes" : "Save ticket"}
-            </button>
-            {editing && (
+          <div className="flex flex-col gap-2 w-full">
+            {errorMessage && (
+              <p className="text-xs text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            <div className="flex items-stretch gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  onRemove(editing.id);
-                  onClose();
-                }}
-                aria-label="Delete ticket"
-                className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center shrink-0"
+                onClick={onClose}
+                disabled={isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
               >
-                <i className="fa-solid fa-trash text-sm" aria-hidden />
+                Cancel
               </button>
-            )}
-          </>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!name.trim() || isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
+              >
+                {isSaving && (
+                  <i
+                    className="fa-solid fa-spinner fa-spin text-xs"
+                    aria-hidden
+                  />
+                )}
+                {isSaving
+                  ? "Saving…"
+                  : editing
+                    ? "Save changes"
+                    : "Save ticket"}
+              </button>
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(editing.id)}
+                  disabled={isSaving || isDeleting}
+                  aria-label="Delete ticket"
+                  className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center shrink-0"
+                >
+                  <i
+                    className={
+                      isDeleting
+                        ? "fa-solid fa-spinner fa-spin text-sm"
+                        : "fa-solid fa-trash text-sm"
+                    }
+                    aria-hidden
+                  />
+                </button>
+              )}
+            </div>
+          </div>
         }
       >
         <div>
@@ -277,8 +336,16 @@ export function TicketDrawer({
               title="Secret ticket"
               description="Only accessible via code"
               checked={isSecret}
-              onChange={setIsSecret}
+              onChange={handleToggleSecret}
             />
+            {isSecret && (
+              <SecretCodeField
+                value={secretCode}
+                onChange={setSecretCode}
+                onRegenerate={() => setSecretCode(generateSecretCode())}
+                idPrefix="tkt"
+              />
+            )}
           </div>
         </div>
       </EditorDrawer>
@@ -332,5 +399,61 @@ function RequirementToggle({
         <span className="slider" />
       </span>
     </label>
+  );
+}
+
+/**
+ * Inline secret-code input shown when the "Secret ticket" toggle is
+ * on. Uppercases as the user types so the value matches what
+ * generateSecretCode produces and what buyers see in print. Used by
+ * both the ticket and section drawer flows — kept here rather than
+ * in a separate file because it's small and tightly coupled to the
+ * drawer styling.
+ */
+export function SecretCodeField({
+  value,
+  onChange,
+  onRegenerate,
+  idPrefix,
+}: {
+  value: string;
+  onChange: (next: string) => void;
+  onRegenerate: () => void;
+  idPrefix: string;
+}) {
+  return (
+    <div className="mt-1 ml-1 mr-1 p-3 bg-white border border-ink-200 rounded-lg">
+      <label
+        htmlFor={`${idPrefix}-secret-code`}
+        className="block text-xs font-semibold text-ink-700 mb-1.5"
+      >
+        Secret code
+      </label>
+      <div className="flex items-stretch gap-2">
+        <input
+          id={`${idPrefix}-secret-code`}
+          type="text"
+          className="input flex-1 font-mono uppercase tracking-wider"
+          value={value}
+          onChange={(e) => onChange(e.target.value.toUpperCase())}
+          placeholder="e.g. VIP2026"
+          maxLength={32}
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button
+          type="button"
+          onClick={onRegenerate}
+          className="px-3 py-2 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 rounded-lg transition inline-flex items-center gap-1.5"
+          title="Generate a new code"
+        >
+          <i className="fa-solid fa-arrows-rotate text-xs" aria-hidden />
+          New
+        </button>
+      </div>
+      <p className="mt-1.5 text-xs text-ink-500">
+        Buyers enter this code at checkout to unlock.
+      </p>
+    </div>
   );
 }

@@ -8,6 +8,8 @@ import {
   EVENT_CREATE_STEP_COUNT,
   adjacentSteps,
 } from "@/lib/eventCreateSteps";
+import { useEditorSave } from "@/lib/useEditorSave";
+import { ApiError } from "@/lib/apiClient";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 
@@ -47,6 +49,24 @@ export function PublishPanel() {
   const { prev } = adjacentSteps("publish");
 
   const [pickerOpen, setPickerOpen] = useState(false);
+
+  // Shared save controller — same mutation the topbar/bottombar use, so
+  // the topbar "Saved" pill reflects a save triggered from here too.
+  const { run, isSaving, error } = useEditorSave();
+
+  const onSave = async () => {
+    if (isSaving) return;
+    try {
+      // Save with the status the user picked in this panel's radio.
+      const res = await run();
+      // Draft → stay so they can keep editing; live/scheduled → view.
+      if (res.post_status !== "draft") {
+        router.push(`/events/${res.encrypted_id}`);
+      }
+    } catch {
+      // Surfaced inline below via `error`.
+    }
+  };
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -263,19 +283,31 @@ export function PublishPanel() {
       {/* ---- Big publish button ---- */}
       <button
         type="button"
-        className="w-full py-4 text-base font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-xl transition shadow-sm inline-flex items-center justify-center gap-2"
-        // Decorative until the create-event mutation is wired.
-        onClick={() => {
-          /* TODO: dispatch create-event mutation */
-        }}
+        disabled={isSaving}
+        className="w-full py-4 text-base font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-xl transition shadow-sm inline-flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+        onClick={onSave}
       >
-        <i className="fa-solid fa-rocket" aria-hidden />
-        {state.status === "scheduled"
-          ? "Schedule event"
-          : state.status === "draft"
-            ? "Save draft"
-            : "Publish event"}
+        <i
+          className={isSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-rocket"}
+          aria-hidden
+        />
+        {isSaving
+          ? "Saving…"
+          : state.status === "scheduled"
+            ? "Schedule event"
+            : state.status === "draft"
+              ? "Save draft"
+              : "Publish event"}
       </button>
+
+      {/* Save error — only rendered on failure. */}
+      {error && (
+        <p className="mt-3 text-sm text-red-600 text-center">
+          {error instanceof ApiError
+            ? error.message
+            : "Couldn’t save your event. Please try again."}
+        </p>
+      )}
 
       {/* ---- Desktop nav row — Back only on the last step. ---- */}
       <div className="hidden sm:flex items-center justify-start gap-3 pt-6 mt-6 border-t border-ink-200">

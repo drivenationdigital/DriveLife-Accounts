@@ -17,7 +17,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public body: unknown
+    public body: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -47,7 +47,7 @@ export function setUnauthorizedHandler(fn: UnauthorizedHandler) {
 export async function apiPost<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,
-  opts: { skipAuthRedirect?: boolean } = {}
+  opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<TResponse> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, {
@@ -79,7 +79,7 @@ export async function apiPost<TResponse, TBody = unknown>(
 
 export async function apiGet<TResponse>(
   path: string,
-  opts: { skipAuthRedirect?: boolean } = {}
+  opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<TResponse> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await fetch(url, { method: "GET", headers: buildHeaders() });
@@ -88,6 +88,40 @@ export async function apiGet<TResponse>(
   try {
     parsed = await res.json();
   } catch {}
+
+  if (res.status === 401 && !opts.skipAuthRedirect) {
+    unauthorizedHandler();
+  }
+
+  if (!res.ok) {
+    const message =
+      (parsed as { message?: string } | null)?.message ??
+      `Request failed with status ${res.status}`;
+    throw new ApiError(message, res.status, parsed);
+  }
+
+  return parsed as TResponse;
+}
+
+/**
+ * DELETE request. Same auth + error handling as apiGet/apiPost; no
+ * body (DELETE bodies are technically allowed but inconsistently
+ * supported across servers/proxies, so all our DELETE endpoints
+ * expect their parameters in the URL).
+ */
+export async function apiDelete<TResponse>(
+  path: string,
+  opts: { skipAuthRedirect?: boolean } = {},
+): Promise<TResponse> {
+  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  const res = await fetch(url, { method: "DELETE", headers: buildHeaders() });
+
+  let parsed: unknown = null;
+  try {
+    parsed = await res.json();
+  } catch {
+    // Non-JSON response — leave parsed as null.
+  }
 
   if (res.status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();

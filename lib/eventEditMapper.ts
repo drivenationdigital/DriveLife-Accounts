@@ -203,6 +203,7 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
       // Sections carry their own secret_code_ticket flag — that's
       // what powers the "Secret ticket section" UI checkbox.
       isSecret: row.secret_code_ticket,
+      encryptedTicketID: row.encrypted_ticket_id || null,
     };
     return section;
   }
@@ -229,6 +230,8 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     individualAttendeeDetails: row.request_attendance_details,
     requestVehiclePhoto: row.request_vehicle_photo,
     isSecret: row.secret_code_ticket,
+    secretCode: row.secret_code_ticket ? row.secret_code : undefined,
+    encryptedTicketID: row.encrypted_ticket_id || null, // API returns "" for non-secret tickets; we want null for the editor's logic to treat as unset
   };
   return ticket;
 }
