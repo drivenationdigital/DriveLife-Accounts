@@ -80,7 +80,7 @@ export function SectionDrawer({
       name: trimmed,
       isSecret,
       secretCode: finalCode,
-      encryptedTicketID: editing?.encryptedTicketID ?? null, // preserve existing code if present; sections don't have their own encryptedTicketID so this is always null but good to be explicit
+      encryptedTicketID: editing?.encryptedTicketID, // preserve existing code if present; sections don't have their own encryptedTicketID so this is always null but good to be explicit
     });
     // Caller drives close around the async save; see TicketDrawer for
     // the same pattern.

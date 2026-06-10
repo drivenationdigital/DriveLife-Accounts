@@ -197,7 +197,7 @@ export function TraderCategoryDrawer({
             value={info}
             onChange={setInfo}
             placeholder="3m × 3m pitch. Arrival from 6am for setup. Power and water at extra cost. Public liability insurance required."
-            rows={5}
+            // rows={5}
           />
         </div>
       </EditorDrawer>

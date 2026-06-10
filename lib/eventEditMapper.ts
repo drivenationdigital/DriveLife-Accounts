@@ -299,6 +299,7 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
       // Pre-fill the code so the drawer shows what was stored rather
       // than silently overwriting it on the next save.
       secretCode: row.secret_code ?? "",
+      encryptedTicketID: row.encrypted_ticket_id,
     };
     return section;
   }
@@ -330,6 +331,7 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     // so the drawer's "auto-generate on first toggle" still kicks in
     // if the user later flips it on.
     secretCode: row.secret_code ?? "",
+    encryptedTicketID: row.encrypted_ticket_id,
   };
   return ticket;
 }

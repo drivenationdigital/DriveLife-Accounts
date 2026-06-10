@@ -131,7 +131,7 @@ export function TicketDrawer({
       requestVehiclePhoto,
       isSecret,
       secretCode: finalCode,
-      encryptedTicketID: editing?.encryptedTicketID ?? null, // preserve existing code if present; new tickets default to null which the server treats as non-secret
+      encryptedTicketID: editing?.encryptedTicketID, // preserve existing code if present; new tickets default to null which the server treats as non-secret
     };
     onSave(ticket);
     // No onClose() here — the caller drives the drawer's open state

@@ -66,7 +66,15 @@ export type LatLng = { lat: number; lng: number };
  * cleanup hooks.
  */
 export type EditorImage =
-  | { kind: "remote"; url: string }
+  | {
+      kind: "remote";
+      url: string;
+      /** Cloudflare Images id when the image came from a CF upload.
+       *  Optional so legacy ACF-backed images (which only have a url)
+       *  stay valid. Required for the DELETE /event-image flow —
+       *  the remove handlers check for it before calling the server. */
+      cloudflareId?: string;
+    }
   | { kind: "local"; previewUrl: string; file: File };
 
 // ----------------------------------------------------------------
@@ -121,6 +129,11 @@ export type Ticket = {
    *  Ticket without it keep typechecking — drawers / mappers default
    *  to empty when absent. */
   secretCode?: string;
+  /** Encrypted post id for the ticket. Set by the eventEditMapper
+   *  when hydrating from /event-edit; absent on locally-created
+   *  tickets that haven't been saved yet. Used by the reorder
+   *  mutation, which posts the encrypted id list to the server. */
+  encryptedTicketID?: string;
 };
 
 /** A divider in the ticket list. Sits *between* tickets to group
@@ -138,6 +151,10 @@ export type TicketSection = {
    *  so existing call sites keep typechecking; drawers default to
    *  empty when absent. */
   secretCode?: string;
+  /** Encrypted post id. Set by the eventEditMapper when hydrating
+   *  from /event-edit; absent on locally-created sections that
+   *  haven't been saved yet. Used by the reorder mutation. */
+  encryptedTicketID?: string;
 };
 
 /** The ticket list is a flat array of either kind. Discriminated by
