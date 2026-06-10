@@ -29,6 +29,7 @@ import type {
   ApiEventDiscount,
   ApiEventEditResponse,
   ApiEventTicket,
+  ApiShowCarCategory,
 } from "@/lib/apiTypes";
 import type {
   Discount,
@@ -36,6 +37,8 @@ import type {
   DiscountKind,
   EventCreateState,
   MonthlyOccurrence,
+  ShowCarCategory,
+  ShowCarCategoryId,
   Ticket,
   TicketId,
   TicketListItem,
@@ -136,15 +139,24 @@ export function mapEventEditResponse(
     tiktokUrl: response.description.tiktok_url,
 
     // ---- Media --------------------------------------------------------
-    // The API returns plain URLs (already uploaded). Wrap each as a
-    // `remote` EditorImage so the editor's image picker sees them
-    // alongside any new locals the user adds.
+    // The API returns image rows as { id, url } pairs — `id` is the
+    // Cloudflare image id (or null for legacy ACF images that have a
+    // URL but no removable backing). We carry it through as
+    // cloudflareId so removal in the editor can hit DELETE /event-image
+    // for CF-backed rows and just drop locally for legacy ones.
     coverImage: response.media.cover_image
-      ? { kind: "remote", url: response.media.cover_image }
+      ? {
+          kind: "remote",
+          url: response.media.cover_image.url,
+          ...(response.media.cover_image.id
+            ? { cloudflareId: response.media.cover_image.id }
+            : {}),
+        }
       : null,
-    gallery: response.media.gallery.map((url) => ({
+    gallery: response.media.gallery.map((row) => ({
       kind: "remote" as const,
-      url,
+      url: row.url,
+      ...(row.id ? { cloudflareId: row.id } : {}),
     })),
 
     // ---- Tickets ------------------------------------------------------
@@ -161,8 +173,89 @@ export function mapEventEditResponse(
     // ---- Discounts ----------------------------------------------------
     discounts: response.discounts.map(mapDiscount),
 
+    // ---- Show cars (event-level settings only) ------------------------
+    //
+    // The API returns a discriminated union: { enabled: false } when
+    // the section is off, or { enabled: true, config: {...} } when on.
+    // We map each branch onto the flat state fields the panel uses.
+    //
+    // Categories themselves aren't hydrated here yet — they live as
+    // tickets with is_show_car_ticket=1, and /event-edit doesn't
+    // currently filter those out of the regular ticket list. Adding
+    // that needs a small PHP change; until then showCarCategories
+    // hydrates as empty and new categories disappear on refresh.
+    ...mapShowCars(response.show_cars),
+
     // ---- Publish ------------------------------------------------------
     ...mapPublish(response.publish),
+  };
+}
+
+/**
+ * Map the API's show_cars discriminated union onto the editor's flat
+ * fields. When the section is disabled we still seed defaults so the
+ * panel renders cleanly if the user toggles it on without saving
+ * first.
+ */
+function mapShowCars(
+  api: ApiEventEditResponse["show_cars"] | undefined | null,
+): {
+  showCarsEnabled: boolean;
+  showCarsLimitEnabled: boolean;
+  showCarsMax: number;
+  showCarsInfo: string;
+  showCarSecretCode: string;
+  showCarCategories: ShowCarCategory[];
+} {
+  // Missing or disabled → return defaults. The "missing" case covers
+  // older /event-edit responses that pre-date the show_cars field;
+  // FE and BE don't have to ship in lockstep this way.
+  if (!api || !api.enabled) {
+    return {
+      showCarsEnabled: false,
+      showCarsLimitEnabled: false,
+      showCarsMax: NaN,
+      showCarsInfo: "",
+      showCarSecretCode: "",
+      showCarCategories: [],
+    };
+  }
+  const c = api.config;
+  // The capacity-limit toggle is derived: if the server has a max,
+  // the limit is on; if it's null, the limit's off and the value
+  // sits as NaN ("unset") for the input control.
+  const hasMax = typeof c.max === "number" && Number.isFinite(c.max);
+  return {
+    showCarsEnabled: true,
+    showCarsLimitEnabled: hasMax,
+    showCarsMax: hasMax ? (c.max as number) : NaN,
+    showCarsInfo: c.info ?? "",
+    showCarSecretCode: c.secret_code ?? "",
+    // Categories — empty array if the field is absent. We carry the
+    // raw post id (not encrypted) as `id` so it matches what the save
+    // endpoint returns and the panel's id-swap-on-create logic stays
+    // consistent.
+    showCarCategories: (api.categories ?? []).map(mapShowCarCategory),
+  };
+}
+
+function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
+  return {
+    id: api.id as ShowCarCategoryId,
+    name: api.name,
+    description: api.description,
+    applicationsOpen: api.applications_open ?? null,
+    applicationsClose: api.applications_close ?? null,
+    // The editor uses NaN to mean "unset" so the input renders blank.
+    spacesAvailable:
+      typeof api.spaces_available === "number" ? api.spaces_available : NaN,
+    requireTicket: api.require_ticket,
+    // ticket_cost only matters when requireTicket is true — leave NaN
+    // otherwise so the drawer's "ticket cost" input doesn't show 0.
+    ticketCost:
+      api.require_ticket && Number.isFinite(api.ticket_cost)
+        ? api.ticket_cost
+        : NaN,
   };
 }
 
@@ -203,7 +296,9 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
       // Sections carry their own secret_code_ticket flag — that's
       // what powers the "Secret ticket section" UI checkbox.
       isSecret: row.secret_code_ticket,
-      encryptedTicketID: row.encrypted_ticket_id || null,
+      // Pre-fill the code so the drawer shows what was stored rather
+      // than silently overwriting it on the next save.
+      secretCode: row.secret_code ?? "",
     };
     return section;
   }
@@ -230,8 +325,11 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     individualAttendeeDetails: row.request_attendance_details,
     requestVehiclePhoto: row.request_vehicle_photo,
     isSecret: row.secret_code_ticket,
-    secretCode: row.secret_code_ticket ? row.secret_code : undefined,
-    encryptedTicketID: row.encrypted_ticket_id || null, // API returns "" for non-secret tickets; we want null for the editor's logic to treat as unset
+    // Pre-fill the code so the drawer shows what's stored. Falls back
+    // to empty string when isSecret is false (and the API returns "")
+    // so the drawer's "auto-generate on first toggle" still kicks in
+    // if the user later flips it on.
+    secretCode: row.secret_code ?? "",
   };
   return ticket;
 }
@@ -399,7 +497,8 @@ function mapDates(
   // sensible to render.
   const perDayTimes = api.date_rows.map((row) => ({
     date: row.start_date,
-    startTime: row.start_time && row.start_time !== "00:00" ? row.start_time : "09:00",
+    startTime:
+      row.start_time && row.start_time !== "00:00" ? row.start_time : "09:00",
     endTime: row.end_time && row.end_time !== "00:00" ? row.end_time : "16:00",
   }));
 
@@ -427,9 +526,7 @@ function mapDates(
               ? row.start_time
               : "09:00",
           endTime:
-            row.end_time && row.end_time !== "00:00"
-              ? row.end_time
-              : "16:00",
+            row.end_time && row.end_time !== "00:00" ? row.end_time : "16:00",
         }))
       : [];
 
@@ -496,7 +593,11 @@ function mapMonthlyOccurrence(
   if (!raw) return "first_sunday";
   const trimmed = raw.trim().toLowerCase();
   // Slug form first.
-  if (/^(first|second|third|fourth|last)_(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/.test(trimmed)) {
+  if (
+    /^(first|second|third|fourth|last)_(sunday|monday|tuesday|wednesday|thursday|friday|saturday)$/.test(
+      trimmed,
+    )
+  ) {
     return trimmed as MonthlyOccurrence;
   }
   // Label form: "First Monday of each month" → "first_monday".

@@ -6,6 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   useEventCreate,
   type ShowCarCategory,
+  type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
 import {
   EVENT_CREATE_STEP_COUNT,
@@ -13,11 +14,19 @@ import {
 } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
+import {
+  useSaveShowCarCategory,
+  useDeleteShowCarCategory,
+  mapShowCarCategoryToBody,
+} from "@/lib/showCarMutations";
+import { generateSecretCode } from "@/lib/generateSecretCode";
+import { ApiError } from "@/lib/apiClient";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
 import { PanelHeader } from "../PanelHeader";
 import { ShowCarCategoryDrawer } from "../ShowCarCategoryDrawer";
+import { SecretCodeField } from "../TicketDrawer";
 
 /**
  * Step 7 — Show Cars.
@@ -56,6 +65,61 @@ export function ShowCarsPanel() {
   const openEdit = (c: ShowCarCategory) => {
     setEditing(c);
     setDrawerOpen(true);
+  };
+
+  // ============================================================
+  // Per-row save / delete mutations. Same pattern as TicketsPanel /
+  // DiscountsPanel — mutation-first, drawer stays open on error.
+  // ============================================================
+  const saver = useSaveShowCarCategory();
+  const remover = useDeleteShowCarCategory();
+  const eid = state.encryptedId;
+
+  const errorText = (err: Error | null): string | null =>
+    err
+      ? err instanceof ApiError
+        ? err.message
+        : err.message || "Save failed."
+      : null;
+
+  const handleSaveCategory = async (
+    c: ShowCarCategory,
+    isUpdate: boolean,
+  ) => {
+    if (!eid) return;
+    try {
+      const res = await saver.mutateAsync({
+        eid,
+        id: c.id,
+        body: mapShowCarCategoryToBody(c),
+      });
+      // Swap the local synthetic id for the server's raw post id —
+      // matches the ticket/discount panel convention so later edits
+      // route to the update path.
+      const persisted: ShowCarCategory = {
+        ...c,
+        id: String(res.ticket_id) as ShowCarCategoryId,
+      };
+      dispatch(
+        isUpdate
+          ? { type: "UPDATE_SHOW_CAR_CATEGORY", category: persisted }
+          : { type: "ADD_SHOW_CAR_CATEGORY", category: persisted },
+      );
+      setDrawerOpen(false);
+    } catch {
+      // Drawer stays open; error surfaces via saver.error.
+    }
+  };
+
+  const handleRemoveCategory = async (id: ShowCarCategoryId) => {
+    if (!eid) return;
+    try {
+      await remover.mutateAsync({ eid, id });
+      dispatch({ type: "REMOVE_SHOW_CAR_CATEGORY", id });
+      setDrawerOpen(false);
+    } catch {
+      // Leave the row in place; surface error on the drawer if open.
+    }
   };
 
   // ---- DnD reorder ----
@@ -144,6 +208,40 @@ export function ShowCarsPanel() {
 
       {state.showCarsEnabled && (
         <>
+          {/* Event-wide secret code shared by every show car ticket
+              on this event. Buyers enter it once on the show cars
+              page to unlock the listings. Auto-generated on the
+              first show car save if left blank; the user can
+              override here. */}
+          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+            <p className="text-sm font-semibold text-ink-900 mb-1">
+              Show car secret code
+            </p>
+            <p className="text-xs text-ink-500 mb-3">
+              Shared by every show car ticket on this event. Generate
+              one or set your own — buyers enter it on the show cars
+              page to unlock the categories.
+            </p>
+            <SecretCodeField
+              value={state.showCarSecretCode}
+              onChange={(value) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  key: "showCarSecretCode",
+                  value,
+                })
+              }
+              onRegenerate={() =>
+                dispatch({
+                  type: "SET_FIELD",
+                  key: "showCarSecretCode",
+                  value: generateSecretCode(),
+                })
+              }
+              idPrefix="show-cars"
+            />
+          </div>
+
           {/* Capacity */}
           <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
             <label className="flex items-center justify-between gap-3 cursor-pointer">
@@ -251,12 +349,7 @@ export function ShowCarsPanel() {
                       <ShowCarCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
-                        onDelete={() =>
-                          dispatch({
-                            type: "REMOVE_SHOW_CAR_CATEGORY",
-                            id: c.id,
-                          })
-                        }
+                        onDelete={() => handleRemoveCategory(c.id)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
                         canMoveUp={idx > 0}
@@ -326,17 +419,17 @@ export function ShowCarsPanel() {
         key={`scc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={drawerOpen}
         editing={editing}
-        onClose={() => setDrawerOpen(false)}
-        onSave={(c) => {
-          if (editing) {
-            dispatch({ type: "UPDATE_SHOW_CAR_CATEGORY", category: c });
-          } else {
-            dispatch({ type: "ADD_SHOW_CAR_CATEGORY", category: c });
-          }
+        onClose={() => {
+          // Reset any error from a previous failed save so the next
+          // open of the drawer starts clean.
+          saver.reset();
+          setDrawerOpen(false);
         }}
-        onRemove={(id) =>
-          dispatch({ type: "REMOVE_SHOW_CAR_CATEGORY", id })
-        }
+        onSave={(c) => handleSaveCategory(c, editing !== null)}
+        onRemove={(id) => handleRemoveCategory(id)}
+        isSaving={saver.isPending}
+        isDeleting={remover.isPending}
+        errorMessage={errorText(saver.error) ?? errorText(remover.error)}
       />
     </section>
   );

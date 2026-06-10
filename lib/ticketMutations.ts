@@ -114,7 +114,7 @@ export function mapSectionToBody(s: TicketSection): ApiTicketSaveBody {
 // Local- vs server-id detection
 // ============================================================
 
-const LOCAL_ID_PATTERN = /^(tkt|sec|dis)-[A-Za-z0-9]{8}$/;
+const LOCAL_ID_PATTERN = /^(tkt|sec)-[A-Za-z0-9]{8}$/;
 
 /** True if the id was minted by makeLocalId() and hasn't been
  *  persisted yet. Anything else is treated as a server make_crypt id. */

@@ -3,7 +3,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import { useEventCreate } from "@/context/EventCreateContext";
+import {
+  useEventCreate,
+  type EditorImage,
+} from "@/context/EventCreateContext";
 import {
   EVENT_CREATE_STEP_COUNT,
   adjacentSteps,
@@ -13,6 +16,11 @@ import {
   makeLocalImage,
   revokeIfLocal,
 } from "@/lib/editorImage";
+import {
+  useUploadEventImage,
+  useRemoveEventImage,
+} from "@/lib/imageMutations";
+import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
 
@@ -54,6 +62,97 @@ export function GalleryPanel() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // ============================================================
+  // Upload + remove plumbing.
+  //
+  // When files are picked, they enter state as `local` immediately
+  // (instant preview). For each one we kick off the three-step CF
+  // direct upload in the background; on success the local entry is
+  // swapped for `remote { url, cloudflareId }` in place. On failure
+  // the local is removed and an error message is surfaced inline.
+  //
+  // We track per-tile upload state in a Map keyed by previewUrl —
+  // the blob URL is unique per local image so it's a stable id even
+  // as the gallery array gets re-spliced for reorders.
+  // ============================================================
+  const upload = useUploadEventImage();
+  const remover = useRemoveEventImage();
+  const eid = state.encryptedId;
+
+  const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
+  const [uploadErrors, setUploadErrors] = useState<string[]>([]);
+
+  // galleryRef captures the latest gallery so async upload callbacks
+  // can mutate against current state instead of the snapshot captured
+  // when the upload was kicked off. Mirrors the cleanup ref further
+  // down.
+  const liveGalleryRef = useRef(state.gallery);
+  liveGalleryRef.current = state.gallery;
+
+  const markUploading = (key: string, on: boolean) => {
+    setUploadingKeys((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(key);
+      else next.delete(key);
+      return next;
+    });
+  };
+
+  const errorText = (err: unknown): string =>
+    err instanceof ApiError
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : "Upload failed.";
+
+  const startUpload = async (local: EditorImage & { kind: "local" }) => {
+    if (!eid) {
+      setUploadErrors((p) => [
+        ...p,
+        `${local.file.name}: save the event basics first so we know where to attach the image.`,
+      ]);
+      // Drop the local entry — leaving it would imply success.
+      dispatch({
+        type: "SET_GALLERY",
+        items: liveGalleryRef.current.filter((i) => i !== local),
+      });
+      revokeIfLocal(local);
+      return;
+    }
+    markUploading(local.previewUrl, true);
+    try {
+      const image = await upload.mutateAsync({
+        eid,
+        file: local.file,
+        mediaGroup: "gallery",
+      });
+      // Swap this specific local for the returned remote. Find by
+      // identity (the local object itself), not index — the gallery
+      // may have been reordered while the upload was in flight.
+      const remote: EditorImage = {
+        kind: "remote",
+        url: image.url,
+        cloudflareId: image.id,
+      };
+      dispatch({
+        type: "SET_GALLERY",
+        items: liveGalleryRef.current.map((i) => (i === local ? remote : i)),
+      });
+      revokeIfLocal(local);
+    } catch (err) {
+      // Remove the failed local + surface the error so the user
+      // knows it didn't take.
+      dispatch({
+        type: "SET_GALLERY",
+        items: liveGalleryRef.current.filter((i) => i !== local),
+      });
+      revokeIfLocal(local);
+      setUploadErrors((p) => [...p, `${local.file.name}: ${errorText(err)}`]);
+    } finally {
+      markUploading(local.previewUrl, false);
+    }
+  };
+
   // ---- File input plumbing ----
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOverDropzone, setDragOverDropzone] = useState(false);
@@ -68,6 +167,11 @@ export function GalleryPanel() {
       type: "SET_GALLERY",
       items: [...state.gallery, ...images],
     });
+    // Kick off the upload pipeline for each new local. Each call
+    // resolves independently so a slow one doesn't block the others.
+    for (const img of images) {
+      if (img.kind === "local") startUpload(img);
+    }
   };
 
   const onPick = () => fileInputRef.current?.click();
@@ -121,12 +225,27 @@ export function GalleryPanel() {
   };
 
   // ---- Mutations ----
-  const removeTile = (idx: number) => {
+  const removeTile = async (idx: number) => {
     const removed = state.gallery[idx];
+    if (!removed) return;
+
+    // For CF-backed images (uploaded through this flow), delete from
+    // server first and only remove from local state on success — so a
+    // server-side failure leaves the tile visible with an error
+    // message rather than silently vanishing.
+    if (removed.kind === "remote" && removed.cloudflareId && eid) {
+      try {
+        await remover.mutateAsync({ eid, mediaId: removed.cloudflareId });
+      } catch (err) {
+        setUploadErrors((p) => [...p, `Couldn't remove image: ${errorText(err)}`]);
+        return;
+      }
+    }
+
     revokeIfLocal(removed); // free the blob URL if it was local
     dispatch({
       type: "SET_GALLERY",
-      items: state.gallery.filter((_, i) => i !== idx),
+      items: liveGalleryRef.current.filter((_, i) => i !== idx),
     });
   };
   const moveTile = (idx: number, delta: -1 | 1) => {
@@ -165,11 +284,32 @@ export function GalleryPanel() {
         subtitle="Showcase previous years or the atmosphere. Drag to reorder, click to remove."
       />
 
+      {uploadErrors.length > 0 && (
+        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-start justify-between gap-2">
+            <ul className="flex-1 text-xs text-red-700 space-y-0.5">
+              {uploadErrors.map((msg, i) => (
+                <li key={i}>{msg}</li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              onClick={() => setUploadErrors([])}
+              className="text-xs font-semibold text-red-700 hover:text-red-900 shrink-0"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ---- Tile grid ---- */}
       <div className="grid grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         {state.gallery.map((img, idx) => {
           const isDragging = dragIdx === idx;
           const isDropTarget = dropIdx === idx && dragIdx !== idx;
+          const isUploading =
+            img.kind === "local" && uploadingKeys.has(img.previewUrl);
           const tileClasses = [
             "gallery-tile border border-ink-200 cursor-grab",
             isDragging && "opacity-40",
@@ -198,7 +338,15 @@ export function GalleryPanel() {
                 className="w-full h-full object-cover pointer-events-none"
                 draggable={false}
               />
-              {img.kind === "local" && (
+              {isUploading && (
+                <div className="absolute inset-0 bg-ink-900/40 flex items-center justify-center pointer-events-none">
+                  <i
+                    className="fa-solid fa-spinner fa-spin text-white text-lg"
+                    aria-hidden
+                  />
+                </div>
+              )}
+              {img.kind === "local" && !isUploading && (
                 <span className="absolute top-2 left-2 px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold bg-ink-900/80 text-white rounded">
                   Pending
                 </span>

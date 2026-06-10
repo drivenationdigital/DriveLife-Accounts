@@ -45,12 +45,18 @@ export function DiscountDrawer({
   onClose,
   onSave,
   onRemove,
+  isSaving = false,
+  isDeleting = false,
+  errorMessage = null,
 }: {
   open: boolean;
   editing: Discount | null;
   onClose: () => void;
   onSave: (discount: Discount) => void;
   onRemove: (id: DiscountId) => void;
+  isSaving?: boolean;
+  isDeleting?: boolean;
+  errorMessage?: string | null;
 }) {
   const { state } = useEventCreate();
 
@@ -161,7 +167,8 @@ export function DiscountDrawer({
       note: editing?.note ?? "",
     };
     onSave(discount);
-    onClose();
+    // No onClose() here — caller drives the drawer's open state
+    // around the async save (same pattern as TicketDrawer).
   };
 
   const isPercent = kind === "percentage";
@@ -192,36 +199,59 @@ export function DiscountDrawer({
         eyebrow="Discount"
         title={editing ? "Edit discount code" : "Add discount code"}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!isSaveable}
-              className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
-            >
-              {editing ? "Save changes" : "Save discount"}
-            </button>
-            {editing && (
+          <div className="flex flex-col gap-2 w-full">
+            {errorMessage && (
+              <p className="text-xs text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            <div className="flex items-stretch gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  onRemove(editing.id);
-                  onClose();
-                }}
-                aria-label="Delete discount"
-                className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center shrink-0"
+                onClick={onClose}
+                disabled={isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
               >
-                <i className="fa-solid fa-trash text-sm" aria-hidden />
+                Cancel
               </button>
-            )}
-          </>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!isSaveable || isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
+              >
+                {isSaving && (
+                  <i
+                    className="fa-solid fa-spinner fa-spin text-xs"
+                    aria-hidden
+                  />
+                )}
+                {isSaving
+                  ? "Saving…"
+                  : editing
+                    ? "Save changes"
+                    : "Save discount"}
+              </button>
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(editing.id)}
+                  disabled={isSaving || isDeleting}
+                  aria-label="Delete discount"
+                  className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center shrink-0"
+                >
+                  <i
+                    className={
+                      isDeleting
+                        ? "fa-solid fa-spinner fa-spin text-sm"
+                        : "fa-solid fa-trash text-sm"
+                    }
+                    aria-hidden
+                  />
+                </button>
+              )}
+            </div>
+          </div>
         }
       >
         {/* Code */}

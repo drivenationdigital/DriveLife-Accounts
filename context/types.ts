@@ -49,7 +49,7 @@ export interface Order {
 
 export interface ShowCar {
   id: string;
-  model: string;          // e.g. "1987 Porsche 911 Carrera"
+  model: string; // e.g. "1987 Porsche 911 Carrera"
   year: string;
   make: string;
   modelName: string;
@@ -108,11 +108,11 @@ export interface Notification {
 export interface Discount {
   id: string;
   code: string;
-  displayAmount: string;       // "10%" or "£5.00"
-  statusLabel: string;         // "Active" / "Ended 2 days ago"
+  displayAmount: string; // "10%" or "£5.00"
+  statusLabel: string; // "Active" / "Ended 2 days ago"
   activeState: "active" | "upcoming" | "ended";
   usage: number;
-  maxUsage: number | null;     // null = unlimited
+  maxUsage: number | null; // null = unlimited
 }
 
 export interface CategoryStat {
@@ -159,6 +159,10 @@ export interface EventData {
     fees: number;
   };
   tickets: Ticket[];
+  /** Show car tickets (filtered server-side from the regular ticket
+   *  list via the show_car_ticket=1 flag). Same shape as tickets;
+   *  rendered in the show cars tab rather than the tickets breakdown. */
+  showCarTickets: Ticket[];
   orders: Order[];
   /** Non-null when the Orders tab's paginated /event/orders has loaded. */
   ordersPagination: OrdersPagination | null;

@@ -1,9 +1,12 @@
 "use client";
 
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import { useEventCreate } from "@/context/EventCreateContext";
+import {
+  useEventCreate,
+  type EditorImage,
+} from "@/context/EventCreateContext";
 import {
   EVENT_CREATE_STEP_COUNT,
   adjacentSteps,
@@ -13,6 +16,11 @@ import {
   makeLocalImage,
   revokeIfLocal,
 } from "@/lib/editorImage";
+import {
+  useUploadEventImage,
+  useRemoveEventImage,
+} from "@/lib/imageMutations";
+import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
 import { EditorTextarea } from "../EditorTextarea";
@@ -56,31 +64,95 @@ export function DescriptionPanel() {
 
   // Cover image is picked from the device. The hidden <input> is
   // triggered by the Replace/Add buttons. Selected files become
-  // `local` EditorImages — uploaded later when the user saves.
+  // `local` immediately for instant preview, then upload to
+  // Cloudflare in the background and get replaced with `remote {
+  // url, cloudflareId }` on success. The server-side
+  // /event-image-confirm deletes the previous cover from CF + DB as
+  // part of the same call, so we don't have to chain a delete here.
   const coverInputRef = useRef<HTMLInputElement>(null);
+  const upload = useUploadEventImage();
+  const remover = useRemoveEventImage();
+  const eid = state.encryptedId;
+  const [coverError, setCoverError] = useState<string | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
+
+  const errorText = (err: unknown): string =>
+    err instanceof ApiError
+      ? err.message
+      : err instanceof Error
+        ? err.message
+        : "Couldn't upload that image.";
 
   const onPickCover = () => {
     coverInputRef.current?.click();
   };
 
-  const onCoverFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const onCoverFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     // Reset the input value so picking the same file twice still
     // triggers onChange.
     e.target.value = "";
     if (!file) return;
+    setCoverError(null);
+
     // Revoke the previous local previewUrl (if any) before swapping
     // so we don't leak the blob.
     revokeIfLocal(state.coverImage);
-    dispatch({
-      type: "SET_FIELD",
-      key: "coverImage",
-      value: makeLocalImage(file),
-    });
+    const local = makeLocalImage(file);
+    dispatch({ type: "SET_FIELD", key: "coverImage", value: local });
+
+    if (!eid) {
+      setCoverError(
+        "Save the event basics first so we know where to attach the cover image.",
+      );
+      revokeIfLocal(local);
+      dispatch({ type: "SET_FIELD", key: "coverImage", value: null });
+      return;
+    }
+
+    setCoverBusy(true);
+    try {
+      const image = await upload.mutateAsync({
+        eid,
+        file,
+        mediaGroup: "cover",
+      });
+      const remote: EditorImage = {
+        kind: "remote",
+        url: image.url,
+        cloudflareId: image.id,
+      };
+      dispatch({ type: "SET_FIELD", key: "coverImage", value: remote });
+      revokeIfLocal(local);
+    } catch (err) {
+      setCoverError(errorText(err));
+      revokeIfLocal(local);
+      dispatch({ type: "SET_FIELD", key: "coverImage", value: null });
+    } finally {
+      setCoverBusy(false);
+    }
   };
 
-  const onCoverRemove = () => {
-    revokeIfLocal(state.coverImage);
+  const onCoverRemove = async () => {
+    const current = state.coverImage;
+    if (!current) return;
+    setCoverError(null);
+
+    // Server-side delete only matters for CF-backed covers. Legacy
+    // remote covers without a cloudflareId just drop from local state.
+    if (current.kind === "remote" && current.cloudflareId && eid) {
+      setCoverBusy(true);
+      try {
+        await remover.mutateAsync({ eid, mediaId: current.cloudflareId });
+      } catch (err) {
+        setCoverError(`Couldn't remove image: ${errorText(err)}`);
+        setCoverBusy(false);
+        return;
+      }
+      setCoverBusy(false);
+    }
+
+    revokeIfLocal(current);
     dispatch({ type: "SET_FIELD", key: "coverImage", value: null });
   };
 
@@ -137,9 +209,17 @@ export function DescriptionPanel() {
                   Remove
                 </button>
               </div>
+              {coverBusy && (
+                <div className="absolute inset-0 bg-ink-900/40 flex items-center justify-center pointer-events-none">
+                  <i
+                    className="fa-solid fa-spinner fa-spin text-white text-2xl"
+                    aria-hidden
+                  />
+                </div>
+              )}
               {/* "Pending upload" pill — only shown for locals so the
                   user knows the image isn't on the server yet. */}
-              {state.coverImage.kind === "local" && (
+              {state.coverImage.kind === "local" && !coverBusy && (
                 <span className="absolute top-3 left-3 px-2 py-1 text-[10px] uppercase tracking-wider font-semibold bg-ink-900/80 text-white rounded">
                   Pending upload
                 </span>
@@ -166,6 +246,12 @@ export function DescriptionPanel() {
           className="hidden"
           onChange={onCoverFile}
         />
+
+        {coverError && (
+          <p className="mt-2 text-xs text-red-600" role="alert">
+            {coverError}
+          </p>
+        )}
       </div>
 
       {/* ---- Description with toolbar ---- */}

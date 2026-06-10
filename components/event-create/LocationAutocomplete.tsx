@@ -63,7 +63,10 @@ type GMaps = {
           types?: string[];
           componentRestrictions?: { country?: string | string[] };
         },
-        cb: (predictions: AutocompletePrediction[] | null, status: string) => void,
+        cb: (
+          predictions: AutocompletePrediction[] | null,
+          status: string,
+        ) => void,
       ) => void;
     };
     AutocompleteSessionToken: new () => unknown;
@@ -95,7 +98,11 @@ export function LocationAutocomplete({
 }: {
   value: string;
   onValueChange: (text: string) => void;
-  onPlacePicked: (place: { name: string; address: string; coords: LatLng }) => void;
+  onPlacePicked: (place: {
+    name: string;
+    address: string;
+    coords: LatLng;
+  }) => void;
   placeholder?: string;
 }) {
   const id = useId();
@@ -120,7 +127,8 @@ export function LocationAutocomplete({
     loadGoogleMaps()
       .then(() => {
         if (cancelled) return;
-        const g = (window as unknown as { google: GMaps }).google;
+        const g = (window as unknown as { google: { maps: GMaps } }).google
+          .maps;
         sessionTokenRef.current = new g.places.AutocompleteSessionToken();
         setReady(true);
       })
@@ -155,7 +163,7 @@ export function LocationAutocomplete({
       return;
     }
     const myId = ++requestIdRef.current;
-    const g = (window as unknown as { google: GMaps }).google;
+    const g = (window as unknown as { google: { maps: GMaps } }).google.maps;
     const svc = new g.places.AutocompleteService();
     svc.getPlacePredictions(
       {
@@ -182,7 +190,10 @@ export function LocationAutocomplete({
   const handleChange = (text: string) => {
     onValueChange(text);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => requestPredictions(text), DEBOUNCE_MS);
+    debounceRef.current = setTimeout(
+      () => requestPredictions(text),
+      DEBOUNCE_MS,
+    );
   };
 
   // ---- Pick a prediction → fetch full details for coords + address. ----
@@ -195,7 +206,7 @@ export function LocationAutocomplete({
       onValueChange(prediction.description);
       return;
     }
-    const g = (window as unknown as { google: GMaps }).google;
+    const g = (window as unknown as { google: { maps: GMaps } }).google.maps;
     const places = new g.places.PlacesService(attributionRef.current);
     places.getDetails(
       {
@@ -214,7 +225,8 @@ export function LocationAutocomplete({
           onValueChange(place.formatted_address ?? prediction.description);
           return;
         }
-        const name = place.name ?? prediction.structured_formatting?.main_text ?? "";
+        const name =
+          place.name ?? prediction.structured_formatting?.main_text ?? "";
         const address = place.formatted_address ?? prediction.description;
         // Compose the field text the way the original mockup does:
         // "<name>, <address>" if both present and the address doesn't
@@ -243,9 +255,7 @@ export function LocationAutocomplete({
       setHighlight((h) => (h + 1) % predictions.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight(
-        (h) => (h - 1 + predictions.length) % predictions.length,
-      );
+      setHighlight((h) => (h - 1 + predictions.length) % predictions.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
       const picked = predictions[highlight];
@@ -325,7 +335,11 @@ export function LocationAutocomplete({
       )}
 
       {/* Required by PlacesService for attribution; positioned offscreen. */}
-      <div ref={attributionRef} className="absolute -left-[9999px]" aria-hidden />
+      <div
+        ref={attributionRef}
+        className="absolute -left-[9999px]"
+        aria-hidden
+      />
 
       {/* Quiet error notice — only shown when the script failed to load. */}
       {loadError && (

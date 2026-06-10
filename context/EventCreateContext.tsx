@@ -121,7 +121,6 @@ export type Ticket = {
    *  Ticket without it keep typechecking — drawers / mappers default
    *  to empty when absent. */
   secretCode?: string;
-  encryptedTicketID: string | null; // API returns "" for non-secret tickets; we want null for the editor's logic to treat as unset
 };
 
 /** A divider in the ticket list. Sits *between* tickets to group
@@ -139,7 +138,6 @@ export type TicketSection = {
    *  so existing call sites keep typechecking; drawers default to
    *  empty when absent. */
   secretCode?: string;
-  encryptedTicketID: string | null; // API returns "" for non-secret sections; we want null for the editor's logic to treat as unset
 };
 
 /** The ticket list is a flat array of either kind. Discriminated by
@@ -469,6 +467,11 @@ export type EventCreateState = {
   showCarsMax: number; // NaN ⇒ unset
   showCarCategories: ShowCarCategory[];
   showCarsInfo: string;
+  /** Event-wide secret code shared by every show car ticket the
+   *  organiser creates. Stored on the event itself (legacy
+   *  showcar_secret_code ACF field) rather than per-category so all
+   *  categories on the show cars page unlock together. */
+  showCarSecretCode: string;
 
   // ---- Car Clubs ----
   // Single application window (no per-category windows, unlike show
@@ -556,59 +559,7 @@ const INITIAL_STATE: EventCreateState = {
   ].map((url) => ({ kind: "remote" as const, url })),
 
   ticketSource: "ce",
-  ticketList: [
-    {
-      kind: "ticket",
-      id: "tkt-eb" as TicketId,
-      name: "Early Bird General Admission",
-      additionalInfo: "",
-      quantity: 100,
-      price: 12.5,
-      saleStart: null,
-      saleEnd: "2026-04-15",
-      limitPerOrder: NaN,
-      requireCarDetails: false,
-      requireCarClubName: false,
-      individualAttendeeDetails: false,
-      requestVehiclePhoto: false,
-      encryptedTicketID: null,
-      isSecret: false,
-    },
-    {
-      kind: "ticket",
-      id: "tkt-std" as TicketId,
-      name: "Standard General Admission",
-      additionalInfo: "",
-      quantity: 250,
-      price: 15,
-      saleStart: null,
-      saleEnd: null,
-      limitPerOrder: NaN,
-      requireCarDetails: false,
-      requireCarClubName: false,
-      individualAttendeeDetails: false,
-      requestVehiclePhoto: false,
-      encryptedTicketID: null,
-      isSecret: false,
-    },
-    {
-      kind: "ticket",
-      id: "tkt-show" as TicketId,
-      name: "Show Car Entry",
-      additionalInfo: "",
-      quantity: 50,
-      price: 25,
-      saleStart: null,
-      saleEnd: null,
-      limitPerOrder: NaN,
-      requireCarDetails: true,
-      requireCarClubName: false,
-      individualAttendeeDetails: false,
-      requestVehiclePhoto: false,
-      isSecret: false,
-      encryptedTicketID: null,
-    },
-  ],
+  ticketList: [],
   ticketFeeMode: "pass",
   showAttendees: false,
   externalTicketUrl: "",
@@ -616,84 +567,13 @@ const INITIAL_STATE: EventCreateState = {
   freeEntryInfo: "",
   requireRegistration: false,
 
-  discounts: [
-    {
-      id: "disc-eb15" as DiscountId,
-      code: "EARLYBIRD15",
-      kind: "percentage",
-      amount: 15,
-      usageLimit: 100,
-      perCustomerLimit: 1,
-      usageCount: 24,
-      applicableTicketIds: [],
-      availableFrom: null,
-      availableUntil: "2026-04-15",
-      note: "",
-    },
-    {
-      id: "disc-club5" as DiscountId,
-      code: "CLUB5",
-      kind: "fixed",
-      amount: 5,
-      usageLimit: null,
-      perCustomerLimit: 1,
-      usageCount: 8,
-      applicableTicketIds: [],
-      availableFrom: null,
-      availableUntil: null,
-      note: "Club members only",
-    },
-    {
-      id: "disc-press" as DiscountId,
-      code: "PRESS2026",
-      kind: "percentage",
-      amount: 100,
-      usageLimit: 20,
-      perCustomerLimit: 1,
-      usageCount: 12,
-      applicableTicketIds: [],
-      availableFrom: null,
-      availableUntil: "2026-03-12",
-      note: "",
-    },
-  ],
+  discounts: [],
   showCarsEnabled: true,
   showCarsLimitEnabled: true,
   showCarsMax: 50,
-  showCarCategories: [
-    {
-      id: "scc-concours" as ShowCarCategoryId,
-      name: "Concours — Classic & Heritage",
-      description: "",
-      applicationsOpen: "2026-02-01",
-      applicationsClose: "2026-04-01",
-      spacesAvailable: 20,
-      requireTicket: true,
-      ticketCost: 25,
-    },
-    {
-      id: "scc-modified" as ShowCarCategoryId,
-      name: "Modified & Tuner",
-      description: "",
-      applicationsOpen: "2026-02-15",
-      applicationsClose: "2026-04-10",
-      spacesAvailable: NaN,
-      requireTicket: true,
-      ticketCost: 15,
-    },
-    {
-      id: "scc-supercar" as ShowCarCategoryId,
-      name: "Supercar & Exotic",
-      description: "",
-      applicationsOpen: "2026-03-01",
-      applicationsClose: "2026-04-15",
-      spacesAvailable: NaN,
-      requireTicket: false,
-      ticketCost: NaN,
-    },
-  ],
-  showCarsInfo:
-    "Arrival from 8am. Dedicated show parking on the main lawn. Complimentary breakfast rolls for drivers. Judging from 11am.",
+  showCarCategories: [],
+  showCarsInfo: "",
+  showCarSecretCode: "",
 
   carClubsEnabled: true,
   carClubsApplicationsOpen: "2026-02-01",
@@ -708,40 +588,7 @@ const INITIAL_STATE: EventCreateState = {
     "Clubs can book a dedicated stand for groups of 10+. Arrival from 7:30am for club stands. Minimum of 6 cars required.",
 
   tradersEnabled: true,
-  traderCategories: [
-    {
-      id: "tc-food" as TraderCategoryId,
-      name: "Food & Drink",
-      icon: "utensils",
-      applicationsOpen: "2026-01-15",
-      applicationsClose: "2026-03-01",
-      info: "",
-    },
-    {
-      id: "tc-merch" as TraderCategoryId,
-      name: "Merchandise & Apparel",
-      icon: "shirt",
-      applicationsOpen: "2026-02-01",
-      applicationsClose: "2026-03-15",
-      info: "",
-    },
-    {
-      id: "tc-parts" as TraderCategoryId,
-      name: "Parts, Tools & Detailing",
-      icon: "wrench",
-      applicationsOpen: "2026-02-01",
-      applicationsClose: "2026-03-15",
-      info: "",
-    },
-    {
-      id: "tc-sponsors" as TraderCategoryId,
-      name: "Sponsors & Exhibitors",
-      icon: "handshake",
-      applicationsOpen: "2026-01-15",
-      applicationsClose: "2026-04-01",
-      info: "",
-    },
-  ],
+  traderCategories: [],
 
   status: "published",
   scheduledDate: null,
@@ -797,6 +644,7 @@ type ScalarStateKey =
   | "showCarsLimitEnabled"
   | "showCarsMax"
   | "showCarsInfo"
+  | "showCarSecretCode"
   | "carClubsEnabled"
   | "carClubsApplicationsOpen"
   | "carClubsApplicationsClose"

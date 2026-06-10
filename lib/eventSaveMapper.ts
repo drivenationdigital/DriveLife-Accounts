@@ -93,6 +93,7 @@ export interface ApiEventUpdateSection {
   info?: string;
   paid?: boolean;
   ticket_cost?: number;
+  secret_code?: string;
 }
 
 export interface ApiEventUpdatePublish {
@@ -259,9 +260,7 @@ function mapCarClubs(state: EventCreateState): ApiEventUpdateSection {
       state.carClubsApplicationsCloseTime,
       "23:59",
     ),
-    max: state.carClubsLimitEnabled
-      ? finiteOrUndefined(state.carClubsMax)
-      : "",
+    max: state.carClubsLimitEnabled ? finiteOrUndefined(state.carClubsMax) : "",
     info: state.carClubsInfo,
     paid: state.carClubsRequireTicket,
   };
@@ -287,10 +286,13 @@ function mapCarClubs(state: EventCreateState): ApiEventUpdateSection {
 function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
   return {
     enabled: state.showCarsEnabled,
-    max: state.showCarsLimitEnabled
-      ? finiteOrUndefined(state.showCarsMax)
-      : "",
-    info: state.showCarsInfo,
+    max: state.showCarsLimitEnabled ? finiteOrUndefined(state.showCarsMax) : "",
+    // Defensive `?? ""`: if older context drops these fields from state
+    // for any reason, we still want them present in the payload so the
+    // server gets an explicit "clear" rather than JSON dropping the
+    // key entirely (which leaves the previous value in place).
+    info: state.showCarsInfo ?? "",
+    secret_code: state.showCarSecretCode ?? "",
   };
 }
 

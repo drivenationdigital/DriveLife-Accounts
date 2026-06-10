@@ -47,7 +47,7 @@ function formatDateHuman(iso: string | null | undefined): string {
 
 function formatTimeRange(
   startTime: string | null | undefined,
-  endTime: string | null | undefined
+  endTime: string | null | undefined,
 ): string {
   if (startTime && endTime) return `${startTime} — ${endTime}`;
   if (startTime) return startTime;
@@ -106,7 +106,7 @@ function mapEventDetail(core: ApiEventCore): EventDetail {
   const endTime = core.last_date?.end_time ?? core.first_date?.end_time ?? null;
 
   const locationParts = [core.location.name, core.location.address].filter(
-    (v, i, arr) => v && arr.indexOf(v) === i // de-dupe when name === address
+    (v, i, arr) => v && arr.indexOf(v) === i, // de-dupe when name === address
   );
 
   return {
@@ -116,10 +116,10 @@ function mapEventDetail(core: ApiEventCore): EventDetail {
       core.post_status === "publish"
         ? "published"
         : core.post_status === "draft"
-        ? "draft"
-        : core.post_status === "cancelled"
-        ? "cancelled"
-        : "published",
+          ? "draft"
+          : core.post_status === "cancelled"
+            ? "cancelled"
+            : "published",
     date: formatDateHuman(start),
     timeRange: formatTimeRange(startTime, endTime),
     location: locationParts.join(", ") || "—",
@@ -184,7 +184,13 @@ const SHOW_CAR_STATUS_MAP: Record<ApplicationStatusApi, ShowCarStatus> = {
 /** Deterministic photo class pick based on id so cards look varied. */
 function pickPhotoClass(id: number): CarPhotoClass {
   const classes: CarPhotoClass[] = [
-    "car-1", "car-2", "car-3", "car-4", "car-5", "car-6", "car-7",
+    "car-1",
+    "car-2",
+    "car-3",
+    "car-4",
+    "car-5",
+    "car-6",
+    "car-7",
   ];
   return classes[id % classes.length];
 }
@@ -233,14 +239,21 @@ export function mapShowCar(r: ApiShowCarRecord): ShowCar {
 
 /** Flatten the recent-by-status bucket into a single array. */
 function collectRecentShowCars(section: {
-  recent: { applied: ApiShowCarRecord[]; approved: ApiShowCarRecord[]; confirmed: ApiShowCarRecord[]; rejected: ApiShowCarRecord[] };
+  recent?: {
+    applied: ApiShowCarRecord[];
+    approved: ApiShowCarRecord[];
+    confirmed: ApiShowCarRecord[];
+    rejected: ApiShowCarRecord[];
+  };
 }): ShowCar[] {
-  return [
-    ...section.recent.applied,
-    ...section.recent.approved,
-    ...section.recent.confirmed,
-    ...section.recent.rejected,
-  ].map(mapShowCar);
+  // `recent` is only present on the dashboard /event endpoint, not on
+  // the editor's /event-edit. Return an empty list when absent so
+  // both surfaces share the same mapper without a runtime crash.
+  const r = section.recent;
+  if (!r) return [];
+  return [...r.applied, ...r.approved, ...r.confirmed, ...r.rejected].map(
+    mapShowCar,
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -270,7 +283,12 @@ export function mapCarClub(r: ApiCarClubRecord): Club {
 }
 
 function collectRecentCarClubs(section: {
-  recent: { applied: ApiCarClubRecord[]; approved: ApiCarClubRecord[]; confirmed: ApiCarClubRecord[]; rejected: ApiCarClubRecord[] };
+  recent: {
+    applied: ApiCarClubRecord[];
+    approved: ApiCarClubRecord[];
+    confirmed: ApiCarClubRecord[];
+    rejected: ApiCarClubRecord[];
+  };
 }): Club[] {
   return [
     ...section.recent.applied,
@@ -293,8 +311,12 @@ const EMPTY_COUNTS = {
 };
 
 function extractFeatures(resp: EventResponse): EventFeatures {
+  // counts is optional on ApiShowCarsSection (the editor's
+  // /event-edit doesn't ship application counts — only the dashboard
+  // /event endpoint does). When absent, fall back to EMPTY_COUNTS so
+  // the FeatureSection type stays concrete.
   const showCars: FeatureSection = resp.show_cars.enabled
-    ? { enabled: true, counts: resp.show_cars.counts }
+    ? { enabled: true, counts: resp.show_cars.counts ?? EMPTY_COUNTS }
     : { enabled: false, counts: EMPTY_COUNTS };
 
   const carClubs: FeatureSection = resp.clubs.enabled
@@ -336,6 +358,11 @@ export function mapEventResponse(resp: EventResponse): EventData {
       fees: sales.kpis.total_fees,
     },
     tickets: sales.tickets.map(mapTicket),
+    // Show car tickets are filtered server-side into a separate array
+    // so the regular tickets list / breakdown stays clean. Same shape
+    // as tickets — same mapper. Absent on older /event responses, so
+    // default to [] to keep the contract stable.
+    showCarTickets: (sales.show_car_tickets ?? []).map(mapTicket),
     orders: sales.orders.map(mapOrder),
     // The initial /event response returns ~5 recent orders for the Overview
     // card — not a full page. Leave pagination null until the Orders tab
@@ -369,7 +396,7 @@ export function applyOrdersPage(
     perPage: number;
     total: number;
     totalPages: number;
-  }
+  },
 ): EventData {
   return {
     ...existing,
@@ -381,7 +408,7 @@ export function applyOrdersPage(
 /** Merge newly-fetched show-cars (dedupes by id). */
 export function mergeAdditionalShowCars(
   existing: EventData,
-  newItems: ApiShowCarRecord[]
+  newItems: ApiShowCarRecord[],
 ): EventData {
   const mapped = newItems.map(mapShowCar);
   const seen = new Set(existing.showCars.map((c) => c.id));
@@ -398,7 +425,7 @@ export function mergeAdditionalShowCars(
 /** Merge newly-fetched car clubs (dedupes by id). */
 export function mergeAdditionalCarClubs(
   existing: EventData,
-  newItems: ApiCarClubRecord[]
+  newItems: ApiCarClubRecord[],
 ): EventData {
   const mapped = newItems.map(mapCarClub);
   const seen = new Set(existing.clubs.map((c) => c.id));

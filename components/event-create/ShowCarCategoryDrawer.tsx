@@ -33,12 +33,18 @@ export function ShowCarCategoryDrawer({
   onClose,
   onSave,
   onRemove,
+  isSaving = false,
+  isDeleting = false,
+  errorMessage = null,
 }: {
   open: boolean;
   editing: ShowCarCategory | null;
   onClose: () => void;
   onSave: (category: ShowCarCategory) => void;
   onRemove: (id: ShowCarCategoryId) => void;
+  isSaving?: boolean;
+  isDeleting?: boolean;
+  errorMessage?: string | null;
 }) {
   const [name, setName] = useState(() => editing?.name ?? "");
   const [description, setDescription] = useState(
@@ -86,7 +92,9 @@ export function ShowCarCategoryDrawer({
           ? Math.max(0, parseFloat(ticketCost))
           : NaN,
     });
-    onClose();
+    // No onClose() here — the caller drives the drawer's open state
+    // around the async save, so the drawer stays open on error and
+    // closes only when the panel sees a successful mutation.
   };
 
   const renderDateField = (target: DateTarget, value: string | null) => (
@@ -111,36 +119,59 @@ export function ShowCarCategoryDrawer({
         eyebrow="Show cars"
         title={editing ? "Edit category" : "Add category"}
         footer={
-          <>
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 rounded-lg transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={!name.trim()}
-              className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
-            >
-              {editing ? "Save changes" : "Save category"}
-            </button>
-            {editing && (
+          <div className="flex flex-col gap-2 w-full">
+            {errorMessage && (
+              <p className="text-xs text-red-600" role="alert">
+                {errorMessage}
+              </p>
+            )}
+            <div className="flex items-stretch gap-2">
               <button
                 type="button"
-                onClick={() => {
-                  onRemove(editing.id);
-                  onClose();
-                }}
-                aria-label="Delete category"
-                className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 transition flex items-center justify-center shrink-0"
+                onClick={onClose}
+                disabled={isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
               >
-                <i className="fa-solid fa-trash text-sm" aria-hidden />
+                Cancel
               </button>
-            )}
-          </>
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={!name.trim() || isSaving || isDeleting}
+                className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
+              >
+                {isSaving && (
+                  <i
+                    className="fa-solid fa-spinner fa-spin text-xs"
+                    aria-hidden
+                  />
+                )}
+                {isSaving
+                  ? "Saving…"
+                  : editing
+                    ? "Save changes"
+                    : "Save category"}
+              </button>
+              {editing && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(editing.id)}
+                  disabled={isSaving || isDeleting}
+                  aria-label="Delete category"
+                  className="ml-1 w-11 h-11 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center justify-center shrink-0"
+                >
+                  <i
+                    className={
+                      isDeleting
+                        ? "fa-solid fa-spinner fa-spin text-sm"
+                        : "fa-solid fa-trash text-sm"
+                    }
+                    aria-hidden
+                  />
+                </button>
+              )}
+            </div>
+          </div>
         }
       >
         <div>

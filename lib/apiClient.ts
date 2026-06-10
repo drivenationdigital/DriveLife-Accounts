@@ -44,34 +44,104 @@ export function setUnauthorizedHandler(fn: UnauthorizedHandler) {
   unauthorizedHandler = fn;
 }
 
+// ============================================================
+// Internals
+// ============================================================
+
+/**
+ * Wraps `fetch` and translates its raw TypeError("Failed to fetch") into
+ * an ApiError with status 0 and a message that actually says what went
+ * wrong. fetch() throws TypeError when the response never reaches JS —
+ * the typical causes are network failure, DNS, mixed content, or (most
+ * commonly here) a CORS-blocked response that the browser refused to
+ * expose. In all those cases the server's body, if it sent one, is
+ * unreachable, so we surface the layer at fault rather than letting the
+ * cryptic browser message leak through.
+ *
+ * The original error is logged to console so debugging in DevTools still
+ * shows the real fetch failure with full stack.
+ */
+async function safeFetch(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (err) {
+    if (typeof console !== "undefined") {
+      console.error("[apiClient] fetch failed for", url, err);
+    }
+    throw new ApiError(
+      "Couldn't reach the server. This usually means a network problem or a CORS-blocked response — check the browser console and Network tab for details.",
+      0,
+      null,
+    );
+  }
+}
+
+/** Try to read JSON. Non-JSON responses (e.g. a PHP fatal that emitted
+ *  HTML before the body) leave parsed as null and the caller falls back
+ *  to a status-based message. */
+async function safeParseJson(res: Response): Promise<unknown> {
+  try {
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Pull the most useful error message out of a WP REST response body.
+ * WP_Error from a route callback comes back as:
+ *   { code, message, data: { status } }
+ * Some legacy handlers nest the message under `data.message` instead,
+ * and a bare `error` string also turns up in older endpoints — we
+ * check all three before falling back to a status-only message.
+ */
+function extractErrorMessage(parsed: unknown, status: number): string {
+  if (parsed && typeof parsed === "object") {
+    const p = parsed as {
+      message?: unknown;
+      error?: unknown;
+      data?: { message?: unknown };
+    };
+    if (typeof p.message === "string" && p.message.trim()) return p.message;
+    if (typeof p.data?.message === "string" && p.data.message.trim()) {
+      return p.data.message;
+    }
+    if (typeof p.error === "string" && p.error.trim()) return p.error;
+  }
+  return `Request failed with status ${status}`;
+}
+
+// ============================================================
+// Public API
+// ============================================================
+
 export async function apiPost<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,
   opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<TResponse> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers: buildHeaders(),
     body: JSON.stringify(body ?? {}),
   });
 
-  let parsed: unknown = null;
-  try {
-    parsed = await res.json();
-  } catch {
-    // Non-JSON response — leave parsed as null.
-  }
+  console.log(res.body);
+  
+
+  const parsed = await safeParseJson(res);
 
   if (res.status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
   if (!res.ok) {
-    const message =
-      (parsed as { message?: string } | null)?.message ??
-      `Request failed with status ${res.status}`;
-    throw new ApiError(message, res.status, parsed);
+    throw new ApiError(
+      extractErrorMessage(parsed, res.status),
+      res.status,
+      parsed,
+    );
   }
 
   return parsed as TResponse;
@@ -82,22 +152,20 @@ export async function apiGet<TResponse>(
   opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<TResponse> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, { method: "GET", headers: buildHeaders() });
+  const res = await safeFetch(url, { method: "GET", headers: buildHeaders() });
 
-  let parsed: unknown = null;
-  try {
-    parsed = await res.json();
-  } catch {}
+  const parsed = await safeParseJson(res);
 
   if (res.status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
   if (!res.ok) {
-    const message =
-      (parsed as { message?: string } | null)?.message ??
-      `Request failed with status ${res.status}`;
-    throw new ApiError(message, res.status, parsed);
+    throw new ApiError(
+      extractErrorMessage(parsed, res.status),
+      res.status,
+      parsed,
+    );
   }
 
   return parsed as TResponse;
@@ -114,24 +182,23 @@ export async function apiDelete<TResponse>(
   opts: { skipAuthRedirect?: boolean } = {},
 ): Promise<TResponse> {
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await fetch(url, { method: "DELETE", headers: buildHeaders() });
+  const res = await safeFetch(url, {
+    method: "DELETE",
+    headers: buildHeaders(),
+  });
 
-  let parsed: unknown = null;
-  try {
-    parsed = await res.json();
-  } catch {
-    // Non-JSON response — leave parsed as null.
-  }
+  const parsed = await safeParseJson(res);
 
   if (res.status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
   if (!res.ok) {
-    const message =
-      (parsed as { message?: string } | null)?.message ??
-      `Request failed with status ${res.status}`;
-    throw new ApiError(message, res.status, parsed);
+    throw new ApiError(
+      extractErrorMessage(parsed, res.status),
+      res.status,
+      parsed,
+    );
   }
 
   return parsed as TResponse;

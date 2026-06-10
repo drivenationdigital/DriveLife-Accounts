@@ -6,12 +6,19 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   useEventCreate,
   type Discount,
+  type DiscountId,
 } from "@/context/EventCreateContext";
 import {
   EVENT_CREATE_STEP_COUNT,
   adjacentSteps,
 } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  useSaveDiscount,
+  useDeleteDiscount,
+  mapDiscountToBody,
+} from "@/lib/discountMutations";
+import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
 import { DiscountDrawer } from "../DiscountDrawer";
@@ -54,6 +61,57 @@ export function DiscountsPanel() {
   const openEdit = (d: Discount) => {
     setEditing(d);
     setDrawerOpen(true);
+  };
+
+  // ============================================================
+  // Per-row save / delete mutations.
+  // Same pattern as TicketsPanel — mutation-first, drawer stays open
+  // on error so the user can correct and retry.
+  // ============================================================
+  const discountSaver = useSaveDiscount();
+  const discountRemover = useDeleteDiscount();
+
+  const eid = state.encryptedId;
+
+  const errorText = (err: Error | null): string | null =>
+    err
+      ? err instanceof ApiError
+        ? err.message
+        : err.message || "Save failed."
+      : null;
+
+  const handleSaveDiscount = async (d: Discount, isUpdate: boolean) => {
+    if (!eid) return;
+    try {
+      const res = await discountSaver.mutateAsync({
+        eid,
+        id: d.id,
+        body: mapDiscountToBody(d),
+      });
+      // Swap the local synthetic id for the server's raw post id —
+      // /event-edit returns plain ids for discounts (same as tickets),
+      // so the editor state needs to match.
+      const persisted: Discount = { ...d, id: String(res.coupon_id) as DiscountId };
+      dispatch(
+        isUpdate
+          ? { type: "UPDATE_DISCOUNT", discount: persisted }
+          : { type: "ADD_DISCOUNT", discount: persisted },
+      );
+      setDrawerOpen(false);
+    } catch {
+      // Drawer stays open; error surfaces via discountSaver.error.
+    }
+  };
+
+  const handleRemoveDiscount = async (id: DiscountId) => {
+    if (!eid) return;
+    try {
+      await discountRemover.mutateAsync({ eid, id });
+      dispatch({ type: "REMOVE_DISCOUNT", id });
+      setDrawerOpen(false);
+    } catch {
+      // Leave the row in place; surface error on the drawer if open.
+    }
   };
 
   // ---- DnD reorder (same pattern as Tickets/Gallery) ----
@@ -169,9 +227,7 @@ export function DiscountsPanel() {
                     discount={d}
                     todayIso={todayIso}
                     onEdit={() => openEdit(d)}
-                    onDelete={() =>
-                      dispatch({ type: "REMOVE_DISCOUNT", id: d.id })
-                    }
+                    onDelete={() => handleRemoveDiscount(d.id)}
                     onMoveUp={() => moveItem(idx, -1)}
                     onMoveDown={() => moveItem(idx, 1)}
                     canMoveUp={idx > 0}
@@ -224,15 +280,19 @@ export function DiscountsPanel() {
         key={`disc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={drawerOpen}
         editing={editing}
-        onClose={() => setDrawerOpen(false)}
-        onSave={(d) => {
-          if (editing) {
-            dispatch({ type: "UPDATE_DISCOUNT", discount: d });
-          } else {
-            dispatch({ type: "ADD_DISCOUNT", discount: d });
-          }
+        onClose={() => {
+          // Reset any error from a previous failed save so the next
+          // open of the drawer starts clean.
+          discountSaver.reset();
+          setDrawerOpen(false);
         }}
-        onRemove={(id) => dispatch({ type: "REMOVE_DISCOUNT", id })}
+        onSave={(d) => handleSaveDiscount(d, editing !== null)}
+        onRemove={(id) => handleRemoveDiscount(id)}
+        isSaving={discountSaver.isPending}
+        isDeleting={discountRemover.isPending}
+        errorMessage={
+          errorText(discountSaver.error) ?? errorText(discountRemover.error)
+        }
       />
     </section>
   );

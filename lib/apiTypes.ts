@@ -128,7 +128,9 @@ export interface ApiEventCore {
   organisers: ApiOrganiser[];
   is_pinned: boolean;
   is_recurring: boolean;
-  recurring: (RecurringInfo & { parent_id: number | null; is_parent: boolean }) | null;
+  recurring:
+    | (RecurringInfo & { parent_id: number | null; is_parent: boolean })
+    | null;
   created_at: string;
   updated_at: string;
 }
@@ -217,7 +219,14 @@ export interface ApiOrdersMeta {
 
 export interface ApiSales {
   kpis: ApiSalesKpis;
+  /** Regular ticket types. Show car tickets are filtered server-side
+   *  into `show_car_tickets` below — same shape, just separated so
+   *  they render in the show cars tab instead of the tickets
+   *  breakdown. Optional for back-compat with older /event responses
+   *  that don't yet filter; the FE treats absence as "no show car
+   *  tickets" rather than erroring. */
   tickets: ApiTicketType[];
+  show_car_tickets?: ApiTicketType[];
   orders: ApiOrder[];
   attendees: ApiAttendee[];
   discounts: ApiDiscount[];
@@ -291,18 +300,53 @@ export interface ApiShowCarsConfig {
   ticket_cost: string | number | null;
   ticket_id: number | null;
   ticket_url: string | null;
+  /** Free-text "show car info" the organiser writes (arrival times,
+   *  parking instructions, perks). Stored in the `show_cars_description`
+   *  ACF field server-side. */
+  info: string;
+  /** Event-wide secret code shared by every show car ticket — the
+   *  organiser sets it here once and all categories reuse it. */
+  secret_code: string;
+}
+
+/**
+ * Per-category record returned in the /event-edit `show_cars.categories`
+ * array. Each row maps 1:1 to a ticket with is_show_car_ticket=1; the
+ * eventEditMapper translates it to the editor's ShowCarCategory shape.
+ */
+export interface ApiShowCarCategory {
+  /** Raw post id as a string — matches what the show-car save endpoint
+   *  returns (`String(ticket_id)`) so refresh-then-edit re-uses the
+   *  same id. */
+  id: string;
+  encrypted_id: string;
+  name: string;
+  description: string;
+  /** "YYYY-MM-DD" (date only — server strips the time portion). */
+  applications_open: string | null;
+  applications_close: string | null;
+  spaces_available: number | null;
+  /** Derived from price > 0 on the server. */
+  require_ticket: boolean;
+  ticket_cost: number;
 }
 
 export interface ApiShowCarsSection {
   enabled: true;
   config: ApiShowCarsConfig;
-  counts: ApiApplicationCounts;
-  recent: {
+  /** Application counts — only present on the events-dashboard
+   *  endpoint, not the editor's /event-edit. */
+  counts?: ApiApplicationCounts;
+  /** Recent applications — same as counts: dashboard only. */
+  recent?: {
     applied: ApiShowCarRecord[];
     approved: ApiShowCarRecord[];
     confirmed: ApiShowCarRecord[];
     rejected: ApiShowCarRecord[];
   };
+  /** Per-category list — only present on the editor's /event-edit
+   *  endpoint, omitted on the dashboard endpoint. */
+  categories?: ApiShowCarCategory[];
 }
 
 export interface ApiCarClubsSection {
@@ -436,9 +480,9 @@ export interface MeResponse {
  *  has been set. `exclude_time` is per-row in storage but the legacy
  *  UI only exposes an event-wide checkbox. */
 export interface ApiEventDateRow {
-  start_date: string;   // "YYYY-MM-DD" or ""
+  start_date: string; // "YYYY-MM-DD" or ""
   end_date: string;
-  start_time: string;   // "HH:MM" or ""
+  start_time: string; // "HH:MM" or ""
   end_time: string;
   exclude_time: boolean;
 }
@@ -511,9 +555,9 @@ export interface ApiEventDiscount {
   coupon_code: string;
   start_date: string | null; // "YYYY-MM-DD HH:MM:SS"
   end_date: string | null;
-  status: string;            // "active" | "inactive" | other
+  status: string; // "active" | "inactive" | other
   discount_amount: string;
-  discount_type: string;     // "percentage" | "fixed" | …
+  discount_type: string; // "percentage" | "fixed" | …
   /** Comma-separated ticket_id values. */
   allowed_products: string;
   max_usage_per_coupon: string;
@@ -558,12 +602,16 @@ export interface ApiEventEditResponse {
     tiktok_url: string;
   };
   media: {
-    cover_image: string | null;
-    gallery: string[];
+    /** Editor-form media. `id` is the Cloudflare image id when the
+     *  row comes from `ce_cf_events_media`; null for legacy ACF
+     *  uploads where we only have a URL. The id is what powers
+     *  server-side deletion (DELETE /event-image expects it). */
+    cover_image: { id: string | null; url: string } | null;
+    gallery: Array<{ id: string | null; url: string }>;
   };
   tickets: {
-    ticket_type: 1 | 2 | 3;        // 1=none, 2=CE, 3=external
-    pass_fees_to_customer: 0 | 1;  // 1=pass, 0=absorb
+    ticket_type: 1 | 2 | 3; // 1=none, 2=CE, 3=external
+    pass_fees_to_customer: 0 | 1; // 1=pass, 0=absorb
     show_attendees: boolean;
     requires_registration: boolean;
     entry_details: string;
@@ -576,12 +624,17 @@ export interface ApiEventEditResponse {
     tickets: ApiEventTicket[];
   };
   discounts: ApiEventDiscount[];
+  /** Event-level show-cars settings. Reuses ApiShowCars from the
+   *  event-detail endpoint — same shape, same discriminated union.
+   *  May be absent in older /event-edit deploys that pre-date the
+   *  show-cars rollout; the eventEditMapper tolerates that. */
+  show_cars?: ApiShowCars;
   publish: {
     /** Raw WP status — FE mapper converts to draft/published/scheduled. */
     status: string;
     scheduled_date: string | null; // "YYYY-MM-DD" when status='future'
     scheduled_time: string | null; // "HH:MM"
-    visibility: 1 | 2;             // 1=public, 2=private
+    visibility: 1 | 2; // 1=public, 2=private
     permalink: string;
   };
 }
