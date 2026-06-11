@@ -4,6 +4,7 @@ import { useUI } from "@/context/UIContext";
 import { statusPillClass } from "@/lib/utils";
 import { XIcon, CheckIcon } from "@/components/ui/Icons";
 import type { ShowCar, Club, Trader } from "@/context/types";
+import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
 
 function statusLabel(status: string) {
   return status
@@ -15,10 +16,21 @@ function statusLabel(status: string) {
 function ShowCarDetail({ car }: { car: ShowCar }) {
   return (
     <>
-      <div className={`detail-photo ${car.photoClass}`}>
-        <span className={`showcar-category ${car.category}`}>
-          {car.category.charAt(0).toUpperCase() + car.category.slice(1)}
-        </span>
+      <div
+        className={`detail-photo ${car.photoUrl ? "" : car.photoClass}`}
+        style={
+          car.photoUrl
+            ? {
+                backgroundImage: `url("${car.photoUrl}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      >
+        {car.category && (
+          <span className="showcar-category">{car.category}</span>
+        )}
       </div>
       <div className="detail-header">
         <div className="detail-title">{car.model}</div>
@@ -67,9 +79,7 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
         <div className="detail-grid">
           <div className="detail-field">
             <div className="detail-label">Category applied</div>
-            <div className="detail-value">
-              {car.category.charAt(0).toUpperCase() + car.category.slice(1)}
-            </div>
+            <div className="detail-value">{car.category || "—"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Year</div>
@@ -89,9 +99,7 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
           </div>
           <div className="detail-field">
             <div className="detail-label">Car club member</div>
-            <div
-              className={`detail-value${car.club === "No" ? " muted" : ""}`}
-            >
+            <div className={`detail-value${car.club === "No" ? " muted" : ""}`}>
               {car.club}
             </div>
           </div>
@@ -102,6 +110,205 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
         <div className="detail-description">{car.description}</div>
       </div>
     </>
+  );
+}
+
+export function DetailModal() {
+  const { detail, closeDetail } = useUI();
+
+  // Mutations — instantiated unconditionally (hooks rule). Only used
+  // when detail.type === "showcar"; for club / trader the legacy stub
+  // path below handles those.
+  const approver = useApproveShowCarApplication();
+  const rejecter = useRejectShowCarApplication();
+
+  if (!detail) return null;
+
+  const isShowCar = detail.type === "showcar";
+  const isPending =
+    (isShowCar && detail.data.status === "pending") ||
+    (detail.type === "club" && detail.data.status === "pending") ||
+    (detail.type === "trader" && detail.data.status === "pending");
+
+  const isApproving = isShowCar && approver.isPending;
+  const isRejecting = isShowCar && rejecter.isPending;
+  const isMutating = isApproving || isRejecting;
+
+  // Build the success message from the approve response — paid and
+  // free categories surface different copy because they trigger
+  // different follow-up flows server-side.
+  const successMessage = isShowCar
+    ? approver.isSuccess
+      ? approver.data.status === "paid"
+        ? "Application approved and auto-confirmed."
+        : "Application approved. The applicant has been emailed a ticket link."
+      : rejecter.isSuccess
+        ? "Application rejected."
+        : null
+    : null;
+
+  const mutationError = isShowCar ? (approver.error ?? rejecter.error) : null;
+
+  const handleClose = () => {
+    // Reset so reopening the modal starts clean — otherwise an
+    // earlier success/error from the previous open lingers.
+    approver.reset();
+    rejecter.reset();
+    closeDetail();
+  };
+
+  const handleApprove = () => {
+    if (isShowCar) {
+      approver.mutate({ applicationId: Number(detail.data.id) });
+    } else {
+      // Club / trader stub — unchanged from before.
+      console.log("Detail action: approve", detail);
+      closeDetail();
+    }
+  };
+
+  const handleReject = () => {
+    if (isShowCar) {
+      rejecter.mutate({ applicationId: Number(detail.data.id) });
+    } else {
+      console.log("Detail action: reject", detail);
+      closeDetail();
+    }
+  };
+
+  // Footer renders one of three states: success banner, action
+  // buttons (for pending applications), or hidden.
+  const renderFooter = () => {
+    if (successMessage) {
+      return (
+        <div className="detail-footer">
+          <div
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              borderRadius: 8,
+              background: "color-mix(in srgb, var(--success) 12%, transparent)",
+              color: "var(--success)",
+              fontSize: 14,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+            role="status"
+          >
+            <CheckIcon />
+            <span>{successMessage}</span>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleClose}
+          >
+            Close
+          </button>
+        </div>
+      );
+    }
+
+    if (!isPending) return null;
+
+    return (
+      <div
+        className="detail-footer"
+        style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
+      >
+        {mutationError && (
+          <div
+            style={{
+              fontSize: 13,
+              color: "var(--danger, #c62828)",
+              padding: "6px 4px",
+            }}
+            role="alert"
+          >
+            {mutationError.message || "Something went wrong. Try again."}
+          </div>
+        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-reject"
+            onClick={handleReject}
+            disabled={isMutating}
+          >
+            {isRejecting ? (
+              <>
+                <i
+                  className="fa-solid fa-spinner fa-spin"
+                  aria-hidden
+                  style={{ marginRight: 6 }}
+                />
+                Rejecting…
+              </>
+            ) : (
+              <>
+                <XIcon /> Reject
+              </>
+            )}
+          </button>
+          <button
+            type="button"
+            className="btn btn-approve"
+            onClick={handleApprove}
+            disabled={isMutating}
+          >
+            {isApproving ? (
+              <>
+                <i
+                  className="fa-solid fa-spinner fa-spin"
+                  aria-hidden
+                  style={{ marginRight: 6 }}
+                />
+                Approving…
+              </>
+            ) : (
+              <>
+                <CheckIcon /> Accept
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div
+      className="modal-backdrop open"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !isMutating) handleClose();
+      }}
+    >
+      <div
+        className="modal detail-modal"
+        role="dialog"
+        aria-labelledby="detailModalTitle"
+        aria-modal="true"
+      >
+        <button
+          type="button"
+          className="detail-modal-close"
+          onClick={handleClose}
+          aria-label="Close"
+          disabled={isMutating}
+        >
+          <XIcon />
+        </button>
+
+        <div className="detail-scroll">
+          {detail.type === "showcar" && <ShowCarDetail car={detail.data} />}
+          {detail.type === "club" && <ClubDetail club={detail.data} />}
+          {detail.type === "trader" && <TraderDetail trader={detail.data} />}
+        </div>
+
+        {renderFooter()}
+      </div>
+    </div>
   );
 }
 
@@ -223,66 +430,3 @@ function TraderDetail({ trader }: { trader: Trader }) {
   );
 }
 
-export function DetailModal() {
-  const { detail, closeDetail } = useUI();
-
-  if (!detail) return null;
-
-  const isPending =
-    (detail.type === "showcar" && detail.data.status === "pending") ||
-    (detail.type === "club" && detail.data.status === "pending") ||
-    (detail.type === "trader" && detail.data.status === "pending");
-
-  const handleAction = (action: "approve" | "reject") => {
-    console.log("Detail action:", action, detail);
-    closeDetail();
-  };
-
-  return (
-    <div
-      className="modal-backdrop open"
-      onClick={(e) => {
-        if (e.target === e.currentTarget) closeDetail();
-      }}
-    >
-      <div
-        className="modal detail-modal"
-        role="dialog"
-        aria-labelledby="detailModalTitle"
-        aria-modal="true"
-      >
-        <button
-          type="button"
-          className="detail-modal-close"
-          onClick={closeDetail}
-          aria-label="Close"
-        >
-          <XIcon />
-        </button>
-
-        <div className="detail-scroll">
-          {detail.type === "showcar" && <ShowCarDetail car={detail.data} />}
-          {detail.type === "club" && <ClubDetail club={detail.data} />}
-          {detail.type === "trader" && <TraderDetail trader={detail.data} />}
-        </div>
-
-        <div className={`detail-footer${isPending ? "" : " hidden"}`}>
-          <button
-            type="button"
-            className="btn btn-reject"
-            onClick={() => handleAction("reject")}
-          >
-            <XIcon /> Reject
-          </button>
-          <button
-            type="button"
-            className="btn btn-approve"
-            onClick={() => handleAction("approve")}
-          >
-            <CheckIcon /> Accept
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}

@@ -313,9 +313,19 @@ export type ShowCarCategory = {
   applicationsClose: string | null;
   spacesAvailable: number; // NaN ⇒ unset
   /** When true, the row reveals a ticket-cost field. Stored
-   *  separately from cost so toggling off doesn't lose the value. */
+   *  separately from cost so toggling off doesn't lose the value.
+   *  Even free categories (requireTicket=false) still flow through
+   *  application + approval; approval just auto-confirms them
+   *  instead of triggering a "buy ticket" email. */
   requireTicket: boolean;
   ticketCost: number; // NaN ⇒ unset
+  /** Per-category secret code that gates the public ticket URL for
+   *  this category. Each approved application gets a ticket link
+   *  built from this code, so two applicants for different
+   *  categories receive different links. Replaces the old
+   *  event-wide showcar_secret_code which forced one code to unlock
+   *  every category. */
+  secretCode: string;
 };
 
 /** Curated icon set for trader categories — matches the mockup. */
@@ -484,11 +494,6 @@ export type EventCreateState = {
   showCarsMax: number; // NaN ⇒ unset
   showCarCategories: ShowCarCategory[];
   showCarsInfo: string;
-  /** Event-wide secret code shared by every show car ticket the
-   *  organiser creates. Stored on the event itself (legacy
-   *  showcar_secret_code ACF field) rather than per-category so all
-   *  categories on the show cars page unlock together. */
-  showCarSecretCode: string;
 
   // ---- Car Clubs ----
   // Single application window (no per-category windows, unlike show
@@ -590,7 +595,6 @@ const INITIAL_STATE: EventCreateState = {
   showCarsMax: 50,
   showCarCategories: [],
   showCarsInfo: "",
-  showCarSecretCode: "",
 
   carClubsEnabled: true,
   carClubsApplicationsOpen: "2026-02-01",
@@ -661,7 +665,6 @@ type ScalarStateKey =
   | "showCarsLimitEnabled"
   | "showCarsMax"
   | "showCarsInfo"
-  | "showCarSecretCode"
   | "carClubsEnabled"
   | "carClubsApplicationsOpen"
   | "carClubsApplicationsClose"

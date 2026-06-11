@@ -43,6 +43,11 @@ export interface ApiShowCarSaveBody {
   /** Only used when requireTicket=true. Editor stores NaN when the
    *  cost field is empty; we send null in that case. */
   ticketCost: number | null;
+  /** Per-category secret code. Server stamps this onto the
+   *  underlying ticket so the public ticket URL is unique to this
+   *  category. Empty string is allowed — server auto-generates one
+   *  when missing so categories never end up without a code. */
+  secretCode: string;
 }
 
 export interface ApiShowCarSaveResponse {
@@ -55,7 +60,9 @@ export interface ApiShowCarSaveResponse {
 // Editor → body
 // ============================================================
 
-export function mapShowCarCategoryToBody(c: ShowCarCategory): ApiShowCarSaveBody {
+export function mapShowCarCategoryToBody(
+  c: ShowCarCategory,
+): ApiShowCarSaveBody {
   return {
     name: c.name,
     description: c.description,
@@ -67,6 +74,7 @@ export function mapShowCarCategoryToBody(c: ShowCarCategory): ApiShowCarSaveBody
     requireTicket: c.requireTicket,
     ticketCost:
       c.requireTicket && Number.isFinite(c.ticketCost) ? c.ticketCost : null,
+    secretCode: c.secretCode ?? "",
   };
 }
 

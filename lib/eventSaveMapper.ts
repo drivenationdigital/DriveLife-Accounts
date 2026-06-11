@@ -93,7 +93,6 @@ export interface ApiEventUpdateSection {
   info?: string;
   paid?: boolean;
   ticket_cost?: number;
-  secret_code?: string;
 }
 
 export interface ApiEventUpdatePublish {
@@ -287,12 +286,14 @@ function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
   return {
     enabled: state.showCarsEnabled,
     max: state.showCarsLimitEnabled ? finiteOrUndefined(state.showCarsMax) : "",
-    // Defensive `?? ""`: if older context drops these fields from state
-    // for any reason, we still want them present in the payload so the
-    // server gets an explicit "clear" rather than JSON dropping the
-    // key entirely (which leaves the previous value in place).
+    // Defensive `?? ""`: if older context drops these fields from
+    // state, send an empty string so the server gets an explicit
+    // "clear" rather than JSON dropping the key entirely (which
+    // leaves the previous value in place).
     info: state.showCarsInfo ?? "",
-    secret_code: state.showCarSecretCode ?? "",
+    // Secret codes moved per-category — see ShowCarCategoryDrawer.
+    // The event-level secret_code field is gone; each show car
+    // ticket carries its own code in the cc table now.
   };
 }
 

@@ -7,10 +7,12 @@ import {
   type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
 
 import { EditorDrawer } from "./EditorDrawer";
 import { FullScreenDatePicker } from "./FullScreenDatePicker";
+import { SecretCodeField } from "./TicketDrawer";
 
 /**
  * Show-car category add/edit drawer.
@@ -69,14 +71,26 @@ export function ShowCarCategoryDrawer({
       ? String(editing.ticketCost)
       : "",
   );
+  // Per-category secret code. Auto-generated for new categories so
+  // the organiser never ends up with a category that has no code
+  // (every approved application needs one to build its ticket link).
+  // Existing categories hydrate their stored code; the user can
+  // regenerate via the field's "New" button.
+  const [secretCode, setSecretCode] = useState(
+    () => editing?.secretCode ?? generateSecretCode(),
+  );
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
   const handleSave = () => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const id =
-      editing?.id ?? (makeLocalId("scc") as ShowCarCategoryId);
+    const id = editing?.id ?? (makeLocalId("scc") as ShowCarCategoryId);
+    // Safety net: if the user cleared the code, regenerate before
+    // save so the row isn't persisted with an empty secret_code (the
+    // server would auto-generate one anyway, but we'd lose the
+    // ability to show the user what was saved on the next render).
+    const finalCode = secretCode.trim() || generateSecretCode();
     onSave({
       id,
       name: trimmed,
@@ -88,9 +102,8 @@ export function ShowCarCategoryDrawer({
       spacesAvailable: spaces ? Math.max(1, parseInt(spaces, 10)) : NaN,
       requireTicket,
       ticketCost:
-        requireTicket && ticketCost
-          ? Math.max(0, parseFloat(ticketCost))
-          : NaN,
+        requireTicket && ticketCost ? Math.max(0, parseFloat(ticketCost)) : NaN,
+      secretCode: finalCode,
     });
     // No onClose() here — the caller drives the drawer's open state
     // around the async save, so the drawer stays open on error and
@@ -274,11 +287,34 @@ export function ShowCarCategoryDrawer({
             </div>
           )}
         </div>
+
+        {/* Per-category secret code. Gates the public ticket link
+            for this category — approved applicants get a
+            personalised link built from this code. Always required
+            (even for free categories, where the link confirms the
+            application without a payment step). */}
+        <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+          <p className="text-sm font-semibold text-ink-900 mb-1">
+            Category secret code
+          </p>
+          <p className="text-xs text-ink-500 mb-3">
+            Used to build the ticket link approved applicants receive for this
+            category. Auto-generated — regenerate or set your own if you want a more memorable code, but never leave it blank. 
+          </p>
+          <SecretCodeField
+            value={secretCode}
+            onChange={setSecretCode}
+            onRegenerate={() => setSecretCode(generateSecretCode())}
+            idPrefix="show-car-category"
+          />
+        </div>
       </EditorDrawer>
 
       <FullScreenDatePicker
         open={pickerTarget !== null}
-        title={pickerTarget === "open" ? "Applications open" : "Applications close"}
+        title={
+          pickerTarget === "open" ? "Applications open" : "Applications close"
+        }
         value={
           pickerTarget === "open"
             ? applicationsOpen

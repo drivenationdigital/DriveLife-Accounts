@@ -8,10 +8,7 @@ import {
   type ShowCarCategory,
   type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
+import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 import {
@@ -19,14 +16,12 @@ import {
   useDeleteShowCarCategory,
   mapShowCarCategoryToBody,
 } from "@/lib/showCarMutations";
-import { generateSecretCode } from "@/lib/generateSecretCode";
 import { ApiError } from "@/lib/apiClient";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
 import { PanelHeader } from "../PanelHeader";
 import { ShowCarCategoryDrawer } from "../ShowCarCategoryDrawer";
-import { SecretCodeField } from "../TicketDrawer";
 
 /**
  * Step 7 — Show Cars.
@@ -82,10 +77,7 @@ export function ShowCarsPanel() {
         : err.message || "Save failed."
       : null;
 
-  const handleSaveCategory = async (
-    c: ShowCarCategory,
-    isUpdate: boolean,
-  ) => {
+  const handleSaveCategory = async (c: ShowCarCategory, isUpdate: boolean) => {
     if (!eid) return;
     try {
       const res = await saver.mutateAsync({
@@ -167,11 +159,7 @@ export function ShowCarsPanel() {
   };
 
   return (
-    <section
-      className="panel is-active"
-      data-panel="show-cars"
-      role="tabpanel"
-    >
+    <section className="panel is-active" data-panel="show-cars" role="tabpanel">
       <PanelHeader
         stepNumber={7}
         totalSteps={EVENT_CREATE_STEP_COUNT}
@@ -186,8 +174,7 @@ export function ShowCarsPanel() {
             Enable show car applications
           </p>
           <p className="text-xs text-ink-500 mt-0.5">
-            Accept applications from car owners wanting to display their
-            vehicle
+            Accept applications from car owners wanting to display their vehicle
           </p>
         </div>
         <span className="switch">
@@ -208,40 +195,6 @@ export function ShowCarsPanel() {
 
       {state.showCarsEnabled && (
         <>
-          {/* Event-wide secret code shared by every show car ticket
-              on this event. Buyers enter it once on the show cars
-              page to unlock the listings. Auto-generated on the
-              first show car save if left blank; the user can
-              override here. */}
-          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
-            <p className="text-sm font-semibold text-ink-900 mb-1">
-              Show car secret code
-            </p>
-            <p className="text-xs text-ink-500 mb-3">
-              Shared by every show car ticket on this event. Generate
-              one or set your own — buyers enter it on the show cars
-              page to unlock the categories.
-            </p>
-            <SecretCodeField
-              value={state.showCarSecretCode}
-              onChange={(value) =>
-                dispatch({
-                  type: "SET_FIELD",
-                  key: "showCarSecretCode",
-                  value,
-                })
-              }
-              onRegenerate={() =>
-                dispatch({
-                  type: "SET_FIELD",
-                  key: "showCarSecretCode",
-                  value: generateSecretCode(),
-                })
-              }
-              idPrefix="show-cars"
-            />
-          </div>
-
           {/* Capacity */}
           <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
             <label className="flex items-center justify-between gap-3 cursor-pointer">
@@ -290,7 +243,9 @@ export function ShowCarsPanel() {
                     dispatch({
                       type: "SET_FIELD",
                       key: "showCarsMax",
-                      value: Number.isFinite(parsed) ? Math.max(1, parsed) : NaN,
+                      value: Number.isFinite(parsed)
+                        ? Math.max(1, parsed)
+                        : NaN,
                     });
                   }}
                 />
@@ -321,8 +276,8 @@ export function ShowCarsPanel() {
 
             {state.showCarCategories.length === 0 ? (
               <div className="text-center py-10 px-4 border border-dashed border-ink-200 rounded-xl bg-ink-50 text-ink-500 text-sm">
-                No categories yet. Add at least one category for applicants
-                to choose from.
+                No categories yet. Add at least one category for applicants to
+                choose from.
               </div>
             ) : (
               <div className="space-y-3">
@@ -377,8 +332,8 @@ export function ShowCarsPanel() {
               Show car information
             </label>
             <p className="text-xs text-ink-500 mb-3">
-              Perks, arrival times, parking instructions — anything
-              applicants need to know.
+              Perks, arrival times, parking instructions — anything applicants
+              need to know.
             </p>
             <EditorTextarea
               value={state.showCarsInfo}

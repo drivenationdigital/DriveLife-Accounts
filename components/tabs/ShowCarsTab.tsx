@@ -1,40 +1,53 @@
 "use client";
 
 import { useEventData } from "@/context/EventContext";
-import { TicketRow } from "@/components/cards/TicketRow";
 import { KpiCard } from "@/components/cards/KpiCard";
 import { ShowCarCard } from "@/components/cards/ShowCarCard";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
-import type { CategoryStat } from "@/context/types";
+import { useShowCarApplications } from "@/lib/showCarApplications";
+import type { ShowCar, Ticket } from "@/context/types";
 
 /**
  * Show Cars tab.
  *
- * The view-side surface for show car tickets and (eventually)
- * applications. Today the data flows like this:
+ * Flow modelled here:
  *
- *   - showCarTickets — populated from sales.show_car_tickets on the
- *     /event response (BE filters tickets where show_car_ticket=1
- *     into a separate array). This is the source of truth for
- *     whether show cars are "set up" on the event.
+ *   1. User submits application      → status: "pending"
+ *   2. Admin approves                 → status: "awaiting-payment"
+ *      (system emails the user a ticket-purchase invite)
+ *   3. User buys ticket               → status: "confirmed"
+ *   4. Admin rejects (any time)       → status: "rejected"
  *
- *   - showCars / categoryStats — applications submitted against
- *     those tickets. The application moderation flow isn't wired
- *     server-side yet, so these stay empty most of the time. When
- *     they do arrive, the existing applications UI (pending /
- *     awaiting payment / confirmed / rejected) renders below the
- *     tickets breakdown.
+ * UI structure mirrors the agreed mockup:
  *
- * Empty state rules:
+ *   - KPI strip across the top — Pending Review, Awaiting Payment,
+ *     Confirmed. Rejected doesn't get a KPI because it's not a target
+ *     metric.
+ *   - "Confirmed Spaces by Category" table showing utilisation per
+ *     show car category (only rendered when categoryStats has rows).
+ *   - One "Show Car Applications" card containing all four status
+ *     groups as nested subsections. Each subsection only renders when
+ *     it has rows — the KPI strip already carries the zero counts.
  *
- *   - No show car tickets → "Show cars not enabled for this event"
- *     (the organiser hasn't created any show car ticket types).
- *   - Tickets but no applications yet → just the tickets breakdown.
- *   - Both → tickets breakdown on top, applications below.
+ * Empty states:
+ *
+ *   - No show car tickets defined on the event → the whole tab
+ *     collapses to a "not enabled" banner. The organiser hasn't
+ *     created any show car categories in the editor yet.
+ *   - Tickets exist but no applications submitted → KPIs + category
+ *     table render; the applications card shows a "no applications
+ *     yet" inline message.
  */
 export function ShowCarsTab() {
-  const { showCarTickets, showCars, categoryStats } = useEventData();
+  const { event, showCarTickets } = useEventData();
+  const eid = event.encryptedId;
+  // Applications live on a dedicated query — see useShowCarApplications.
+  // Fall back to [] while loading or on error so the rest of the tab
+  // (KPIs, category table, "no applications" empty state) still
+  // renders cleanly. Approve / reject are wired inside the detail
+  // modal now, not on the cards.
+  const { data: showCars = [] } = useShowCarApplications(eid);
 
   // No show car tickets ⇒ feature isn't set up for this event.
   if (showCarTickets.length === 0) {
@@ -53,170 +66,185 @@ export function ShowCarsTab() {
   const confirmed = showCars.filter((c) => c.status === "confirmed");
   const rejected = showCars.filter((c) => c.status === "rejected");
 
-  const totalConfirmed = categoryStats.reduce((n, s) => n + s.confirmed, 0);
-  const totalCapacity = categoryStats.reduce((n, s) => n + s.capacity, 0);
+  // Capacity table comes from the show car tickets directly — each
+  // ticket is a category, capacity = stock, confirmed = sold. Single
+  // source of truth, no separate categoryStats array to keep in sync.
+  const totalConfirmed = showCarTickets.reduce((n, t) => n + t.sold, 0);
+  const totalCapacity = showCarTickets.reduce((n, t) => n + t.capacity, 0);
   const totalPct =
     totalCapacity > 0 ? Math.round((totalConfirmed / totalCapacity) * 100) : 0;
 
-  // Have show car tickets but no applications yet — render just the
-  // tickets breakdown. Applications UI shows when data arrives.
-  const hasApplications = showCars.length > 0 || totalCapacity > 0;
+  // Render groups in workflow order: applications enter at "Pending
+  // Review", move to "Awaiting Payment" on approval, then "Confirmed"
+  // after payment; rejection branches off at any point.
+  const groups: Array<{
+    key: ShowCar["status"];
+    title: string;
+    dot: string;
+    variant: "pending" | "managed";
+    cars: ShowCar[];
+  }> = [
+    {
+      key: "pending",
+      title: "Pending Review",
+      dot: "dot-pending",
+      variant: "pending",
+      cars: pending,
+    },
+    {
+      key: "awaiting-payment",
+      title: "Awaiting Payment",
+      dot: "dot-approved",
+      variant: "managed",
+      cars: awaitingPayment,
+    },
+    {
+      key: "confirmed",
+      title: "Confirmed",
+      dot: "dot-confirmed",
+      variant: "managed",
+      cars: confirmed,
+    },
+    {
+      key: "rejected",
+      title: "Rejected",
+      dot: "dot-rejected",
+      variant: "managed",
+      cars: rejected,
+    },
+  ];
+
+  const populated = groups.filter((g) => g.cars.length > 0);
 
   return (
     <>
-      {/* Show car tickets breakdown — same row shape as the regular
-          tickets breakdown on the Overview tab, so the visual
-          language matches. */}
+      <div className="kpi-grid">
+        <KpiCard
+          label="Pending Review"
+          value={pending.length}
+          valueColor="var(--warn)"
+        />
+        <KpiCard
+          label="Awaiting Payment"
+          value={awaitingPayment.length}
+          valueColor="var(--gold-deep)"
+        />
+        <KpiCard
+          label="Confirmed"
+          value={confirmed.length}
+          valueColor="var(--success)"
+        />
+      </div>
+
+      {showCarTickets.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Confirmed Spaces by Category</div>
+              <div className="section-subtitle">
+                {totalConfirmed} of {totalCapacity} spaces filled across{" "}
+                {showCarTickets.length}{" "}
+                {showCarTickets.length === 1 ? "category" : "categories"}
+              </div>
+            </div>
+          </div>
+          <div className="section-body flush">
+            <table className="table category-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>Confirmed</th>
+                  <th>Capacity</th>
+                  <th>Utilisation</th>
+                </tr>
+              </thead>
+              <tbody>
+                {showCarTickets.map((t) => (
+                  <CategoryRow key={t.id} ticket={t} />
+                ))}
+                <tr className="total-row">
+                  <td>Total</td>
+                  <td className="num">{totalConfirmed}</td>
+                  <td className="num">{totalCapacity}</td>
+                  <td>
+                    <div className="util-cell">
+                      <div className="util-bar">
+                        <div
+                          className="util-bar-fill"
+                          style={{ width: `${totalPct}%` }}
+                        />
+                      </div>
+                      <span className="util-pct">{totalPct}%</span>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="section">
         <div className="section-header">
           <div>
-            <div className="section-title">Show Car Tickets</div>
+            <div className="section-title">Show Car Applications</div>
+            <div className="section-subtitle">
+              Approve or reject applications, grouped by status
+            </div>
           </div>
-          <a href="#" className="section-link">
-            Manage tickets →
-          </a>
+          {showCars.length > 0 && (
+            <button type="button" className="btn btn-secondary">
+              <DownloadIcon /> Export
+            </button>
+          )}
         </div>
-        <div className="section-body flush">
-          {showCarTickets.map((t) => (
-            <TicketRow key={t.id} ticket={t} />
-          ))}
+        <div className="section-body">
+          {showCars.length === 0 ? (
+            <div
+              style={{
+                padding: "32px 16px",
+                textAlign: "center",
+                color: "var(--muted)",
+                fontSize: 14,
+              }}
+            >
+              No applications yet. Applications will appear here as car owners
+              submit them.
+            </div>
+          ) : (
+            populated.map((g, idx) => (
+              <ApplicationGroup
+                key={g.key}
+                title={g.title}
+                dot={g.dot}
+                cars={g.cars}
+                variant={g.variant}
+                isFirst={idx === 0}
+              />
+            ))
+          )}
         </div>
       </div>
-
-      {hasApplications && (
-        <>
-          <div className="kpi-grid">
-            <KpiCard
-              label="Pending Review"
-              value={pending.length}
-              valueColor="var(--warn)"
-            />
-            <KpiCard
-              label="Awaiting Payment"
-              value={awaitingPayment.length}
-              valueColor="var(--gold-deep)"
-            />
-            <KpiCard
-              label="Confirmed"
-              value={confirmed.length}
-              valueColor="var(--success)"
-            />
-          </div>
-
-          {/* Category breakdown */}
-          {categoryStats.length > 0 && (
-            <div className="section">
-              <div className="section-header">
-                <div>
-                  <div className="section-title">
-                    Confirmed Spaces by Category
-                  </div>
-                  <div className="section-subtitle">
-                    {totalConfirmed} of {totalCapacity} spaces filled across{" "}
-                    {categoryStats.length} categories
-                  </div>
-                </div>
-              </div>
-              <div className="section-body flush">
-                <table className="table category-table">
-                  <thead>
-                    <tr>
-                      <th>Category</th>
-                      <th>Confirmed</th>
-                      <th>Capacity</th>
-                      <th>Utilisation</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {categoryStats.map((s) => (
-                      <CategoryRow key={s.category} stat={s} />
-                    ))}
-                    <tr className="total-row">
-                      <td>Total</td>
-                      <td className="num">{totalConfirmed}</td>
-                      <td className="num">{totalCapacity}</td>
-                      <td>
-                        <div className="util-cell">
-                          <div className="util-bar">
-                            <div
-                              className="util-bar-fill"
-                              style={{ width: `${totalPct}%` }}
-                            />
-                          </div>
-                          <span className="util-pct">{totalPct}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          <CarSection
-            title="Pending Show Cars"
-            dot="dot-pending"
-            subtitle={`${pending.length} applications awaiting review`}
-            cars={pending}
-            variant="pending"
-          />
-
-          <CarSection
-            title="Awaiting Payment"
-            dot="dot-approved"
-            subtitle={`${awaitingPayment.length} applications approved — waiting for payment`}
-            cars={awaitingPayment}
-            variant="managed"
-          />
-
-          <CarSection
-            title="Confirmed Show Cars"
-            dot="dot-confirmed"
-            subtitle={`${confirmed.length} applications paid and confirmed for event`}
-            cars={confirmed}
-            variant="managed"
-            action={
-              <button type="button" className="btn btn-secondary">
-                <DownloadIcon /> Export
-              </button>
-            }
-          />
-
-          <CarSection
-            title="Rejected Show Cars"
-            dot="dot-rejected"
-            subtitle={`${rejected.length} applications rejected`}
-            cars={rejected}
-            variant="managed"
-            action={
-              <a href="#" className="section-link">
-                View all {rejected.length} →
-              </a>
-            }
-          />
-        </>
-      )}
     </>
   );
 }
 
-function CategoryRow({ stat }: { stat: CategoryStat }) {
-  const pct = Math.round((stat.confirmed / stat.capacity) * 100);
-  const label = stat.category.charAt(0).toUpperCase() + stat.category.slice(1);
+function CategoryRow({ ticket }: { ticket: Ticket }) {
+  // Guard against 0 capacity so empty categories read 0% rather than
+  // NaN%, and so the progress bar fill width collapses cleanly.
+  const pct =
+    ticket.capacity > 0 ? Math.round((ticket.sold / ticket.capacity) * 100) : 0;
   return (
     <tr>
       <td>
-        <span className={`category-tag ${stat.category}`}>{label}</span>
+        <span className="category-tag">{ticket.name}</span>
       </td>
-      <td className="num">{stat.confirmed}</td>
-      <td className="num muted">{stat.capacity}</td>
+      <td className="num">{ticket.sold}</td>
+      <td className="num muted">{ticket.capacity}</td>
       <td>
         <div className="util-cell">
           <div className="util-bar">
-            <div
-              className={`util-bar-fill ${stat.category}`}
-              style={{ width: `${pct}%` }}
-            />
+            <div className="util-bar-fill" style={{ width: `${pct}%` }} />
           </div>
           <span className="util-pct">{pct}%</span>
         </div>
@@ -225,44 +253,70 @@ function CategoryRow({ stat }: { stat: CategoryStat }) {
   );
 }
 
-interface CarSectionProps {
-  title: string;
-  dot: string;
-  subtitle: string;
-  cars: ReturnType<typeof useEventData>["showCars"];
-  variant: "pending" | "managed";
-  action?: React.ReactNode;
-}
-
-function CarSection({
+/**
+ * One status block inside the Show Car Applications card. Renders a
+ * dot + title + count pill header, then the application cards grid.
+ * Subsequent groups get a top border so they read as siblings rather
+ * than stacked cards — `isFirst` controls that.
+ */
+function ApplicationGroup({
   title,
   dot,
-  subtitle,
   cars,
   variant,
-  action,
-}: CarSectionProps) {
+  isFirst,
+}: {
+  title: string;
+  dot: string;
+  cars: ShowCar[];
+  variant: "pending" | "managed";
+  isFirst: boolean;
+}) {
   return (
-    <div className="section">
-      <div className="section-header">
-        <div>
-          <div
-            className="section-title"
-            style={{ display: "flex", alignItems: "center", gap: 10 }}
-          >
-            <span className={`showcars-dot ${dot}`} />
-            {title}
-          </div>
-          <div className="section-subtitle">{subtitle}</div>
-        </div>
-        {action}
+    <div
+      style={{
+        paddingTop: isFirst ? 0 : 20,
+        marginTop: isFirst ? 0 : 20,
+        borderTop: isFirst ? undefined : "1px solid var(--border)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          marginBottom: 14,
+        }}
+      >
+        <span className={`showcars-dot ${dot}`} />
+        <h4
+          style={{
+            fontFamily: "var(--font-display)",
+            fontSize: 16,
+            fontWeight: 700,
+            color: "var(--ink)",
+            margin: 0,
+          }}
+        >
+          {title}
+        </h4>
+        <span
+          style={{
+            padding: "3px 10px",
+            borderRadius: 999,
+            background: "var(--card-soft, rgba(0,0,0,0.05))",
+            fontSize: 12,
+            color: "var(--muted)",
+            fontWeight: 500,
+          }}
+        >
+          {cars.length} {cars.length === 1 ? "application" : "applications"}
+        </span>
       </div>
-      <div className="section-body">
-        <div className="showcars-section-grid">
-          {cars.map((car) => (
-            <ShowCarCard key={car.id} car={car} actions={variant} />
-          ))}
-        </div>
+      <div className="showcars-section-grid">
+        {cars.map((car) => (
+          <ShowCarCard key={car.id} car={car} actions={variant} />
+        ))}
       </div>
     </div>
   );

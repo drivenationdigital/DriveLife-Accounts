@@ -252,6 +252,10 @@ export interface ApiShowCarRecord {
   id: number;
   event_id: number;
   status: ApplicationStatusApi;
+  /** Category name as set by the organiser on the ticket type. Empty
+   *  string when the ticket was deleted after the application was
+   *  submitted (LEFT JOIN). */
+  category: string;
   car: {
     make: string | null;
     model: string | null;
@@ -304,9 +308,6 @@ export interface ApiShowCarsConfig {
    *  parking instructions, perks). Stored in the `show_cars_description`
    *  ACF field server-side. */
   info: string;
-  /** Event-wide secret code shared by every show car ticket — the
-   *  organiser sets it here once and all categories reuse it. */
-  secret_code: string;
 }
 
 /**
@@ -329,6 +330,11 @@ export interface ApiShowCarCategory {
   /** Derived from price > 0 on the server. */
   require_ticket: boolean;
   ticket_cost: number;
+  /** Per-category secret code. Gates the public ticket URL for this
+   *  category; each approved application gets a personalised link
+   *  built from this code. Replaces the old event-wide
+   *  showcar_secret_code. */
+  secret_code: string;
 }
 
 export interface ApiShowCarsSection {

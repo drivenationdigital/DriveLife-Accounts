@@ -63,7 +63,17 @@ export interface ShowCar {
   club: string;
   description: string;
   photoClass: CarPhotoClass;
-  category: ShowCarCategory;
+  /** The category as set by the organiser on the ticket type — a
+   *  free-form string ("Modified", "Concours", etc.) rather than the
+   *  fixed enum it used to be. The pre-existing per-category CSS
+   *  classes (`showcar-category.classic`, etc.) won't match anymore;
+   *  the base `.showcar-category` styling still applies. Re-add
+   *  per-category colours via slugified class names if desired. */
+  category: string;
+  /** Cloudflare imagedelivery URL when the applicant uploaded a
+   *  photo. When null/undefined the UI falls back to the gradient
+   *  placeholder driven by `photoClass`. */
+  photoUrl?: string | null;
   status: ShowCarStatus;
   appliedLabel: string;
   updatedLabel: string;

@@ -204,7 +204,6 @@ function mapShowCars(
   showCarsLimitEnabled: boolean;
   showCarsMax: number;
   showCarsInfo: string;
-  showCarSecretCode: string;
   showCarCategories: ShowCarCategory[];
 } {
   // Missing or disabled → return defaults. The "missing" case covers
@@ -216,7 +215,6 @@ function mapShowCars(
       showCarsLimitEnabled: false,
       showCarsMax: NaN,
       showCarsInfo: "",
-      showCarSecretCode: "",
       showCarCategories: [],
     };
   }
@@ -230,7 +228,6 @@ function mapShowCars(
     showCarsLimitEnabled: hasMax,
     showCarsMax: hasMax ? (c.max as number) : NaN,
     showCarsInfo: c.info ?? "",
-    showCarSecretCode: c.secret_code ?? "",
     // Categories — empty array if the field is absent. We carry the
     // raw post id (not encrypted) as `id` so it matches what the save
     // endpoint returns and the panel's id-swap-on-create logic stays
@@ -256,6 +253,7 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
       api.require_ticket && Number.isFinite(api.ticket_cost)
         ? api.ticket_cost
         : NaN,
+    secretCode: api.secret_code ?? "",
   };
 }
 

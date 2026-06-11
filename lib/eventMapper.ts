@@ -22,7 +22,6 @@ import type {
   Order,
   OrderStatus,
   ShowCar,
-  ShowCarCategory,
   ShowCarStatus,
   Ticket,
 } from "@/context/types";
@@ -195,14 +194,6 @@ function pickPhotoClass(id: number): CarPhotoClass {
   return classes[id % classes.length];
 }
 
-/** Best-effort category from the model string — DB doesn't carry one yet. */
-function pickCategory(_year: string, make: string | null): ShowCarCategory {
-  // Until the DB exposes category, default to "classic" for display purposes.
-  // `make` is here so the signature remains stable when we upgrade.
-  void make;
-  return "classic";
-}
-
 export function mapShowCar(r: ApiShowCarRecord): ShowCar {
   const make = r.car.make ?? "";
   const model = r.car.model ?? "";
@@ -230,7 +221,12 @@ export function mapShowCar(r: ApiShowCarRecord): ShowCar {
     club: "",
     description: r.notes ?? "",
     photoClass: pickPhotoClass(r.id),
-    category: pickCategory(year, make),
+    photoUrl: r.car.photo_url ?? null,
+    // Category comes straight from the server now — it's the ticket
+    // name the organiser set, not a heuristic guess. Empty string
+    // fallback for the edge case where the ticket was deleted after
+    // the application was submitted.
+    category: r.category || "",
     status: SHOW_CAR_STATUS_MAP[r.status],
     appliedLabel: formatAppliedLabel(r.created_at),
     updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at),

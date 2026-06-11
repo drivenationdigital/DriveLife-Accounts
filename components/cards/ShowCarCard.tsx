@@ -1,15 +1,31 @@
 "use client";
 
 import { useUI } from "@/context/UIContext";
-import { EyeIcon, CheckIcon, XIcon, TrashIcon } from "@/components/ui/Icons";
+import { EyeIcon, TrashIcon } from "@/components/ui/Icons";
 import type { ShowCar } from "@/context/types";
 
 interface ShowCarCardProps {
   car: ShowCar;
-  /** Which action buttons to show — pending cars get approve/reject, others get delete. */
+  /** Variant: pending cards used to surface approve/reject inline,
+   *  but those actions live in the detail modal now — the card just
+   *  opens it. Managed cards keep the delete affordance. */
   actions?: "pending" | "managed";
 }
 
+/**
+ * Application card. Clicking anywhere on the card opens the detail
+ * modal, which is where approve / reject happens.
+ *
+ * Photo behaviour: when the applicant uploaded a car photo we render
+ * it as a background image. When they didn't, we fall back to the
+ * deterministic gradient placeholder driven by `photoClass` (one of
+ * `car-1` … `car-7` depending on application id).
+ *
+ * Category pill: the text is now the actual ticket name the organiser
+ * set (e.g. "Modified", "Concours"). The per-category colour CSS
+ * classes (`.classic`, `.retro`, etc.) no longer match — base
+ * `.showcar-category` styling still applies.
+ */
 export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
   const { openDetail } = useUI();
 
@@ -33,10 +49,21 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
         }
       }}
     >
-      <div className={`showcar-photo ${car.photoClass}`}>
-        <span className={`showcar-category ${car.category}`}>
-          {car.category.charAt(0).toUpperCase() + car.category.slice(1)}
-        </span>
+      <div
+        className={`showcar-photo ${car.photoUrl ? "" : car.photoClass}`}
+        style={
+          car.photoUrl
+            ? {
+                backgroundImage: `url("${car.photoUrl}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+              }
+            : undefined
+        }
+      >
+        {car.category && (
+          <span className="showcar-category">{car.category}</span>
+        )}
       </div>
       <div className="showcar-model">{car.model}</div>
       <span className="showcar-reg">{car.reg}</span>
@@ -57,32 +84,15 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
             <EyeIcon />
           </button>
 
-          {actions === "pending" ? (
-            <>
-              <button
-                type="button"
-                className="showcar-action-btn approve"
-                title="Approve"
-                onClick={stopThen(() => console.log("approve", car.id))}
-              >
-                <CheckIcon />
-              </button>
-              <button
-                type="button"
-                className="showcar-action-btn reject"
-                title="Reject"
-                onClick={stopThen(() => console.log("reject", car.id))}
-              >
-                <XIcon />
-              </button>
-            </>
-          ) : (
+          {actions === "managed" && (
             <button
               type="button"
               className="showcar-action-btn delete"
               title="Delete"
               onClick={stopThen(() => {
-                if (confirm("Delete this entry? This action cannot be undone.")) {
+                if (
+                  confirm("Delete this entry? This action cannot be undone.")
+                ) {
                   console.log("delete", car.id);
                 }
               })}
