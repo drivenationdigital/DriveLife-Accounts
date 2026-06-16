@@ -165,6 +165,7 @@ export function DiscountDrawer({
       availableFrom,
       availableUntil,
       note: editing?.note ?? "",
+      discountGiven:0,
     };
     onSave(discount);
     // No onClose() here — caller drives the drawer's open state
