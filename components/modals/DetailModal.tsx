@@ -5,6 +5,7 @@ import { statusPillClass } from "@/lib/utils";
 import { XIcon, CheckIcon } from "@/components/ui/Icons";
 import type { ShowCar, Club, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
+import { useApproveClubApplication, useRejectClubApplication } from "@/lib/clubApplications";
 
 function statusLabel(status: string) {
   return status
@@ -116,59 +117,79 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
 export function DetailModal() {
   const { detail, closeDetail } = useUI();
 
-  // Mutations — instantiated unconditionally (hooks rule). Only used
-  // when detail.type === "showcar"; for club / trader the legacy stub
-  // path below handles those.
-  const approver = useApproveShowCarApplication();
-  const rejecter = useRejectShowCarApplication();
+  // Mutations — instantiated unconditionally (hooks rule). The active
+  // pair is picked by detail.type below. Trader still falls through
+  // to the legacy stub.
+  const showCarApprove = useApproveShowCarApplication();
+  const showCarReject = useRejectShowCarApplication();
+  const clubApprove = useApproveClubApplication();
+  const clubReject = useRejectClubApplication();
 
   if (!detail) return null;
 
   const isShowCar = detail.type === "showcar";
+  const isClub = detail.type === "club";
+  const isActionable = isShowCar || isClub; // has real approve/reject wired
   const isPending =
     (isShowCar && detail.data.status === "pending") ||
-    (detail.type === "club" && detail.data.status === "pending") ||
+    (isClub && detail.data.status === "pending") ||
     (detail.type === "trader" && detail.data.status === "pending");
 
-  const isApproving = isShowCar && approver.isPending;
-  const isRejecting = isShowCar && rejecter.isPending;
+  // Pick the active mutation pair for the current detail type.
+  const approver = isClub ? clubApprove : showCarApprove;
+  const rejecter = isClub ? clubReject : showCarReject;
+
+  const isApproving = isActionable && approver.isPending;
+  const isRejecting = isActionable && rejecter.isPending;
   const isMutating = isApproving || isRejecting;
 
-  // Build the success message from the approve response — paid and
-  // free categories surface different copy because they trigger
-  // different follow-up flows server-side.
-  const successMessage = isShowCar
-    ? approver.isSuccess
-      ? approver.data.status === "paid"
+  // Success copy differs by type + outcome. Both flows distinguish
+  // the paid/awaiting-purchase branch ("emailed a link") from the
+  // auto-confirmed branch.
+  const successMessage = (() => {
+    if (!isActionable) return null;
+    if (approver.isSuccess) {
+      if (isClub) {
+        // Clubs have one outcome now: confirmed. Every approved club
+        // is emailed the unique member link to share.
+        return "Club confirmed. They've been emailed a unique link to share with their members.";
+      }
+      const status = approver.data.status; // "approved" | "paid"
+      return status === "paid"
         ? "Application approved and auto-confirmed."
-        : "Application approved. The applicant has been emailed a ticket link."
-      : rejecter.isSuccess
-        ? "Application rejected."
-        : null
+        : "Application approved. The applicant has been emailed a ticket link.";
+    }
+    if (rejecter.isSuccess) {
+      return isClub ? "Club application rejected." : "Application rejected.";
+    }
+    return null;
+  })();
+
+  const mutationError = isActionable
+    ? (approver.error ?? rejecter.error)
     : null;
 
-  const mutationError = isShowCar ? (approver.error ?? rejecter.error) : null;
-
   const handleClose = () => {
-    // Reset so reopening the modal starts clean — otherwise an
-    // earlier success/error from the previous open lingers.
-    approver.reset();
-    rejecter.reset();
+    // Reset whichever pair might be dirty so reopening starts clean.
+    showCarApprove.reset();
+    showCarReject.reset();
+    clubApprove.reset();
+    clubReject.reset();
     closeDetail();
   };
 
   const handleApprove = () => {
-    if (isShowCar) {
+    if (isActionable) {
       approver.mutate({ applicationId: Number(detail.data.id) });
     } else {
-      // Club / trader stub — unchanged from before.
+      // Trader stub — unchanged from before.
       console.log("Detail action: approve", detail);
       closeDetail();
     }
   };
 
   const handleReject = () => {
-    if (isShowCar) {
+    if (isActionable) {
       rejecter.mutate({ applicationId: Number(detail.data.id) });
     } else {
       console.log("Detail action: reject", detail);

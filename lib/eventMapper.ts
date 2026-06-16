@@ -133,7 +133,12 @@ function mapTicket(t: ApiTicketType): Ticket {
     id: t.id != null ? String(t.id) : t.name,
     name: t.name,
     sold: t.stock_sold,
-    capacity: t.capacity ?? t.stock_sold + t.stock,
+    // `stock` IS the total capacity in this schema (not remaining),
+    // so display sold/stock directly. The old `stock_sold + stock`
+    // formula double-counted — it assumed stock meant "remaining",
+    // giving e.g. 1 sold + 10 stock = 11 instead of 10. `capacity`
+    // (when the API sends it) still wins as an explicit override.
+    capacity: t.capacity ?? t.stock,
     status: t.sale_status === "sold_out" ? "soldout" : "active",
   };
 }
@@ -275,6 +280,11 @@ export function mapCarClub(r: ApiCarClubRecord): Club {
     appliedLabel: formatAppliedLabel(r.created_at),
     updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at),
     status: CLUB_STATUS_MAP[r.status],
+    // Per-club ticket sales aren't carried on this /event-embedded
+    // record (the Clubs tab fetches them via useClubApplications).
+    // Default to 0 so the Club shape stays complete.
+    ticketsSold: 0,
+    ticketSales: 0,
   };
 }
 

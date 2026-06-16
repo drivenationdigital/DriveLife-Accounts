@@ -195,6 +195,7 @@ export type Discount = {
   usageLimit: number | null;
   perCustomerLimit: number | null;
   usageCount: number;
+  discountGiven: number;
   applicableTicketIds: TicketId[];
   availableFrom: string | null; // ISO yyyy-mm-dd
   availableUntil: string | null;

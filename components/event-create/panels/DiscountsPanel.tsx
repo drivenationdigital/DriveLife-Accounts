@@ -8,10 +8,7 @@ import {
   type Discount,
   type DiscountId,
 } from "@/context/EventCreateContext";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
+import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import {
   useSaveDiscount,
@@ -91,7 +88,10 @@ export function DiscountsPanel() {
       // Swap the local synthetic id for the server's raw post id —
       // /event-edit returns plain ids for discounts (same as tickets),
       // so the editor state needs to match.
-      const persisted: Discount = { ...d, id: String(res.coupon_id) as DiscountId };
+      const persisted: Discount = {
+        ...d,
+        id: String(res.coupon_id) as DiscountId,
+      };
       dispatch(
         isUpdate
           ? { type: "UPDATE_DISCOUNT", discount: persisted }
@@ -165,13 +165,19 @@ export function DiscountsPanel() {
     (d) => !isExpired(d, todayIso),
   ).length;
   const totalUses = state.discounts.reduce((sum, d) => sum + d.usageCount, 0);
+  const totalDiscountGiven = state.discounts.reduce(
+    (sum, d) => sum + (d.discountGiven ?? 0),
+    0,
+  );
+  // "£1,234" / "£0" — no decimals when whole, else two. Matches the
+  // other money figures in the editor.
+  const discountGivenLabel = `£${totalDiscountGiven.toLocaleString("en-GB", {
+    minimumFractionDigits: Number.isInteger(totalDiscountGiven) ? 0 : 2,
+    maximumFractionDigits: 2,
+  })}`;
 
   return (
-    <section
-      className="panel is-active"
-      data-panel="discounts"
-      role="tabpanel"
-    >
+    <section className="panel is-active" data-panel="discounts" role="tabpanel">
       <PanelHeader
         stepNumber={6}
         totalSteps={EVENT_CREATE_STEP_COUNT}
@@ -253,7 +259,11 @@ export function DiscountsPanel() {
       <div className="grid grid-cols-3 gap-3 mb-6">
         <StatCard label="Active codes" value={String(activeCount)} />
         <StatCard label="Total uses" value={String(totalUses)} />
-        <StatCard label="Discount given" value="£0" valueColor="gold" />
+        <StatCard
+          label="Discount given"
+          value={discountGivenLabel}
+          valueColor="gold"
+        />
       </div>
 
       {/* ---- Desktop nav row ---- */}
@@ -476,8 +486,7 @@ function discountSubtitle(d: Discount): string {
     parts.push(d.note);
   } else if (d.availableUntil) {
     const dateLabel = formatShort(d.availableUntil);
-    const verb =
-      d.availableUntil < isoToday() ? "Ended" : "Expires";
+    const verb = d.availableUntil < isoToday() ? "Ended" : "Expires";
     parts.push(`${verb} ${dateLabel}`);
   } else if (d.availableFrom) {
     parts.push(`From ${formatShort(d.availableFrom)}`);

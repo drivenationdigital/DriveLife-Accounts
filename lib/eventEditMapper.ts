@@ -186,9 +186,85 @@ export function mapEventEditResponse(
     // hydrates as empty and new categories disappear on refresh.
     ...mapShowCars(response.show_cars),
 
+    // ---- Car clubs ------------------------------------------------------
+    ...mapCarClubs(response.car_clubs),
+
     // ---- Publish ------------------------------------------------------
     ...mapPublish(response.publish),
   };
+}
+
+/**
+ * Map the API's car_clubs union onto the editor's flat fields. Same
+ * defaults-when-disabled approach as mapShowCars so the panel renders
+ * cleanly if toggled on without a save in between.
+ *
+ * Server stores open/close as "YYYY-MM-DD HH:MM:SS"; the editor keeps
+ * date and time in separate fields, so we split here.
+ */
+function mapCarClubs(
+  api: ApiEventEditResponse["car_clubs"] | undefined | null,
+): {
+  carClubsEnabled: boolean;
+  carClubsApplicationsOpen: string | null;
+  carClubsApplicationsClose: string | null;
+  carClubsApplicationsOpenTime: string;
+  carClubsApplicationsCloseTime: string;
+  carClubsLimitEnabled: boolean;
+  carClubsMax: number;
+  carClubsInfo: string;
+  carClubsRequireTicket: boolean;
+  carClubsTicketCost: number;
+} {
+  if (!api || !api.enabled) {
+    return {
+      carClubsEnabled: false,
+      carClubsApplicationsOpen: null,
+      carClubsApplicationsClose: null,
+      carClubsApplicationsOpenTime: "09:00",
+      carClubsApplicationsCloseTime: "23:59",
+      carClubsLimitEnabled: false,
+      carClubsMax: NaN,
+      carClubsInfo: "",
+      carClubsRequireTicket: false,
+      carClubsTicketCost: NaN,
+    };
+  }
+  const c = api.config;
+  const hasMax = typeof c.max === "number" && Number.isFinite(c.max);
+
+  const [openDate, openTime] = splitDateTime(c.open_date);
+  const [closeDate, closeTime] = splitDateTime(c.close_date);
+
+  return {
+    carClubsEnabled: true,
+    carClubsApplicationsOpen: openDate,
+    carClubsApplicationsClose: closeDate,
+    carClubsApplicationsOpenTime: openTime || "09:00",
+    carClubsApplicationsCloseTime: closeTime || "23:59",
+    carClubsLimitEnabled: hasMax,
+    carClubsMax: hasMax ? (c.max as number) : NaN,
+    carClubsInfo: c.info ?? "",
+    carClubsRequireTicket: !!c.require_ticket,
+    carClubsTicketCost:
+      typeof c.ticket_cost === "number" && Number.isFinite(c.ticket_cost)
+        ? c.ticket_cost
+        : NaN,
+  };
+}
+
+/** "YYYY-MM-DD HH:MM:SS" → ["YYYY-MM-DD", "HH:MM"]. Empty/invalid
+ *  input yields [null, ""]. */
+function splitDateTime(
+  raw: string | null | undefined,
+): [string | null, string] {
+  if (!raw || typeof raw !== "string") return [null, ""];
+  const trimmed = raw.trim();
+  if (trimmed === "") return [null, ""];
+  const datePart = trimmed.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return [null, ""];
+  const timePart = trimmed.length >= 16 ? trimmed.slice(11, 16) : "";
+  return [datePart, /^\d{2}:\d{2}$/.test(timePart) ? timePart : ""];
 }
 
 /**
@@ -403,10 +479,11 @@ function mapDiscount(row: ApiEventDiscount): Discount {
     // the editor surface — bookings are summed elsewhere. Default
     // to 0 for new editor sessions; once we have a usage-summary
     // endpoint, populate from there.
-    usageCount: 0,
+    usageCount: row?.usage ?? 0,
     applicableTicketIds: allowed,
     availableFrom: extractIsoDate(row.start_date),
     availableUntil: extractIsoDate(row.end_date),
+    discountGiven: row?.discount_given ?? 0,
     // Free-text "note" doesn't have a column in the legacy table.
     note: "",
   };

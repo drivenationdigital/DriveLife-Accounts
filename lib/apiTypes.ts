@@ -368,6 +368,40 @@ export interface ApiCarClubsSection {
 }
 
 export type ApiShowCars = ApiShowCarsSection | { enabled: false };
+
+/** Car clubs section in the /event-edit response. Single hidden
+ *  ticket per event (vs. show cars' per-category tickets); ticket_id
+ *  persists across disable/re-enable cycles so the same secret code
+ *  keeps working for links already emailed to clubs. */
+export interface ApiCarClubsConfig {
+  open_date: string; // ISO "YYYY-MM-DD HH:MM:SS" or ""
+  close_date: string; // same
+  max: number | null;
+  info: string;
+  require_ticket: boolean;
+  ticket_cost: number | null;
+  ticket_id: number | null;
+  secret_code: string;
+  /** Confirmed slots: sold tickets (paid clubs) or the ACF
+   *  confirmed-slots counter (free clubs). */
+  confirmed: number;
+  /** cap − confirmed, floored at 0. null when no cap is set. */
+  remaining: number | null;
+  /** Raw ticket stock counters — present only when a ticket exists. */
+  stock: number | null;
+  stock_sold: number;
+  ticket_url: string; // "" until the ticket exists
+}
+
+/** Car clubs CONFIG block — returned by the editor's /event-edit
+ *  endpoint. Distinct from ApiCarClubs (the dashboard /event
+ *  applications section); don't conflate the two. */
+export type ApiCarClubsConfigBlock =
+  | { enabled: true; config: ApiCarClubsConfig }
+  | { enabled: false };
+
+/** Dashboard /event clubs section — application counts + recent
+ *  lists. */
 export type ApiCarClubs = ApiCarClubsSection | { enabled: false };
 
 // Traders still stubbed
@@ -569,6 +603,13 @@ export interface ApiEventDiscount {
   max_usage_per_coupon: string;
   max_usage_per_user: string;
   max_products_per_basket: string;
+  /** Times used — populated when /event-edit calls
+   *  cc_get_coupons_for_event with include_usage. */
+  usage?: number;
+  /** Total discount given for this coupon (sum of per-order
+   *  `discounted` across non-cancelled orders). Editor-only — added
+   *  in the /event-edit discount mapping, not the shared helper. */
+  discount_given?: number;
 }
 
 export interface ApiEventEditResponse {
@@ -635,6 +676,9 @@ export interface ApiEventEditResponse {
    *  May be absent in older /event-edit deploys that pre-date the
    *  show-cars rollout; the eventEditMapper tolerates that. */
   show_cars?: ApiShowCars;
+  /** Car clubs config block (editor). Optional for the same
+   *  older-deploy tolerance reason as show_cars. */
+  car_clubs?: ApiCarClubsConfigBlock;
   publish: {
     /** Raw WP status — FE mapper converts to draft/published/scheduled. */
     status: string;

@@ -90,6 +90,9 @@ export interface Club {
   appliedLabel: string;
   updatedLabel: string;
   status: ApplicationStatus;
+  /** Per-club ticket sales (confirmed clubs only; 0 otherwise). */
+  ticketsSold: number;
+  ticketSales: number;
 }
 
 export interface Trader {

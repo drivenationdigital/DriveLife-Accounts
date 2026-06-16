@@ -1,64 +1,56 @@
 "use client";
 
 import { useEventData } from "@/context/EventContext";
-import { currency } from "@/lib/utils";
+import { useUI } from "@/context/UIContext";
 import { KpiCard } from "@/components/cards/KpiCard";
-import { AppCard } from "@/components/cards/AppCard";
-import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
+import { CheckIcon, XIcon, DownloadIcon } from "@/components/ui/Icons";
+import { useClubApplications } from "@/lib/clubApplications";
 import type { Club } from "@/context/types";
 
-function ClubGroup({
-  title,
-  subtitle,
-  clubs,
-  action,
-}: {
-  title: string;
-  subtitle: string;
-  clubs: Club[];
-  action?: React.ReactNode;
-}) {
-  if (clubs.length === 0) return null;
-  return (
-    <div className="section">
-      <div className="section-header">
-        <div>
-          <div className="section-title">{title}</div>
-          <div className="section-subtitle">{subtitle}</div>
-        </div>
-        {action}
-      </div>
-      <div className="section-body">
-        <div className="app-card-grid">
-          {clubs.map((c) => (
-            <AppCard key={c.id} kind="club" entity={c} />
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
+/**
+ * Clubs tab — lists car club applications grouped by status.
+ *
+ * Markup mirrors the dashboard's existing section/club-row classes
+ * (section / section-body flush / club-row / club-name / club-sub /
+ * tab-count / pill). Reads from the dedicated useClubApplications
+ * query so the list refreshes on tab focus + after approve/reject.
+ * Approve/reject open the detail modal, which owns the mutation.
+ */
 export function ClubsTab() {
-  const { clubs } = useEventData();
+  const { event } = useEventData();
+  const eid = event.encryptedId;
+  const { data, isLoading, error } = useClubApplications(eid);
+  const clubs = data?.clubs ?? [];
+  const sales = data?.sales;
 
-  if (clubs.length === 0) {
+  if (!isLoading && !error && clubs.length === 0) {
     return (
       <ComingSoonBanner
-        title="Clubs — Coming Soon"
-        message="Club applications will appear here once the feature is wired up."
+        title="No club applications yet"
+        message="Applications will appear here as car clubs apply through your event's club application link."
       />
     );
   }
 
   const pending = clubs.filter((c) => c.status === "pending");
-  const approved = clubs.filter((c) => c.status === "approved");
+  // Server maps confirmed clubs (DB 'confirmed') → FE 'approved'.
+  const confirmed = clubs.filter((c) => c.status === "approved");
   const rejected = clubs.filter((c) => c.status === "rejected");
 
-  const totalMembers = clubs
-    .filter((c) => c.status === "approved")
-    .reduce((n, c) => n + c.membersAttending, 0);
+  // Attending members comes from the server: real tickets sold for
+  // paid events, or confirmed slots for free events. NOT a sum of
+  // applied member counts (which would include pending + over-count).
+  const attendingMembers = sales?.attending ?? 0;
+
+  // Total Club Sales = actual tickets sold × price (real purchases),
+  // from the ticket's stock_sold — not a function of confirmed
+  // member counts.
+  const salesTotal = sales?.total ?? 0;
+  const salesPounds = Math.floor(salesTotal);
+  const salesPence = Math.round((salesTotal - salesPounds) * 100)
+    .toString()
+    .padStart(2, "0");
 
   return (
     <>
@@ -69,46 +61,190 @@ export function ClubsTab() {
           value={
             <>
               <span className="currency">£</span>
-              {(totalMembers * 10).toLocaleString("en-GB")}
-              <span
-                style={{ fontSize: 18, opacity: 0.5, fontWeight: 400 }}
-              >
-                .00
+              {salesPounds.toLocaleString("en-GB")}
+              <span style={{ fontSize: 18, opacity: 0.5, fontWeight: 400 }}>
+                .{salesPence}
               </span>
             </>
           }
         />
-        <KpiCard
-          label="Attending Members"
-          value={clubs.reduce((n, c) => n + c.membersAttending, 0)}
-        />
+        <KpiCard label="Attending Members" value={attendingMembers} />
       </div>
 
-      <ClubGroup
-        title="Pending Club Applications"
-        subtitle={`${pending.length} awaiting review`}
-        clubs={pending}
-      />
-
-      <ClubGroup
-        title="Approved Clubs"
-        subtitle={`${approved.length} confirmed for event`}
-        clubs={approved}
-        action={
+      <div className="section">
+        <div className="section-header">
+          <div>
+            <div className="section-title">Car Club Applications</div>
+            <div className="section-subtitle">
+              All clubs organised by status
+            </div>
+          </div>
           <button type="button" className="btn btn-secondary">
-            <DownloadIcon /> Export
+            <DownloadIcon />
+            Export
           </button>
-        }
-      />
+        </div>
 
-      <ClubGroup
-        title="Rejected Clubs"
-        subtitle={`${rejected.length} application${rejected.length === 1 ? "" : "s"} rejected`}
-        clubs={rejected}
-      />
+        <div className="section-body flush">
+          <ClubGroup
+            label="Pending"
+            tone="warn"
+            clubs={pending}
+            variant="pending"
+            isFirst
+          />
+          <ClubGroup
+            label="Confirmed"
+            tone="success"
+            clubs={confirmed}
+            variant="managed"
+          />
+          <ClubGroup
+            label="Rejected"
+            tone="muted"
+            clubs={rejected}
+            variant="managed"
+          />
+        </div>
+      </div>
     </>
   );
 }
 
-// Suppress unused warning for the demo currency helper
-void currency;
+function ClubGroup({
+  label,
+  tone,
+  clubs,
+  variant,
+  isFirst,
+}: {
+  label: string;
+  tone: "warn" | "success" | "muted";
+  clubs: Club[];
+  variant: "pending" | "managed";
+  isFirst?: boolean;
+}) {
+  if (clubs.length === 0) return null;
+
+  // tab-count colours per the mock: warn-soft/warn, success-soft/
+  // success, bg-2/muted. Inline styles match the reference HTML so
+  // we don't depend on extra class variants existing.
+  const pillStyle: React.CSSProperties =
+    tone === "warn"
+      ? { background: "var(--warn-soft)", color: "var(--warn)" }
+      : tone === "success"
+        ? { background: "var(--success-soft)", color: "var(--success)" }
+        : { background: "var(--bg-2)", color: "var(--muted)" };
+
+  return (
+    <>
+      <div
+        style={{
+          padding: "14px 24px 8px",
+          borderBottom: "1px solid var(--border)",
+          borderTop: isFirst ? undefined : "1px solid var(--border)",
+          display: "flex",
+          gap: 8,
+        }}
+      >
+        <span
+          className="tab-count"
+          style={{ ...pillStyle, fontWeight: 600, padding: "4px 10px" }}
+        >
+          {label} · {clubs.length}
+        </span>
+      </div>
+      {clubs.map((club) => (
+        <ClubRow key={club.id} club={club} variant={variant} />
+      ))}
+    </>
+  );
+}
+
+function ClubRow({
+  club,
+  variant,
+}: {
+  club: Club;
+  variant: "pending" | "managed";
+}) {
+  const { openDetail } = useUI();
+  const openView = () => openDetail({ type: "club", data: club });
+
+  // FE status → pill class. The stylesheet styles confirmed clubs
+  // via the `paid` pill class and rejected via `refunded`. The FE
+  // 'approved' status IS the confirmed state for clubs (server maps
+  // DB 'paid' → 'approved'), so we label it "Confirmed".
+  const pillClass =
+    club.status === "approved"
+      ? "paid"
+      : club.status === "rejected"
+        ? "refunded"
+        : "pending";
+  const pillLabel =
+    club.status === "approved"
+      ? "Confirmed"
+      : club.status.charAt(0).toUpperCase() + club.status.slice(1);
+
+  return (
+    <div
+      className="club-row"
+      onClick={openView}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          openView();
+        }
+      }}
+    >
+      <div>
+        <div className="club-name">{club.name}</div>
+        <div className="club-sub">
+          {variant === "pending"
+            ? `${club.membersAttending} member${club.membersAttending === 1 ? "" : "s"} attending · ${club.appliedLabel}`
+            : club.status === "rejected"
+              ? club.updatedLabel
+              : `${club.membersAttending} member${club.membersAttending === 1 ? "" : "s"} attending · ${club.updatedLabel}`}
+        </div>
+      </div>
+
+      {variant === "pending" ? (
+        <div style={{ display: "flex", gap: 6, marginRight: 10 }}>
+          {/* Both buttons open the detail modal, which owns the
+              approve/reject mutation + async UI. stopPropagation so
+              the row's own openView doesn't also fire. */}
+          <button
+            type="button"
+            className="showcar-action-btn approve"
+            style={{ width: 28, height: 28 }}
+            title="Review & approve"
+            onClick={(e) => {
+              e.stopPropagation();
+              openView();
+            }}
+          >
+            <CheckIcon />
+          </button>
+          <button
+            type="button"
+            className="showcar-action-btn reject"
+            style={{ width: 28, height: 28 }}
+            title="Review & reject"
+            onClick={(e) => {
+              e.stopPropagation();
+              openView();
+            }}
+          >
+            <XIcon />
+          </button>
+        </div>
+      ) : (
+        <div />
+      )}
+
+      <span className={`pill ${pillClass}`}>{pillLabel}</span>
+    </div>
+  );
+}
