@@ -5,6 +5,7 @@ import { KpiCard } from "@/components/cards/KpiCard";
 import { AppCard } from "@/components/cards/AppCard";
 import { PlusIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
+import { useTraderApplications } from "@/lib/traderApplications";
 import type { Trader } from "@/context/types";
 
 function TraderGroup({
@@ -40,18 +41,21 @@ function TraderGroup({
 }
 
 export function TradersTab() {
-  const { traders } = useEventData();
+  const { event } = useEventData();
+  const eid = event.encryptedId;
+  const { data: traders = [], isLoading, error } = useTraderApplications(eid);
 
-  if (traders.length === 0) {
+  if (!isLoading && !error && traders.length === 0) {
     return (
       <ComingSoonBanner
-        title="Traders — Coming Soon"
-        message="Trader applications will appear here once the feature is wired up."
+        title="No trader applications yet"
+        message="Applications will appear here as traders apply through your event's trader application link."
       />
     );
   }
 
   const pending = traders.filter((t) => t.status === "pending");
+  // Server maps confirmed traders → 'approved'; both show here.
   const approved = traders.filter((t) => t.status === "approved");
 
   return (

@@ -173,6 +173,7 @@ export interface ApiOrder {
   marketing_opt_in: boolean;
   marketing_source: string | null;
   cars: ApiCar[];
+  status: string;
 }
 
 export interface ApiAttendee {
@@ -403,6 +404,28 @@ export type ApiCarClubsConfigBlock =
 /** Dashboard /event clubs section — application counts + recent
  *  lists. */
 export type ApiCarClubs = ApiCarClubsSection | { enabled: false };
+
+/** One trader category row from ce_event_trader_categories, as
+ *  returned by /event-edit for editor hydration. */
+export interface ApiTraderCategory {
+  id: number;
+  encrypted_id: string;
+  name: string;
+  icon: string;
+  info: string;
+  payment_mode: "online" | "in_person";
+  ticket_cost: number;
+  spaces_available: number | null;
+  secret_code: string;
+  ticket_id: number | null;
+  applications_open: string | null; // yyyy-mm-dd
+  applications_close: string | null;
+}
+
+/** Traders config block (editor /event-edit). */
+export type ApiTradersConfigBlock =
+  | { enabled: true; categories: ApiTraderCategory[] }
+  | { enabled: false };
 
 // Traders still stubbed
 export type ApiTradersStub =
@@ -679,6 +702,9 @@ export interface ApiEventEditResponse {
   /** Car clubs config block (editor). Optional for the same
    *  older-deploy tolerance reason as show_cars. */
   car_clubs?: ApiCarClubsConfigBlock;
+  /** Traders block (editor). Categories come from the dedicated
+   *  ce_event_trader_categories table. */
+  traders?: ApiTradersConfigBlock;
   publish: {
     /** Raw WP status — FE mapper converts to draft/published/scheduled. */
     status: string;

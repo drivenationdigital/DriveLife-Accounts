@@ -30,6 +30,7 @@ import type {
   ApiEventEditResponse,
   ApiEventTicket,
   ApiShowCarCategory,
+  ApiTraderCategory,
 } from "@/lib/apiTypes";
 import type {
   Discount,
@@ -39,6 +40,9 @@ import type {
   MonthlyOccurrence,
   ShowCarCategory,
   ShowCarCategoryId,
+  TraderCategory,
+  TraderCategoryId,
+  TraderIcon,
   Ticket,
   TicketId,
   TicketListItem,
@@ -189,6 +193,9 @@ export function mapEventEditResponse(
     // ---- Car clubs ------------------------------------------------------
     ...mapCarClubs(response.car_clubs),
 
+    // ---- Traders --------------------------------------------------------
+    ...mapTraders(response.traders),
+
     // ---- Publish ------------------------------------------------------
     ...mapPublish(response.publish),
   };
@@ -333,9 +340,55 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
   };
 }
 
-// ============================================================
-// Sub-mappers
-// ============================================================
+/**
+ * Map the API's traders block onto the editor's flat fields. Trader
+ * categories come from ce_event_trader_categories (their own table),
+ * not from tickets — so unlike show cars they hydrate from a dedicated
+ * `categories` array regardless of the ticket list.
+ */
+function mapTraders(api: ApiEventEditResponse["traders"] | undefined | null): {
+  tradersEnabled: boolean;
+  traderCategories: TraderCategory[];
+} {
+  if (!api || !api.enabled) {
+    return { tradersEnabled: false, traderCategories: [] };
+  }
+  return {
+    tradersEnabled: true,
+    traderCategories: (api.categories ?? []).map(mapTraderCategory),
+  };
+}
+
+const TRADER_ICON_SET = new Set<TraderIcon>([
+  "utensils",
+  "shirt",
+  "wrench",
+  "handshake",
+]);
+
+function mapTraderCategory(api: ApiTraderCategory): TraderCategory {
+  // Guard the icon against unexpected values so the union type holds.
+  const icon = TRADER_ICON_SET.has(api.icon as TraderIcon)
+    ? (api.icon as TraderIcon)
+    : "utensils";
+  const mode: "online" | "in_person" =
+    api.payment_mode === "in_person" ? "in_person" : "online";
+  return {
+    // Raw category id (matches what the save endpoint returns), so
+    // edits route to update.
+    id: String(api.id) as TraderCategoryId,
+    name: api.name,
+    icon,
+    info: api.info ?? "",
+    paymentMode: mode,
+    ticketCost: Number.isFinite(api.ticket_cost) ? api.ticket_cost : NaN,
+    spacesAvailable:
+      typeof api.spaces_available === "number" ? api.spaces_available : NaN,
+    secretCode: api.secret_code ?? "",
+    applicationsOpen: api.applications_open ?? null,
+    applicationsClose: api.applications_close ?? null,
+  };
+}
 
 /**
  * The WP form's "ticket_type" is a 3-way enum:
@@ -470,6 +523,7 @@ function mapDiscount(row: ApiEventDiscount): Discount {
 
   return {
     id: row.ID as unknown as DiscountId,
+    discountGiven: row.discount_given ?? 0,
     code: row.coupon_code,
     kind: mapDiscountKind(row.discount_type),
     amount: parseFloat(row.discount_amount),
@@ -479,11 +533,10 @@ function mapDiscount(row: ApiEventDiscount): Discount {
     // the editor surface — bookings are summed elsewhere. Default
     // to 0 for new editor sessions; once we have a usage-summary
     // endpoint, populate from there.
-    usageCount: row?.usage ?? 0,
+    usageCount: 0,
     applicableTicketIds: allowed,
     availableFrom: extractIsoDate(row.start_date),
     availableUntil: extractIsoDate(row.end_date),
-    discountGiven: row?.discount_given ?? 0,
     // Free-text "note" doesn't have a column in the legacy table.
     note: "",
   };

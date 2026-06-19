@@ -145,8 +145,10 @@ function mapTicket(t: ApiTicketType): Ticket {
 
 function mapOrderStatus(order: ApiOrder): OrderStatus {
   if (order.payment_method === "admin") return "paid";
-  if (order.total_amount > 0) return "paid";
-  if (order.total_amount === 0) return "refunded";
+  if (order.status === 'completed') return "paid";
+  
+  // if (order.total_amount > 0) return "paid";
+  // if (order.total_amount === 0) return "refunded";
   return "pending";
 }
 

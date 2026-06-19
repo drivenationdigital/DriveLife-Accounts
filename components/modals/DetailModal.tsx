@@ -6,6 +6,7 @@ import { XIcon, CheckIcon } from "@/components/ui/Icons";
 import type { ShowCar, Club, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
 import { useApproveClubApplication, useRejectClubApplication } from "@/lib/clubApplications";
+import { useApproveTraderApplication, useConfirmTraderApplication, useRejectTraderApplication } from "@/lib/traderApplications";
 
 function statusLabel(status: string) {
   return status
@@ -124,35 +125,56 @@ export function DetailModal() {
   const showCarReject = useRejectShowCarApplication();
   const clubApprove = useApproveClubApplication();
   const clubReject = useRejectClubApplication();
+  const traderApprove = useApproveTraderApplication();
+  const traderReject = useRejectTraderApplication();
+  const traderConfirm = useConfirmTraderApplication();
 
   if (!detail) return null;
 
   const isShowCar = detail.type === "showcar";
   const isClub = detail.type === "club";
-  const isActionable = isShowCar || isClub; // has real approve/reject wired
+  const isTrader = detail.type === "trader";
+  const isActionable = isShowCar || isClub || isTrader;
   const isPending =
     (isShowCar && detail.data.status === "pending") ||
     (isClub && detail.data.status === "pending") ||
-    (detail.type === "trader" && detail.data.status === "pending");
+    (isTrader && detail.data.status === "pending");
+
+  // An approved trader can be marked confirmed (mainly in_person,
+  // after payment clears). Only traders expose this extra action.
+  const canConfirm = isTrader && detail.data.status === "approved";
 
   // Pick the active mutation pair for the current detail type.
-  const approver = isClub ? clubApprove : showCarApprove;
-  const rejecter = isClub ? clubReject : showCarReject;
+  const approver = isClub
+    ? clubApprove
+    : isTrader
+      ? traderApprove
+      : showCarApprove;
+  const rejecter = isClub
+    ? clubReject
+    : isTrader
+      ? traderReject
+      : showCarReject;
 
   const isApproving = isActionable && approver.isPending;
   const isRejecting = isActionable && rejecter.isPending;
-  const isMutating = isApproving || isRejecting;
+  const isConfirming = isTrader && traderConfirm.isPending;
+  const isMutating = isApproving || isRejecting || isConfirming;
 
-  // Success copy differs by type + outcome. Both flows distinguish
-  // the paid/awaiting-purchase branch ("emailed a link") from the
-  // auto-confirmed branch.
+  // Success copy differs by type + outcome.
   const successMessage = (() => {
     if (!isActionable) return null;
+    if (isTrader && traderConfirm.isSuccess) {
+      return "Trader confirmed.";
+    }
     if (approver.isSuccess) {
       if (isClub) {
         // Clubs have one outcome now: confirmed. Every approved club
         // is emailed the unique member link to share.
         return "Club confirmed. They've been emailed a unique link to share with their members.";
+      }
+      if (isTrader) {
+        return "Trader approved. They've been emailed payment details.";
       }
       const status = approver.data.status; // "approved" | "paid"
       return status === "paid"
@@ -160,13 +182,17 @@ export function DetailModal() {
         : "Application approved. The applicant has been emailed a ticket link.";
     }
     if (rejecter.isSuccess) {
-      return isClub ? "Club application rejected." : "Application rejected.";
+      if (isClub) return "Club application rejected.";
+      if (isTrader) return "Trader application rejected.";
+      return "Application rejected.";
     }
     return null;
   })();
 
   const mutationError = isActionable
-    ? (approver.error ?? rejecter.error)
+    ? (approver.error ??
+      rejecter.error ??
+      (isTrader ? traderConfirm.error : null))
     : null;
 
   const handleClose = () => {
@@ -175,6 +201,9 @@ export function DetailModal() {
     showCarReject.reset();
     clubApprove.reset();
     clubReject.reset();
+    traderApprove.reset();
+    traderReject.reset();
+    traderConfirm.reset();
     closeDetail();
   };
 
@@ -182,7 +211,6 @@ export function DetailModal() {
     if (isActionable) {
       approver.mutate({ applicationId: Number(detail.data.id) });
     } else {
-      // Trader stub — unchanged from before.
       console.log("Detail action: approve", detail);
       closeDetail();
     }
@@ -194,6 +222,12 @@ export function DetailModal() {
     } else {
       console.log("Detail action: reject", detail);
       closeDetail();
+    }
+  };
+
+  const handleConfirm = () => {
+    if (canConfirm) {
+      traderConfirm.mutate({ applicationId: Number(detail.data.id) });
     }
   };
 
@@ -226,6 +260,51 @@ export function DetailModal() {
             onClick={handleClose}
           >
             Close
+          </button>
+        </div>
+      );
+    }
+
+    // Approved trader → show the "Mark as confirmed" action instead
+    // of the pending approve/reject pair.
+    if (canConfirm) {
+      return (
+        <div
+          className="detail-footer"
+          style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
+        >
+          {mutationError && (
+            <div
+              style={{
+                fontSize: 13,
+                color: "var(--danger, #c62828)",
+                padding: "6px 4px",
+              }}
+              role="alert"
+            >
+              {mutationError.message || "Something went wrong. Try again."}
+            </div>
+          )}
+          <button
+            type="button"
+            className="btn btn-approve"
+            onClick={handleConfirm}
+            disabled={isMutating}
+          >
+            {isConfirming ? (
+              <>
+                <i
+                  className="fa-solid fa-spinner fa-spin"
+                  aria-hidden
+                  style={{ marginRight: 6 }}
+                />
+                Confirming…
+              </>
+            ) : (
+              <>
+                <CheckIcon /> Mark as confirmed
+              </>
+            )}
           </button>
         </div>
       );

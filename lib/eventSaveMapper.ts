@@ -109,6 +109,10 @@ export interface ApiEventUpdateRequest {
   tickets?: ApiEventUpdateTickets;
   show_cars?: ApiEventUpdateSection;
   car_clubs?: ApiEventUpdateSection;
+  /** Traders — only the enable flag is sent here. Categories save
+   *  individually via /event-trader, so there are no per-section
+   *  fields to persist. */
+  traders?: { enabled: boolean };
   publish?: ApiEventUpdatePublish;
 }
 
@@ -143,6 +147,7 @@ export function mapStateToUpdateRequest(
     tickets: mapTickets(state),
     car_clubs: mapCarClubs(state),
     show_cars: mapShowCars(state),
+    traders: { enabled: state.tradersEnabled },
     publish: mapPublish(state),
   };
 

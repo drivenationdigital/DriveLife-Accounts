@@ -195,6 +195,7 @@ export type Discount = {
   usageLimit: number | null;
   perCustomerLimit: number | null;
   usageCount: number;
+  /** Total £ discount given across all orders that used this code. */
   discountGiven: number;
   applicableTicketIds: TicketId[];
   availableFrom: string | null; // ISO yyyy-mm-dd
@@ -351,6 +352,18 @@ export type TraderCategory = {
   applicationsClose: string | null;
   /** Per-category info text (the WYSIWYG textarea content). */
   info: string;
+  /** Payment mode — never free. 'online' takes payment at checkout
+   *  via a hidden ticket; 'in_person' is invoice / bank transfer /
+   *  pay-on-the-day (organiser marks confirmed once cleared). Both
+   *  use the pending→approved→confirmed→rejected flow. */
+  paymentMode: "online" | "in_person";
+  /** Fee for the pitch. Recorded for both modes (in_person collects
+   *  it offline). NaN ⇒ unset. */
+  ticketCost: number;
+  /** Spaces cap. NaN ⇒ unset/unlimited. */
+  spacesAvailable: number;
+  /** Per-category secret code gating the online ticket link. */
+  secretCode: string;
 };
 
 /** Top-level form state. Only Basics is wired up so far; later panels

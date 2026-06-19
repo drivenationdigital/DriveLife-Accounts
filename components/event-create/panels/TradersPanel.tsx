@@ -7,12 +7,16 @@ import {
   useEventCreate,
   TRADER_ICONS,
   type TraderCategory,
+  type TraderCategoryId,
   type TraderIcon,
 } from "@/context/EventCreateContext";
+import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
+  useSaveTraderCategory,
+  useDeleteTraderCategory,
+  mapTraderCategoryToBody,
+} from "@/lib/traderMutations";
+import { ApiError } from "@/lib/apiClient";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 
@@ -23,15 +27,20 @@ import { TraderCategoryDrawer } from "../TraderCategoryDrawer";
 /**
  * Step 9 — Traders.
  *
- * Simpler than Show Cars (no event-level capacity, no ticket toggle).
- * Each trader category carries its own info text + application
- * window. Master enable toggle gates the section.
+ * Each trader category carries its own info text, application window,
+ * and a payment mode (online ticket vs. pay in person). Master enable
+ * toggle gates the section. Categories persist to the server on save/
+ * delete (same pattern as Show Cars) — not batched on event save.
  */
 export function TradersPanel() {
   const { state, dispatch } = useEventCreate();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+
+  const saver = useSaveTraderCategory();
+  const remover = useDeleteTraderCategory();
+  const eid = state.encryptedId;
 
   const { prev, next } = adjacentSteps("traders");
 
@@ -55,7 +64,50 @@ export function TradersPanel() {
     setDrawerOpen(true);
   };
 
-  // DnD reorder
+  const errorText = (err: Error | null): string | null =>
+    err
+      ? err instanceof ApiError
+        ? err.message
+        : err.message || "Save failed."
+      : null;
+
+  const handleSaveCategory = async (c: TraderCategory, isUpdate: boolean) => {
+    if (!eid) return;
+    try {
+      const res = await saver.mutateAsync({
+        eid,
+        id: c.id,
+        body: mapTraderCategoryToBody(c),
+      });
+      // Swap the local synthetic id for the server's category id so
+      // later edits route to the update path.
+      const persisted: TraderCategory = {
+        ...c,
+        id: String(res.category_id) as TraderCategoryId,
+      };
+      dispatch(
+        isUpdate
+          ? { type: "UPDATE_TRADER_CATEGORY", category: persisted }
+          : { type: "ADD_TRADER_CATEGORY", category: persisted },
+      );
+      setDrawerOpen(false);
+    } catch {
+      // Drawer stays open; error surfaces via saver.error.
+    }
+  };
+
+  const handleRemoveCategory = async (id: TraderCategoryId) => {
+    if (!eid) return;
+    try {
+      await remover.mutateAsync({ eid, id });
+      dispatch({ type: "REMOVE_TRADER_CATEGORY", id });
+      setDrawerOpen(false);
+    } catch {
+      // Leave the row in place; surface error on the drawer if open.
+    }
+  };
+
+  // DnD reorder (local only — server has no display_order for traders)
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
 
@@ -79,24 +131,24 @@ export function TradersPanel() {
       onDragEnd();
       return;
     }
-    const next = [...state.traderCategories];
-    const [moved] = next.splice(dragIdx, 1);
+    const reordered = [...state.traderCategories];
+    const [moved] = reordered.splice(dragIdx, 1);
     if (moved) {
-      next.splice(targetIdx, 0, moved);
-      dispatch({ type: "REORDER_TRADER_CATEGORIES", items: next });
+      reordered.splice(targetIdx, 0, moved);
+      dispatch({ type: "REORDER_TRADER_CATEGORIES", items: reordered });
     }
     onDragEnd();
   };
   const moveItem = (idx: number, delta: -1 | 1) => {
     const target = idx + delta;
     if (target < 0 || target >= state.traderCategories.length) return;
-    const next = [...state.traderCategories];
-    const a = next[idx];
-    const b = next[target];
+    const reordered = [...state.traderCategories];
+    const a = reordered[idx];
+    const b = reordered[target];
     if (!a || !b) return;
-    next[idx] = b;
-    next[target] = a;
-    dispatch({ type: "REORDER_TRADER_CATEGORIES", items: next });
+    reordered[idx] = b;
+    reordered[target] = a;
+    dispatch({ type: "REORDER_TRADER_CATEGORIES", items: reordered });
   };
 
   return (
@@ -114,8 +166,8 @@ export function TradersPanel() {
             Enable trader applications
           </p>
           <p className="text-xs text-ink-500 mt-0.5">
-            Accept applications from food vans, merchandise stalls, sponsors
-            and exhibitors
+            Accept applications from food vans, merchandise stalls, sponsors and
+            exhibitors
           </p>
         </div>
         <span className="switch">
@@ -143,8 +195,8 @@ export function TradersPanel() {
                   Trader types
                 </h3>
                 <p className="text-xs text-ink-500 mt-0.5">
-                  Group traders by type — each category has its own
-                  application window &amp; info
+                  Group traders by type — each category has its own application
+                  window &amp; info
                 </p>
               </div>
               <button
@@ -158,8 +210,8 @@ export function TradersPanel() {
 
             {state.traderCategories.length === 0 ? (
               <div className="text-center py-10 px-4 border border-dashed border-ink-200 rounded-xl bg-ink-50 text-ink-500 text-sm">
-                No trader types yet. Add at least one for applicants to
-                choose from.
+                No trader types yet. Add at least one for applicants to choose
+                from.
               </div>
             ) : (
               <div className="space-y-3">
@@ -186,12 +238,7 @@ export function TradersPanel() {
                       <TraderCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
-                        onDelete={() =>
-                          dispatch({
-                            type: "REMOVE_TRADER_CATEGORY",
-                            id: c.id,
-                          })
-                        }
+                        onDelete={() => handleRemoveCategory(c.id)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
                         canMoveUp={idx > 0}
@@ -208,8 +255,8 @@ export function TradersPanel() {
               onClick={openNew}
               className="w-full mt-3 py-4 border-2 border-dashed border-ink-200 hover:border-gold-500 hover:bg-gold-50 rounded-xl text-ink-500 hover:text-gold-700 font-medium text-sm transition flex items-center justify-center gap-2"
             >
-              <i className="fa-solid fa-plus" aria-hidden /> Add another
-              trader type
+              <i className="fa-solid fa-plus" aria-hidden /> Add another trader
+              type
             </button>
           </div>
 
@@ -243,17 +290,15 @@ export function TradersPanel() {
         open={drawerOpen}
         editing={editing}
         onClose={() => setDrawerOpen(false)}
-        onSave={(c) => {
-          if (editing) {
-            dispatch({ type: "UPDATE_TRADER_CATEGORY", category: c });
-          } else {
-            dispatch({ type: "ADD_TRADER_CATEGORY", category: c });
-          }
-        }}
-        onRemove={(id) =>
-          dispatch({ type: "REMOVE_TRADER_CATEGORY", id })
-        }
+        onSave={(c) => handleSaveCategory(c, editing !== null)}
+        onRemove={(id) => handleRemoveCategory(id)}
       />
+
+      {errorText(saver.error ?? remover.error) && (
+        <p className="text-sm text-red-600 mt-3" role="alert">
+          {errorText(saver.error ?? remover.error)}
+        </p>
+      )}
     </section>
   );
 }
@@ -341,12 +386,28 @@ function iconClassFor(icon: TraderIcon): string {
 }
 
 function subtitleForCategory(c: TraderCategory): string {
-  if (!c.applicationsOpen && !c.applicationsClose) return "";
-  const parts: string[] = ["Applications"];
-  if (c.applicationsOpen) parts.push(formatShort(c.applicationsOpen));
-  parts.push("–");
-  if (c.applicationsClose) parts.push(formatShort(c.applicationsClose));
-  return parts.join(" ").replace("Applications  – ", "Applications ");
+  const bits: string[] = [];
+  // Payment mode + fee
+  if (c.paymentMode === "in_person") {
+    bits.push("Pay in person");
+  } else {
+    bits.push("Online");
+  }
+  if (Number.isFinite(c.ticketCost) && c.ticketCost > 0) {
+    bits.push(`£${c.ticketCost}`);
+  }
+  // Window
+  if (c.applicationsOpen || c.applicationsClose) {
+    const win = [
+      c.applicationsOpen ? formatShort(c.applicationsOpen) : "",
+      "–",
+      c.applicationsClose ? formatShort(c.applicationsClose) : "",
+    ]
+      .join(" ")
+      .trim();
+    bits.push(win);
+  }
+  return bits.join(" · ");
 }
 
 function formatShort(iso: string): string {
