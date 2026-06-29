@@ -158,11 +158,21 @@ export default function TraderApplyPage({
 
   return (
     <PageShell>
-      <h1 className="text-2xl font-bold mb-1">Trader Application</h1>
-      <p className="text-sm text-ink-600 mb-6">{data.event_title}</p>
+      <header className="mb-7">
+        <p className="text-[11px] uppercase tracking-[0.18em] text-gold-600 font-bold mb-2">
+          Trader Application
+        </p>
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-ink-900 tracking-tight mb-3 leading-[1.05]">
+          {data.event_title}
+        </h1>
+        <p className="text-sm text-ink-600 leading-relaxed">
+          Apply for a trade stand at this event. Approved traders will be
+          emailed next steps.
+        </p>
+      </header>
 
-      <form onSubmit={handleSubmit} className="space-y-8">
-        <Section title="Category">
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Section step={1} title="Category">
           <Field label="Trader category" required>
             <select
               className="input"
@@ -193,7 +203,7 @@ export default function TraderApplyPage({
           )}
         </Section>
 
-        <Section title="Business details">
+        <Section step={2} title="Business details">
           <Field label="Business name" required>
             <input
               className="input"
@@ -273,7 +283,7 @@ export default function TraderApplyPage({
           </div>
         </Section>
 
-        <Section title="Contact">
+        <Section step={3} title="Contact">
           <Field label="Contact name" required>
             <input
               className="input"
@@ -328,7 +338,7 @@ export default function TraderApplyPage({
             selected.is_full ||
             !isTraderCategoryOpenToday(selected)
           }
-          className="w-full py-3 bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-lg transition inline-flex items-center justify-center gap-2"
+          className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
         >
           {submit.isPending && (
             <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
@@ -342,19 +352,65 @@ export default function TraderApplyPage({
 
 function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-ink-50 py-12 px-4">
-      <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm p-6 sm:p-8">
-        {children}
-      </div>
+    <div className="apply-shell min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40 py-8 sm:py-14 px-4">
+      <style>{`
+        .apply-shell .input,
+        .apply-shell input.input,
+        .apply-shell select.input,
+        .apply-shell textarea.input {
+          width: 100%;
+          padding: 11px 14px;
+          font-size: 15px;
+          line-height: 1.4;
+          color: var(--ink, #1f1d18);
+          background: #fafafa;
+          border: 1px solid #dedcd5;
+          border-radius: 10px;
+          outline: none;
+          transition: border-color .15s, box-shadow .15s, background .15s;
+          -webkit-appearance: none;
+          appearance: none;
+        }
+        .apply-shell textarea.input { min-height: 88px; resize: vertical; }
+        .apply-shell .input::placeholder { color: #a8a59c; }
+        .apply-shell .input:hover { border-color: #cfccc3; }
+        .apply-shell .input:focus {
+          background: #fff;
+          border-color: var(--gold-deep, #bd7420);
+          box-shadow: 0 0 0 3px rgba(189,116,32,.15);
+        }
+        .apply-shell select.input {
+          background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238a877e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+          background-repeat: no-repeat;
+          background-position: right 14px center;
+          padding-right: 40px;
+        }
+      `}</style>
+      <div className="max-w-2xl mx-auto">{children}</div>
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function Section({
+  title,
+  step,
+  children,
+}: {
+  title: string;
+  step: number;
+  children: ReactNode;
+}) {
   return (
-    <section>
-      <h2 className="text-sm font-semibold text-ink-900 mb-3">{title}</h2>
-      <div className="space-y-3">{children}</div>
+    <section className="bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden">
+      <div className="flex items-center gap-3 px-6 pt-5 pb-4 border-b border-ink-100">
+        <span className="flex items-center justify-center w-7 h-7 rounded-full bg-gold-500 text-white text-xs font-bold shrink-0">
+          {step}
+        </span>
+        <h2 className="text-base font-bold text-ink-900 tracking-tight">
+          {title}
+        </h2>
+      </div>
+      <div className="p-6 space-y-4">{children}</div>
     </section>
   );
 }
@@ -370,11 +426,13 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-xs uppercase tracking-wider font-semibold text-ink-500">
+      <span className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500 inline-flex items-center gap-1">
         {label}
-        {required && " *"}
+        {required && (
+          <span className="text-gold-600 text-sm leading-none">*</span>
+        )}
       </span>
-      <div className="mt-1">{children}</div>
+      <div className="mt-1.5">{children}</div>
     </label>
   );
 }

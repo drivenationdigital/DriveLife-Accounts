@@ -3,23 +3,10 @@
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import {
-  useEventCreate,
-  type EditorImage,
-} from "@/context/EventCreateContext";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
-import {
-  imageSrc,
-  makeLocalImage,
-  revokeIfLocal,
-} from "@/lib/editorImage";
-import {
-  useUploadEventImage,
-  useRemoveEventImage,
-} from "@/lib/imageMutations";
+import { useEventCreate, type EditorImage } from "@/context/EventCreateContext";
+import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
+import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
+import { useUploadEventImage, useRemoveEventImage } from "@/lib/imageMutations";
 import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
@@ -401,12 +388,13 @@ function IconInput({
   return (
     <div className="relative">
       <i
-        className={`${icon} absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 w-4 text-center`}
+        className={`${icon} absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 w-4 text-center pointer-events-none`}
         aria-hidden
       />
       <input
         type={type}
-        className="input pl-11"
+        className="input"
+        style={{ paddingLeft: 44 }}
         placeholder={placeholder}
         value={value}
         onChange={(e) => onChange(e.target.value)}

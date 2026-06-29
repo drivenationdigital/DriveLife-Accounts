@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 "use client";
 
 import { useEventData } from "@/context/EventContext";
@@ -7,11 +8,7 @@ import { KpiCard } from "@/components/cards/KpiCard";
 import { TicketRow } from "@/components/cards/TicketRow";
 import { ShowCarCard } from "@/components/cards/ShowCarCard";
 import { AppCard } from "@/components/cards/AppCard";
-import {
-  CarIcon,
-  UsersIcon,
-  ChevRightIcon,
-} from "@/components/ui/Icons";
+import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 
 export function OverviewTab() {
   const {
@@ -30,7 +27,23 @@ export function OverviewTab() {
   const pendingShowCars = showCars.filter((s) => s.status === "pending");
   const pendingClubs = clubs.filter((c) => c.status === "pending");
   const pendingTraders = traders.filter((t) => t.status === "pending");
+  console.log(features);
 
+  // Pending counts drive the Needs Attention box. Use the live
+  // filtered lists for all three so the source is consistent (the
+  // features.*.counts.applied path and pendingTraders.length used to
+  // disagree). A feature only appears as a row when it actually has
+  // something pending.
+  const showCarPending = features.show_cars.enabled
+    ? pendingShowCars.length
+    : 0;
+  const clubPending = features.car_clubs.enabled ? pendingClubs.length : 0;
+  const traderPending = features.traders.enabled ? pendingTraders.length : 0;
+
+  const totalPending = showCarPending + clubPending + traderPending;
+
+  // The box renders whenever any feature is enabled; its *content*
+  // switches between the attention rows and the all-caught-up state.
   const anyPendingFeature =
     features.show_cars.enabled ||
     features.car_clubs.enabled ||
@@ -88,7 +101,17 @@ export function OverviewTab() {
               Manage tickets →
             </a>
           </div>
-          <div className="section-body flush">
+          {/* Header stays fixed; only the rows scroll. ~6 rows then
+              scroll (≈76px each). Inline so it overrides the shared
+              .section-body rule for this card only. */}
+          <div
+            className="section-body flush ticket-breakdown-scroll"
+            style={{
+              maxHeight: 456,
+              overflowY: "auto",
+              overscrollBehavior: "contain",
+            }}
+          >
             {tickets.map((t) => (
               <TicketRow key={t.id} ticket={t} />
             ))}
@@ -102,95 +125,118 @@ export function OverviewTab() {
                 <div className="section-title">Needs Attention</div>
               </div>
             </div>
-            <div className="section-body">
-              {features.show_cars.enabled && (
-                <div
-                  className="approval-row"
-                  onClick={() => setActiveTab("showcars")}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="approval-icon">
-                    <CarIcon />
-                  </div>
-                  <div className="approval-info">
-                    <div className="approval-label">
-                      Show Car applications
-                    </div>
-                    <div className="approval-meta">
-                      {features.show_cars.counts.applied > 0
-                        ? "Awaiting your approval"
-                        : "No pending applications"}
-                    </div>
-                  </div>
-                  <div className="approval-count">
-                    {features.show_cars.counts.applied}
-                  </div>
-                  <span className="approval-arrow">
-                    <ChevRightIcon />
-                  </span>
-                </div>
-              )}
 
-              {features.car_clubs.enabled && (
-                <div
-                  className="approval-row"
-                  onClick={() => setActiveTab("clubs")}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="approval-icon">
-                    <UsersIcon />
-                  </div>
-                  <div className="approval-info">
-                    <div className="approval-label">
-                      Car Club applications
-                    </div>
-                    <div className="approval-meta">
-                      {features.car_clubs.counts.applied > 0
-                        ? `${features.car_clubs.counts.applied} clubs pending review`
-                        : "No pending clubs"}
-                    </div>
-                  </div>
-                  <div className="approval-count">
-                    {features.car_clubs.counts.applied}
-                  </div>
-                  <span className="approval-arrow">
-                    <ChevRightIcon />
-                  </span>
-                </div>
-              )}
-
-              {features.traders.enabled && (
-                <div
-                  className="approval-row"
-                  onClick={() => setActiveTab("traders")}
-                  style={{ cursor: "pointer" }}
-                >
-                  <div className="approval-icon">
+            {totalPending === 0 ? (
+              // All caught up — a positive empty state rather than a
+              // list of zero-count rows.
+              <div className="section-body">
+                <div className="attention-empty">
+                  <div className="attention-empty-icon">
                     <svg
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="1.8"
+                      strokeWidth="2"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
-                      <path d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
-                      <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
+                      <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                  <div className="approval-info">
-                    <div className="approval-label">Trader applications</div>
-                    <div className="approval-meta">
-                      {pendingTraders.length} application pending
-                    </div>
+                  <div className="attention-empty-title">
+                    You're all caught up
                   </div>
-                  <div className="approval-count">{pendingTraders.length}</div>
-                  <span className="approval-arrow">
-                    <ChevRightIcon />
-                  </span>
+                  <div className="attention-empty-meta">
+                    Nothing to review right now. New applications will show up
+                    here.
+                  </div>
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="section-body">
+                {showCarPending > 0 && (
+                  <div
+                    className="approval-row"
+                    onClick={() => setActiveTab("showcars")}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="approval-icon">
+                      <CarIcon />
+                    </div>
+                    <div className="approval-info">
+                      <div className="approval-label">
+                        Show Car applications
+                      </div>
+                      <div className="approval-meta">
+                        Awaiting your approval
+                      </div>
+                    </div>
+                    <div className="approval-count">{showCarPending}</div>
+                    <span className="approval-arrow">
+                      <ChevRightIcon />
+                    </span>
+                  </div>
+                )}
+
+                {clubPending > 0 && (
+                  <div
+                    className="approval-row"
+                    onClick={() => setActiveTab("clubs")}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="approval-icon">
+                      <UsersIcon />
+                    </div>
+                    <div className="approval-info">
+                      <div className="approval-label">
+                        Car Club applications
+                      </div>
+                      <div className="approval-meta">
+                        {clubPending} club{clubPending === 1 ? "" : "s"} pending
+                        review
+                      </div>
+                    </div>
+                    <div className="approval-count">{clubPending}</div>
+                    <span className="approval-arrow">
+                      <ChevRightIcon />
+                    </span>
+                  </div>
+                )}
+
+                {traderPending > 0 && (
+                  <div
+                    className="approval-row"
+                    onClick={() => setActiveTab("traders")}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <div className="approval-icon">
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      >
+                        <path d="M20 7H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2z" />
+                        <path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" />
+                      </svg>
+                    </div>
+                    <div className="approval-info">
+                      <div className="approval-label">Trader applications</div>
+                      <div className="approval-meta">
+                        {traderPending} application
+                        {traderPending === 1 ? "" : "s"} pending
+                      </div>
+                    </div>
+                    <div className="approval-count">{traderPending}</div>
+                    <span className="approval-arrow">
+                      <ChevRightIcon />
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -285,9 +331,7 @@ export function OverviewTab() {
                     </td>
                     <td className="amount">{d.displayAmount}</td>
                     <td>
-                      <span
-                        className={`pill ${discountPill(d.activeState)}`}
-                      >
+                      <span className={`pill ${discountPill(d.activeState)}`}>
                         {d.statusLabel}
                       </span>
                     </td>
@@ -400,11 +444,7 @@ export function OverviewTab() {
                 <div className="section-body">
                   <div className="app-card-grid">
                     {pendingTraders.map((trader) => (
-                      <AppCard
-                        key={trader.id}
-                        kind="trader"
-                        entity={trader}
-                      />
+                      <AppCard key={trader.id} kind="trader" entity={trader} />
                     ))}
                   </div>
                 </div>

@@ -366,10 +366,7 @@ export function DatesPanel() {
                   dispatch({
                     type: "SET_FIELD",
                     key: "recurringFrequency",
-                    value: e.target.value as
-                      | "weekly"
-                      | "monthly"
-                      | "custom",
+                    value: e.target.value as "weekly" | "monthly" | "custom",
                   })
                 }
               >
@@ -494,10 +491,7 @@ export function DatesPanel() {
                     }
                     disabled={state.recurringRepeatUntilCancelled}
                   >
-                    <i
-                      className="fa-regular fa-calendar df-icon"
-                      aria-hidden
-                    />
+                    <i className="fa-regular fa-calendar df-icon" aria-hidden />
                     <span className="df-display">
                       {state.recurringRepeatUntilCancelled
                         ? "Ongoing — no end date"
@@ -545,9 +539,7 @@ export function DatesPanel() {
                 onUpdate={(row) =>
                   dispatch({ type: "UPDATE_CUSTOM_DATE", row })
                 }
-                onRemove={(id) =>
-                  dispatch({ type: "REMOVE_CUSTOM_DATE", id })
-                }
+                onRemove={(id) => dispatch({ type: "REMOVE_CUSTOM_DATE", id })}
                 onPickDate={(rowId) =>
                   setPickerTarget({
                     key: "customDate",
@@ -571,8 +563,8 @@ export function DatesPanel() {
                 Recurring event schedule
               </p>
               <p className="text-gold-800 mt-1">
-                Your event will be duplicated and published for each date in
-                the series when you hit publish.
+                Your event will be duplicated and published for each date in the
+                series when you hit publish.
               </p>
             </div>
           </div>
@@ -589,12 +581,13 @@ export function DatesPanel() {
         </label>
         <div className="relative">
           <i
-            className="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-ink-400"
+            className="fa-solid fa-globe absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none"
             aria-hidden
           />
           <select
             id="f-timezone"
-            className="select pl-11"
+            className="select"
+            style={{ paddingLeft: 44, paddingRight: 40 }}
             value={state.timezone}
             onChange={(e) =>
               dispatch({
@@ -628,8 +621,7 @@ export function DatesPanel() {
           onClick={() => next && goTo(next)}
           className="px-5 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition inline-flex items-center gap-2"
         >
-          Continue{" "}
-          <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
+          Continue <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
         </button>
       </div>
 
