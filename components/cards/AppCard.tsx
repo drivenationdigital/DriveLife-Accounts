@@ -3,6 +3,8 @@
 import { useUI } from "@/context/UIContext";
 import { CarEventsEyeIcon, TrashIcon } from "@/components/ui/Icons";
 import type { Club, Trader, DetailPayload } from "@/context/types";
+  import { useConfirm } from "@/context/ConfirmContext";
+
 
 type AppCardProps =
   | { kind: "club"; entity: Club }
@@ -10,6 +12,7 @@ type AppCardProps =
 
 export function AppCard(props: AppCardProps) {
   const { openDetail } = useUI();
+   const confirm = useConfirm();
 
   const payload: DetailPayload =
     props.kind === "club"
@@ -101,7 +104,7 @@ export function AppCard(props: AppCardProps) {
               type="button"
               className="btn btn-primary"
               onClick={stopThen(() =>
-                console.log("approve", props.kind, props.entity.id)
+                console.log("approve", props.kind, props.entity.id),
               )}
             >
               Approve
@@ -110,7 +113,7 @@ export function AppCard(props: AppCardProps) {
               type="button"
               className="btn btn-secondary btn-danger-outline"
               onClick={stopThen(() =>
-                console.log("reject", props.kind, props.entity.id)
+                console.log("reject", props.kind, props.entity.id),
               )}
             >
               Reject
@@ -130,10 +133,14 @@ export function AppCard(props: AppCardProps) {
               type="button"
               className="btn btn-secondary btn-delete"
               title="Delete"
-              onClick={stopThen(() => {
-                if (confirm("Delete this entry? This action cannot be undone.")) {
-                  console.log("delete", props.kind, props.entity.id);
-                }
+              onClick={stopThen(async () => {
+                const ok = await confirm({
+                  title: "Delete this application?",
+                  message: "This action cannot be undone.",
+                  confirmLabel: "Delete",
+                  danger: true,
+                });
+                if (ok) console.log("delete", props.kind, props.entity.id);
               })}
             >
               <TrashIcon />

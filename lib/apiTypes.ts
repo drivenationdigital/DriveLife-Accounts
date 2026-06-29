@@ -173,7 +173,6 @@ export interface ApiOrder {
   marketing_opt_in: boolean;
   marketing_source: string | null;
   cars: ApiCar[];
-  status: string;
 }
 
 export interface ApiAttendee {
@@ -235,6 +234,9 @@ export interface ApiSales {
 }
 
 export interface ComingSoonStub {
+  /** Always disabled — a coming-soon feature is off. Present so the
+   *  traders union shares `enabled` as a common discriminant. */
+  enabled: false;
   status: "coming_soon";
   message: string;
 }
@@ -290,7 +292,10 @@ export interface ApiCarClubRecord {
 }
 
 export interface ApiApplicationCounts {
+  /** Legacy bucket — no longer populated by the API; use `pending`. */
   applied: number;
+  /** Awaiting review. */
+  pending: number;
   approved: number;
   confirmed: number;
   rejected: number;
@@ -427,9 +432,16 @@ export type ApiTradersConfigBlock =
   | { enabled: true; categories: ApiTraderCategory[] }
   | { enabled: false };
 
-// Traders still stubbed
+// Dashboard /event traders section. The dashboard now returns a real
+// enabled flag + counts (config/recent intentionally omitted for now).
+// The legacy coming_soon stub is still tolerated for older deploys.
+export interface ApiTradersSection {
+  enabled: true;
+  counts: ApiApplicationCounts;
+}
 export type ApiTradersStub =
-  | { enabled: false; status: "coming_soon"; message: string }
+  | ApiTradersSection
+  | { enabled: false; counts?: ApiApplicationCounts }
   | ComingSoonStub;
 
 export interface EventResponse {

@@ -3390,3 +3390,51 @@
 .ticket-breakdown-scroll::-webkit-scrollbar-thumb { background: #d6d3ca; border-radius: 4px; }
 .ticket-breakdown-scroll::-webkit-scrollbar-thumb:hover { background: #c2bfb4; }
 .ticket-breakdown-scroll::-webkit-scrollbar-track { background: transparent; }
+
+.attention-empty-icon svg { width: 22px; height: 22px; }
+
+
+.order-view { max-width: 720px; margin: 0 auto; padding: 8px 0 40px; }
+.order-back { background:none; border:none; color:var(--muted,#6b6860); font-size:14px; cursor:pointer; padding:8px 0; }
+.order-loading, .order-error { padding:24px; text-align:center; color:var(--muted,#6b6860); }
+.order-error { color:#b3261e; }
+
+.order-header { background:#fff; border:1px solid var(--border,#ecebe6); border-radius:14px; padding:20px; margin-bottom:20px; }
+.order-header-top { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.order-status-pill { font-size:12px; font-weight:700; letter-spacing:.04em; padding:6px 14px; border-radius:999px; }
+.order-customer-name { font-weight:600; color:var(--ink,#1f1d18); }
+.order-customer-email { font-weight:400; color:var(--muted,#6b6860); }
+.order-actions { display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; }
+.order-btn { font-size:14px; font-weight:600; padding:10px 18px; border-radius:8px; border:1px solid transparent; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; }
+.order-btn-dark { background:var(--ink,#1f1d18); color:#fff; }
+.order-btn-gold { background:var(--gold-deep,#bd7420); color:#fff; }
+.order-btn-gold-outline { background:transparent; border-color:var(--gold-deep,#bd7420); color:var(--gold-deep,#bd7420); }
+
+.ticket-card { background:#fff; border:1px solid var(--border,#ecebe6); border-radius:14px; padding:20px; margin-bottom:16px; display:grid; grid-template-columns:1fr 160px; gap:20px; }
+.ticket-card-title { font-size:17px; font-weight:700; margin:0 0 8px; }
+.ticket-card hr { border:none; border-top:1px solid var(--border,#ecebe6); margin:12px 0; }
+.ticket-event, .ticket-product, .ticket-price { font-size:14px; line-height:1.7; color:var(--ink,#1f1d18); }
+.ticket-meta p { margin:2px 0; font-size:14px; color:#000; }
+.ticket-price { margin-top:12px; }
+.ticket-card-side { display:flex; flex-direction:column; align-items:center; gap:10px; }
+.ticket-qr { width:140px; height:140px; }
+.ticket-download { font-size:13px; color:var(--gold-deep,#bd7420); text-decoration:none; border:1px solid var(--border,#ecebe6); border-radius:8px; padding:8px 12px; width:100%; text-align:center; }
+
+.order-totals { background:#fff; border:1px solid var(--border,#ecebe6); border-radius:14px; padding:8px 20px; }
+.order-totals table { width:100%; }
+.order-totals th { text-align:right; font-weight:600; padding:10px 16px 10px 0; color:var(--ink,#1f1d18); }
+.order-totals td { text-align:right; padding:10px 0; color:var(--muted,#6b6860); width:120px; }
+@media (max-width:560px){ .ticket-card{grid-template-columns:1fr;} .ticket-card-side{flex-direction:row;justify-content:space-between;} }
+
+
+.confirm-modal { max-width: 400px; width: calc(100% - 32px); padding: 24px; text-align: center; }
+.confirm-modal-body { display: flex; flex-direction: column; align-items: center; }
+.confirm-modal-icon { width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 14px; }
+.confirm-modal-icon svg { width: 24px; height: 24px; }
+.confirm-modal-icon.danger { background: #fbe3e3; color: #b3261e; }
+.confirm-modal-title { font-size: 17px; font-weight: 700; color: var(--ink, #1f1d18); margin: 0 0 6px; }
+.confirm-modal-message { font-size: 14px; color: var(--muted, #6b6860); margin: 0; line-height: 1.5; }
+.confirm-modal-actions { display: flex; gap: 10px; margin-top: 22px; }
+.confirm-modal-actions .btn { flex: 1; }
+.btn-danger { background: #b3261e; color: #fff; border: 1px solid #b3261e; }
+.btn-danger:hover { background: #9a1f18; }

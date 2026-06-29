@@ -3,6 +3,7 @@ import "./globals.css";
 
 import { QueryProvider } from "@/context/QueryProvider";
 import { AuthProvider } from "@/context/AuthContext";
+import { ConfirmProvider } from "@/context/ConfirmContext";
 
 export const metadata: Metadata = {
   title: "CarEvents",
@@ -30,7 +31,11 @@ export default function RootLayout({
       </head>
       <body>
         <QueryProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <ConfirmProvider>
+              {children}
+            </ConfirmProvider>
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

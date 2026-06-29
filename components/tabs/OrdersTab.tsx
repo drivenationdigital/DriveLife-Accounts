@@ -129,7 +129,10 @@ export function OrdersTab() {
                       <MoreHorizontalIcon />
                     </DropdownTrigger>
                     <DropdownMenu>
-                      <DropdownItem>View order</DropdownItem>
+                      <DropdownItem onClick={()=>{
+                        // /orders/{encryptedOrderId}
+                        router.push(`/orders/${o.id}`);
+                      }}>View order</DropdownItem>
                       <DropdownItem>Resend confirmation</DropdownItem>
                       <DropdownItem>Download tickets</DropdownItem>
                       <DropdownItem>Edit order</DropdownItem>

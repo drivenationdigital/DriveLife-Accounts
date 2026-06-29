@@ -145,10 +145,8 @@ function mapTicket(t: ApiTicketType): Ticket {
 
 function mapOrderStatus(order: ApiOrder): OrderStatus {
   if (order.payment_method === "admin") return "paid";
-  if (order.status === 'completed') return "paid";
-  
-  // if (order.total_amount > 0) return "paid";
-  // if (order.total_amount === 0) return "refunded";
+  if (order.total_amount > 0) return "paid";
+  if (order.total_amount === 0) return "refunded";
   return "pending";
 }
 
@@ -312,6 +310,7 @@ function collectRecentCarClubs(section: {
 
 const EMPTY_COUNTS = {
   applied: 0,
+  pending: 0,
   approved: 0,
   confirmed: 0,
   rejected: 0,
@@ -324,17 +323,28 @@ function extractFeatures(resp: EventResponse): EventFeatures {
   // /event endpoint does). When absent, fall back to EMPTY_COUNTS so
   // the FeatureSection type stays concrete.
   const showCars: FeatureSection = resp.show_cars.enabled
-    ? { enabled: true, counts: resp.show_cars.counts ?? EMPTY_COUNTS }
+    ? {
+        enabled: true,
+        counts: { ...EMPTY_COUNTS, ...(resp.show_cars.counts ?? {}) },
+      }
     : { enabled: false, counts: EMPTY_COUNTS };
 
   const carClubs: FeatureSection = resp.clubs.enabled
-    ? { enabled: true, counts: resp.clubs.counts }
+    ? { enabled: true, counts: { ...EMPTY_COUNTS, ...resp.clubs.counts } }
     : { enabled: false, counts: EMPTY_COUNTS };
+
+  const traders: FeatureSection =
+    resp.traders && resp.traders.enabled
+      ? {
+          enabled: true,
+          counts: { ...EMPTY_COUNTS, ...(resp.traders.counts ?? {}) },
+        }
+      : { enabled: false, counts: EMPTY_COUNTS };
 
   return {
     show_cars: showCars,
     car_clubs: carClubs,
-    traders: { enabled: false, counts: EMPTY_COUNTS },
+    traders,
   };
 }
 

@@ -3,6 +3,7 @@
 import { useUI } from "@/context/UIContext";
 import { EyeIcon, TrashIcon } from "@/components/ui/Icons";
 import type { ShowCar } from "@/context/types";
+import { useConfirm } from "@/context/ConfirmContext";
 
 interface ShowCarCardProps {
   car: ShowCar;
@@ -28,6 +29,7 @@ interface ShowCarCardProps {
  */
 export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
   const { openDetail } = useUI();
+const confirm = useConfirm();
 
   const openView = () => openDetail({ type: "showcar", data: car });
 
@@ -89,12 +91,14 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
               type="button"
               className="showcar-action-btn delete"
               title="Delete"
-              onClick={stopThen(() => {
-                if (
-                  confirm("Delete this entry? This action cannot be undone.")
-                ) {
-                  console.log("delete", car.id);
-                }
+              onClick={stopThen(async () => {
+                const ok = await confirm({
+                  title: "Delete this application?",
+                  message: "This action cannot be undone.",
+                  confirmLabel: "Delete",
+                  danger: true,
+                });
+                if (ok) console.log("delete", car.id);
               })}
             >
               <TrashIcon />

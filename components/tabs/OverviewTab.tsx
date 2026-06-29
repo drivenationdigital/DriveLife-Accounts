@@ -27,18 +27,23 @@ export function OverviewTab() {
   const pendingShowCars = showCars.filter((s) => s.status === "pending");
   const pendingClubs = clubs.filter((c) => c.status === "pending");
   const pendingTraders = traders.filter((t) => t.status === "pending");
-  console.log(features);
 
-  // Pending counts drive the Needs Attention box. Use the live
-  // filtered lists for all three so the source is consistent (the
-  // features.*.counts.applied path and pendingTraders.length used to
-  // disagree). A feature only appears as a row when it actually has
-  // something pending.
+  console.log(features);
+  
+
+  // Needs Attention counts come from the API feature counts (the
+  // showCars/clubs/traders arrays aren't loaded on the overview, so
+  // filtering them would always read 0). counts.pending is the real
+  // awaiting-review number — counts.applied is a legacy bucket.
   const showCarPending = features.show_cars.enabled
-    ? pendingShowCars.length
+    ? features.show_cars.counts.pending
     : 0;
-  const clubPending = features.car_clubs.enabled ? pendingClubs.length : 0;
-  const traderPending = features.traders.enabled ? pendingTraders.length : 0;
+  const clubPending = features.car_clubs.enabled
+    ? features.car_clubs.counts.pending
+    : 0;
+  const traderPending = features.traders.enabled
+    ? features.traders.counts.pending
+    : 0;
 
   const totalPending = showCarPending + clubPending + traderPending;
 
@@ -126,27 +131,60 @@ export function OverviewTab() {
               </div>
             </div>
 
-            {totalPending === 0 ? (
-              // All caught up — a positive empty state rather than a
-              // list of zero-count rows.
+            {totalPending == 0 ? (
               <div className="section-body">
-                <div className="attention-empty">
-                  <div className="attention-empty-icon">
+                <div
+                  className="attention-empty"
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                    padding: "32px 24px",
+                  }}
+                >
+                  <div
+                    className="attention-empty-icon"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: "50%",
+                      background: "var(--success-soft, #e9f2e6)",
+                      color: "var(--success, #3b6d11)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      marginBottom: 12,
+                    }}
+                  >
                     <svg
+                      width="22"
+                      height="22"
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
-                      strokeWidth="2"
+                      strokeWidth="2.5"
                       strokeLinecap="round"
                       strokeLinejoin="round"
                     >
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
                   </div>
-                  <div className="attention-empty-title">
+                  <div
+                    className="attention-empty-title"
+                    style={{ fontWeight: 700, color: "var(--ink, #1f1d18)", marginBottom: 4 }}
+                  >
                     You're all caught up
                   </div>
-                  <div className="attention-empty-meta">
+                  <div
+                    className="attention-empty-meta"
+                    style={{
+                      fontSize: 13,
+                      color: "var(--muted, #8a877e)",
+                      maxWidth: 240,
+                      lineHeight: 1.5,
+                    }}
+                  >
                     Nothing to review right now. New applications will show up
                     here.
                   </div>

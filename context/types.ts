@@ -147,7 +147,10 @@ export interface OrdersPagination {
 export interface FeatureSection {
   enabled: boolean;
   counts: {
+    /** Legacy bucket — no longer populated; use `pending`. */
     applied: number;
+    /** Awaiting review. This is the real "needs attention" number. */
+    pending: number;
     approved: number;
     confirmed: number;
     rejected: number;
