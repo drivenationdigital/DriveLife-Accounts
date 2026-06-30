@@ -31,8 +31,8 @@ export function ApplicationLinksCard({
    *  for screen readers). E.g. "Show car applications". */
   iframeTitle: string;
 }) {
-  const directUrl = `https://www.account.drive-life.com/apply/${applicationKind}/${slug}`;
-  const embedSrc = `https://www.account.drive-life.com/embed/${applicationKind}/${slug}`;
+  const directUrl = `https://account.drive-life.com/apply/${applicationKind}/${slug}`;
+  const embedSrc = `https://account.drive-life.com/embed/${applicationKind}/${slug}`;
   const embedSnippet = `<iframe
   src="${embedSrc}"
   width="100%"

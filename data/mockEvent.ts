@@ -737,15 +737,16 @@ export const mockEventData: EventData = {
         confirmed: 28,
         rejected: 6,
         total: 42,
+        pending: 3,
       },
     },
     car_clubs: {
       enabled: true,
-      counts: { applied: 2, approved: 4, confirmed: 0, rejected: 1, total: 7 },
+      counts: { applied: 2, approved: 4, confirmed: 0, rejected: 1, total: 7, pending: 0 },
     },
     traders: {
       enabled: false,
-      counts: { applied: 0, approved: 0, confirmed: 0, rejected: 0, total: 0 },
+      counts: { applied: 0, approved: 0, confirmed: 0, rejected: 0, total: 0, pending: 0 },
     },
   },
 };
