@@ -142,7 +142,7 @@ function TicketCard({
   const hasMeta = metaRows.some(([, v]) => v && v !== "");
 
   return (
-    <div className="ticket-card">
+    <div className="order-ticket-card">
       <div className="ticket-card-main">
         <h2 className="ticket-card-title">
           🎟 Ticket #{item.ticket_number}
