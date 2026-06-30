@@ -113,8 +113,9 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                     width: 48,
                     height: 48,
                     borderRadius: "50%",
-                    background: "#fbe3e3",
-                    color: "#b3261e",
+                    background:
+                      "color-mix(in srgb, var(--danger, #c0492f) 14%, transparent)",
+                    color: "var(--danger, #c0492f)",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -184,15 +185,13 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 onClick={() => settle(true)}
                 autoFocus
                 style={
-                  state.danger
-                    ? {
+                  {
                         flex: 1,
                         justifyContent: "center",
-                        background: "#b3261e",
+                        background: "var(--gold-deep, #bd7420)",
                         color: "#fff",
-                        border: "1px solid #b3261e",
+                        border: "1px solid var(--gold-deep, #bd7420)",
                       }
-                    : { flex: 1, justifyContent: "center" }
                 }
               >
                 {state.confirmLabel ?? "Confirm"}
