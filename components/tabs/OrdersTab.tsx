@@ -131,7 +131,7 @@ export function OrdersTab() {
                     <DropdownMenu>
                       <DropdownItem onClick={()=>{
                         // /orders/{encryptedOrderId}
-                        router.push(`/orders/${o.id}`);
+                        router.push(`/orders/${o.encryptedId}`);
                       }}>View order</DropdownItem>
                       <DropdownItem>Resend confirmation</DropdownItem>
                       <DropdownItem>Download tickets</DropdownItem>

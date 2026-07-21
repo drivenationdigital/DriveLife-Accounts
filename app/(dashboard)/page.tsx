@@ -1,5 +1,7 @@
 "use client";
 
+import { DashboardTiles } from "@/components/event/DashboardTiles";
+import { MyEventsSummary } from "@/components/event/MyEventsSummary";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
@@ -15,9 +17,8 @@ export default function DashboardPage() {
         </div>
       </div>
       <div className="section-body">
-        <p style={{ color: "var(--muted)" }}>
-          Dashboard widgets will appear here.
-        </p>
+        <DashboardTiles />
+        <MyEventsSummary />
       </div>
     </div>
   );

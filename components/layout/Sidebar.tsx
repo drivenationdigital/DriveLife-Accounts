@@ -66,6 +66,11 @@ export function Sidebar() {
   };
 
   const isDashboard = pathname === "/";
+  const isMyTickets =
+    pathname === "/my-tickets" || pathname.startsWith("/my-tickets/");
+  const isSavedEvents =
+    pathname === "/saved-events" || pathname.startsWith("/saved-events/");
+  const isClubs = pathname === "/clubs" || pathname.startsWith("/clubs/");
   const isEvents = pathname === "/events" || pathname.startsWith("/events/");
   const isAccount = pathname === "/account";
 
@@ -86,14 +91,16 @@ export function Sidebar() {
         <NavItem
           icon={<TicketIcon />}
           label="My Tickets"
-          active={activeKey === "my-tickets"}
-          onClick={() => handleClick("my-tickets")}
+          href="/my-tickets"
+          active={isMyTickets}
+          onClick={() => handleClick("")}
         />
         <NavItem
           icon={<BookmarkIcon />}
           label="Saved Events"
-          active={activeKey === "saved-events"}
-          onClick={() => handleClick("saved-events")}
+          href="/saved-events"
+          active={isSavedEvents}
+          onClick={() => handleClick("")}
         />
       </div>
 
@@ -110,8 +117,9 @@ export function Sidebar() {
         <NavItem
           icon={<CarIcon />}
           label="My Clubs"
-          active={activeKey === "my-clubs"}
-          onClick={() => handleClick("my-clubs")}
+          href="/clubs"
+          active={isClubs}
+          onClick={() => handleClick("")}
         />
         <NavItem
           icon={<BuildingIcon />}

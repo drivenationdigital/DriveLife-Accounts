@@ -159,6 +159,7 @@ function mapOrder(o: ApiOrder): Order {
     amount: o.total_amount,
     status: mapOrderStatus(o),
     date: formatOrderDate(o.date_created),
+    encryptedId: o.encrypted_id
   };
 }
 

@@ -45,6 +45,7 @@ export interface Order {
   amount: number;
   status: OrderStatus;
   date: string;
+  encryptedId: string;
 }
 
 export interface ShowCar {
