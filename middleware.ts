@@ -8,6 +8,10 @@ import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
  */
 const PUBLIC_PATHS = [
   "/login",
+  // Embeddable forms are anonymous and framed by third-party sites. The auth
+  // cookie is SameSite=Lax so it never arrives in a cross-site iframe anyway —
+  // gating these would 302 to /login, which sends frame-ancestors 'none'.
+  "/embed",
 ];
 
 export function middleware(request: NextRequest) {
