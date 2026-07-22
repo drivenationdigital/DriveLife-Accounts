@@ -3829,3 +3829,22 @@
 .venue-pin { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 2px; }
 .mv-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 28px; }
 .mv-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
+/* ── Embedded (iframe) pages ─────────────────────────────────────────────
+ * Framed routes are auto-sized: useEmbedAutoResize measures .embed-shell
+ * and the host sets the iframe height to match. Anything sized in viewport
+ * units therefore feeds back into itself — the frame grows, 100vh grows
+ * with it, we report taller, repeat until the page is thousands of pixels
+ * long. Inside an embed, height must come from content only.
+ *
+ * .apply-shell is the wrapped form's own root (it carries min-h-screen for
+ * the standalone /apply/* pages, where that IS what we want). */
+.embed-shell .apply-shell {
+  min-height: 0;
+}
+
+/* Defensive: any future embedded form that reaches for a viewport-height
+ * minimum gets the same treatment without needing a rule of its own. */
+.embed-shell [class*="min-h-screen"],
+.embed-shell [class*="min-h-[100vh]"] {
+  min-height: 0;
+}

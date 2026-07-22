@@ -9,9 +9,12 @@ import { useEmbedAutoResize } from "@/lib/useEmbedAutoResize";
  * card. Runs the auto-resize reporter so the iframe sizes to content.
  */
 export function EmbedShell({ children }: { children: ReactNode }) {
-  useEmbedAutoResize();
+  const shellRef = useEmbedAutoResize();
   return (
-    <div className="embed-shell min-h-0 bg-transparent p-3 md:p-4">
+    <div
+      ref={shellRef}
+      className="embed-shell min-h-0 bg-transparent p-3 md:p-4"
+    >
       {children}
     </div>
   );
