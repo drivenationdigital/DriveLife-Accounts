@@ -3,25 +3,21 @@
 import { useAuth } from "@/context/AuthContext";
 
 /**
- * My Account — read-only profile view for the signed-in user.
+ * My Account — profile view for the signed-in user.
  *
- * Source of truth is whatever's in AuthContext (hydrated from the
- * cookie on mount, refreshed on /next-dash-login). No edit endpoint
- * exists yet, so this page is intentionally read-only: it displays
- * the AuthUser fields (id, display_name, email, roles) and offers a
- * sign-out action.
+ * Laid out to match the account screen (Your details + Notification
+ * Preferences), but display-only: there's no profile-update endpoint
+ * yet, so fields are disabled and prefilled from AuthContext. When a
+ * WP update route lands, these inputs become editable with minimal
+ * change — the structure is already here.
  *
- * When a profile-update route lands on the WP side, this page is the
- * obvious place to grow an edit form. The layout is already set up
- * for label/value rows.
+ * AuthUser only carries id / email / display_name / roles, so First/
+ * Last name are derived from display_name; Town and notification
+ * preferences have no source yet and render as empty/disabled.
  */
 export default function AccountPage() {
   const { user, signOut } = useAuth();
 
-  // Defensive — dashboard layout sits behind middleware so user
-  // should always be present, but render a small placeholder rather
-  // than blowing up if the cookie was cleared mid-session before
-  // the unauthorizedHandler kicked in.
   if (!user) {
     return (
       <div className="section">
@@ -35,210 +31,174 @@ export default function AccountPage() {
     );
   }
 
-  const initials = initialsOf(user.display_name, user.email);
+  const [firstName, lastName] = splitName(user.display_name);
 
   return (
-    <div className="section">
-      <div className="section-header">
-        <div>
-          <div className="section-title">My Account</div>
-          <div className="section-subtitle">
-            Your profile and sign-in details.
-          </div>
+    <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+      {/* ── Your details ─────────────────────────────────────────── */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-100 md:p-8">
+        <h2 className="mb-6 text-lg font-extrabold text-ink-900">
+          Your details
+        </h2>
+
+        <div className="space-y-5">
+          <FieldRow label="First Name">
+            <input className={inputCls} value={firstName} disabled />
+          </FieldRow>
+
+          <FieldRow label="Last Name">
+            <input className={inputCls} value={lastName} disabled />
+          </FieldRow>
+
+          <FieldRow
+            label="Nearest Town/City"
+            hint="So we can show events close to you"
+          >
+            <input
+              className={inputCls}
+              value=""
+              placeholder="Not set"
+              disabled
+            />
+          </FieldRow>
+
+          <FieldRow label="Email">
+            <input className={inputCls} value={user.email} disabled />
+          </FieldRow>
+
+          <FieldRow label="Password">
+            <button
+              type="button"
+              disabled
+              className="rounded-lg bg-ink-900 px-4 py-2.5 text-sm font-semibold text-white opacity-60"
+            >
+              Change Password
+            </button>
+          </FieldRow>
         </div>
-      </div>
 
-      <div className="section-body">
-        {/* ── Profile card ───────────────────────────────────────── */}
-        <div style={profileStyle}>
-          <div className="avatar" style={avatarStyle}>
-            {initials}
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={nameStyle}>{user.display_name || "Signed in"}</div>
-            <div style={emailStyle}>{user.email}</div>
-          </div>
-        </div>
-
-        {/* ── Detail rows ────────────────────────────────────────── */}
-        <dl style={detailListStyle}>
-          <DetailRow label="User ID" value={String(user.id)} mono />
-          <DetailRow label="Display name" value={user.display_name || "—"} />
-          <DetailRow label="Email" value={user.email} />
-          <DetailRow
-            label="Roles"
-            value={
-              user.roles.length === 0 ? (
-                "—"
-              ) : (
-                <div style={chipRowStyle}>
-                  {user.roles.map((role) => (
-                    <span key={role} style={chipStyle}>
-                      {role}
-                    </span>
-                  ))}
-                </div>
-              )
-            }
-          />
-        </dl>
-
-        {/* ── Actions ────────────────────────────────────────────── */}
-        <div style={actionsStyle}>
-          <button type="button" className="btn btn-secondary" onClick={signOut}>
-            Sign out
+        <div className="mt-6 border-t border-ink-100 pt-6">
+          <button
+            type="button"
+            disabled
+            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white opacity-60"
+          >
+            Update
           </button>
-          <p style={hintStyle}>
+          <p className="mt-2 text-xs text-ink-400">
             Editing your profile isn’t available yet — coming soon.
           </p>
         </div>
       </div>
+
+      {/* ── Notification Preferences ─────────────────────────────── */}
+      <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-100 md:p-8">
+        <h2 className="mb-6 text-lg font-extrabold text-ink-900">
+          Notification Preferences
+        </h2>
+
+        <div className="overflow-hidden">
+          <div className="grid grid-cols-[1fr_100px_100px] items-center gap-2 border-b border-ink-100 pb-3">
+            <span />
+            <span className="text-center text-sm font-bold text-ink-900">
+              Email
+            </span>
+            <span className="text-center text-sm font-bold text-ink-900">
+              Notifications
+            </span>
+          </div>
+
+          <PrefRow label="Events that I might like" />
+          <PrefRow label="News & updates" />
+        </div>
+
+        <div className="mt-6">
+          <button
+            type="button"
+            disabled
+            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white opacity-60"
+          >
+            Update
+          </button>
+        </div>
+      </div>
+
+      {/* ── Footer / support + sign out ──────────────────────────── */}
+      <div className="mt-8 flex flex-col items-center gap-4">
+        <button
+          type="button"
+          className="rounded-lg border border-ink-200 bg-white px-5 py-2.5 text-sm font-semibold text-ink-700 transition hover:bg-ink-50"
+          onClick={signOut}
+        >
+          Sign out
+        </button>
+        <p className="text-center text-xs text-ink-400">
+          For help, support or if you would like to delete your account, please
+          email{" "}
+          <a
+            href="mailto:info@carevents.com"
+            className="font-semibold text-gold-600 hover:underline"
+          >
+            info@carevents.com
+          </a>
+        </p>
+      </div>
     </div>
   );
 }
 
-// ============================================================
-// Small bits
-// ============================================================
+// ─── Bits ─────────────────────────────────────────────────────────────
 
-function DetailRow({
+const inputCls =
+  "w-full rounded-lg border border-ink-200 bg-ink-50/50 px-4 py-2.5 text-sm text-ink-700 disabled:cursor-not-allowed";
+
+function FieldRow({
   label,
-  value,
-  mono,
+  hint,
+  children,
 }: {
   label: string;
-  value: React.ReactNode;
-  mono?: boolean;
+  hint?: string;
+  children: React.ReactNode;
 }) {
   return (
-    <div style={rowStyle}>
-      <dt style={dtStyle}>{label}</dt>
-      <dd
-        style={{
-          ...ddStyle,
-          ...(mono
-            ? { fontFamily: "var(--font-mono, ui-monospace, monospace)" }
-            : null),
-        }}
-      >
-        {value}
-      </dd>
+    <div className="grid grid-cols-1 items-center gap-2 md:grid-cols-[minmax(160px,220px)_1fr] md:gap-6">
+      <div>
+        <label className="text-sm font-semibold text-ink-900">{label}</label>
+        {hint && <p className="mt-0.5 text-xs italic text-ink-400">{hint}</p>}
+      </div>
+      <div>{children}</div>
     </div>
   );
 }
 
-/** Same logic as UserMenu's initials helper — inlined here to avoid
- *  exporting from a component file. Two-letter result, uppercase. */
-function initialsOf(
-  name: string | undefined,
-  email: string | undefined,
-): string {
-  if (name) {
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-  }
-  if (email) return email.slice(0, 2).toUpperCase();
-  return "??";
+function PrefRow({ label }: { label: string }) {
+  return (
+    <div className="grid grid-cols-[1fr_100px_100px] items-center gap-2 border-b border-ink-100 py-4 last:border-0">
+      <span className="text-sm text-ink-700">{label}</span>
+      <div className="flex justify-center">
+        <input
+          type="checkbox"
+          disabled
+          className="h-4 w-4 rounded border-ink-300 accent-gold-500"
+        />
+      </div>
+      <div className="flex justify-center">
+        <input
+          type="checkbox"
+          disabled
+          className="h-4 w-4 rounded border-ink-300 accent-gold-500"
+        />
+      </div>
+    </div>
+  );
 }
 
-// ============================================================
-// Styles — inline to match login/page.tsx convention; the dashboard
-// section chrome above uses the global .section / .btn classes.
-// ============================================================
-
-const profileStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 16,
-  paddingBottom: 20,
-  marginBottom: 20,
-  borderBottom: "1px solid var(--border)",
-};
-
-const avatarStyle: React.CSSProperties = {
-  width: 56,
-  height: 56,
-  fontSize: 18,
-  flexShrink: 0,
-};
-
-const nameStyle: React.CSSProperties = {
-  fontSize: 18,
-  fontWeight: 600,
-  color: "var(--ink)",
-  marginBottom: 2,
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-const emailStyle: React.CSSProperties = {
-  fontSize: 13.5,
-  color: "var(--muted)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap",
-};
-
-const detailListStyle: React.CSSProperties = {
-  margin: 0,
-  padding: 0,
-  display: "flex",
-  flexDirection: "column",
-  gap: 0,
-};
-
-const rowStyle: React.CSSProperties = {
-  display: "grid",
-  gridTemplateColumns: "minmax(140px, 180px) 1fr",
-  gap: 16,
-  padding: "12px 0",
-  borderBottom: "1px solid var(--border)",
-  alignItems: "baseline",
-};
-
-const dtStyle: React.CSSProperties = {
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--muted)",
-  textTransform: "uppercase",
-  letterSpacing: "0.06em",
-};
-
-const ddStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 14,
-  color: "var(--ink)",
-  wordBreak: "break-word",
-};
-
-const chipRowStyle: React.CSSProperties = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 6,
-};
-
-const chipStyle: React.CSSProperties = {
-  display: "inline-block",
-  padding: "3px 10px",
-  fontSize: 12,
-  fontWeight: 500,
-  color: "var(--gold-deep)",
-  background: "var(--gold-soft)",
-  borderRadius: 999,
-};
-
-const actionsStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  gap: 14,
-  marginTop: 24,
-  flexWrap: "wrap",
-};
-
-const hintStyle: React.CSSProperties = {
-  margin: 0,
-  fontSize: 12.5,
-  color: "var(--muted)",
-};
+/** Split a display name into [first, last]. Single-word names put the
+ *  whole thing in first; extra words fold into last. */
+function splitName(displayName: string): [string, string] {
+  const parts = (displayName || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return ["", ""];
+  if (parts.length === 1) return [parts[0], ""];
+  return [parts[0], parts.slice(1).join(" ")];
+}

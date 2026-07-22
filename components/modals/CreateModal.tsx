@@ -50,6 +50,7 @@ export function CreateModal() {
       case "club":
         break;
       case "venue":
+        router.push("/venue/create");
         break;
     }
 

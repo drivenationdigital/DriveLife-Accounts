@@ -3802,3 +3802,30 @@
 .club-meta { font-size: 13px; color: var(--muted, #6b6860); margin: 0; }
 .mc-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 28px; }
 .mc-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
+
+.my-venues { padding: 8px 0 40px; }
+.mv-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
+.mv-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0; }
+.mv-create-btn { background: var(--gold-deep, #bd7420); color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
+.mv-create-btn:hover { filter: brightness(.95); }
+.mv-state { padding: 40px 24px; text-align: center; color: var(--muted, #6b6860); background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; }
+.mv-state.error { color: var(--danger, #c0492f); }
+
+.venue-card { display: block; text-align: left; padding: 0; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s, transform .15s; width: 100%; }
+.venue-card:hover { box-shadow: 0 6px 18px rgba(31,29,24,.1); transform: translateY(-2px); }
+.venue-cover { position: relative; height: 190px; overflow: hidden; }
+.venue-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.venue-cover-empty { background: #2a2824; }
+.venue-cover-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.3); }
+.venue-logo-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.venue-logo { width: 128px; height: 128px; object-fit: contain; border-radius: 12px; background: #fff; padding: 8px; }
+.venue-badge { position: absolute; top: 10px; right: 10px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
+.venue-badge.unpublished { background: var(--gold-deep, #bd7420); }
+.venue-badge.owner { background: #4a8a1e; }
+.venue-badge.following { background: rgba(0,0,0,.55); }
+.venue-body { padding: 16px 18px; }
+.venue-title { font-size: 17px; font-weight: 700; color: var(--ink, #1f1d18); margin: 0 0 6px; }
+.venue-location { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: var(--muted, #6b6860); margin: 0; }
+.venue-pin { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 2px; }
+.mv-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 28px; }
+.mv-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
