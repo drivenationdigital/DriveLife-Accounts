@@ -49,7 +49,7 @@ export function UserMenu() {
         <DropdownItem as="a" href="/account">
           <UserIcon /> My Account
         </DropdownItem>
-        <DropdownItem as="a" href="#">
+        <DropdownItem as="a" href="/settings">
           <SettingsIcon /> Settings
         </DropdownItem>
         <DropdownItem as="a" href="#">

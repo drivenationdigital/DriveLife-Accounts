@@ -262,7 +262,7 @@ export function TradersPanel() {
 
           <ApplicationLinksCard
             applicationKind="traders"
-            slug={slugify(state.title) || "your-event"}
+            slug={state.encryptedId || slugify(state.title || "event")}
             iframeTitle="Trader applications"
           />
         </>

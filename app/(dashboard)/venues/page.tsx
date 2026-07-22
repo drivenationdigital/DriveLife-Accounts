@@ -15,7 +15,7 @@ export default function MyVenuesPage() {
   const pagination = data?.pagination;
 
   const openVenue = (venue: MyVenue) => {
-    router.push(`/venues/${venue.encrypted_id}`);
+    router.push(`/venue/${venue.encrypted_id}`);
   };
 
   return (

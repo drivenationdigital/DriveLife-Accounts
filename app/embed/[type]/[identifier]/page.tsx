@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import { EmbedShell } from "@/components/embed/EmbedShell";
 import CarClubApplyPage from "@/app/apply/car-club/[eventEid]/page";
+import ShowCarApplyPage from "@/app/apply/show-car/[eventEid]/page";
+import TraderApplyPage from "@/app/apply/trader/[eventEid]/page";
 
 /**
  * Dynamic embeddable application form.
@@ -22,7 +24,7 @@ import CarClubApplyPage from "@/app/apply/car-club/[eventEid]/page";
  */
 
 // Allowlisted embed types. Unknown types 404.
-const EMBED_TYPES = ["car-club"] as const;
+const EMBED_TYPES = ["car-club", "show-cars", "trader"] as const;
 type EmbedType = (typeof EMBED_TYPES)[number];
 
 function isEmbedType(value: string): value is EmbedType {
@@ -45,12 +47,15 @@ export default async function EmbedPage({
 
 /** Map an allowed embed type + identifier to its form component. */
 function renderForm(type: EmbedType, identifier: string) {
+  // All apply pages expect params: Promise<{ eventEid }>.
+  const params = Promise.resolve({ eventEid: identifier });
   switch (type) {
     case "car-club":
-      // The apply page wants params: Promise<{ eventEid }>.
-      return (
-        <CarClubApplyPage params={Promise.resolve({ eventEid: identifier })} />
-      );
+      return <CarClubApplyPage params={params} />;
+    case "show-cars":
+      return <ShowCarApplyPage params={params} />;
+    case "trader":
+      return <TraderApplyPage params={params} />;
     default:
       // Exhaustiveness guard — a new EmbedType without a case fails here.
       return assertNever(type);
