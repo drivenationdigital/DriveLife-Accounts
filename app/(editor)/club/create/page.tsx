@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCreateClub } from "@/lib/clubEdit";
 
 /**
  * Create Club — entry flow (UI only).
@@ -41,16 +42,23 @@ export default function CreateClubPage() {
   const [clubType, setClubType] = useState<ClubType>("private");
   const [title, setTitle] = useState("");
 
-  const handleCreate = () => {
-    // TODO (wire later): create the club with { title, clubType }, then
-    // forward to the edit wizard with the new id:
-    //
-    //   const { clubId } = await createClub({ title, type: clubType });
-    //   router.push(`/club/${clubId}/edit`);
-    //
-    // UI-only for now — no-op so the button doesn't navigate anywhere
-    // half-built. Remove this line when the endpoint lands.
-    void router;
+  const createClub = useCreateClub();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      const club = await createClub.mutateAsync({
+        post_title: title.trim(),
+        club_type: clubType === "private" ? "1" : "2",
+      });
+      // Straight into the wizard to finish the remaining steps.
+      router.push(`/club/${club.encrypted_id}/edit`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't create the club.",
+      );
+    }
   };
 
   const canName = title.trim().length > 0;
@@ -62,7 +70,7 @@ export default function CreateClubPage() {
         <aside className="hidden w-64 shrink-0 md:block">
           <div className="mb-6">
             <Link
-              href="/club/create"
+              href="/create"
               className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400 transition hover:text-gold-600"
             >
               <svg
@@ -178,7 +186,8 @@ export default function CreateClubPage() {
                   <button
                     type="button"
                     onClick={() => setStep("type")}
-                    className="rounded-xl bg-ink-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-800"
+                    disabled={createClub.isPending}
+                    className="disabled:opacity-50 rounded-xl bg-ink-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-800"
                   >
                     Go Back
                   </button>
@@ -188,12 +197,20 @@ export default function CreateClubPage() {
                   onClick={() =>
                     step === "type" ? setStep("name") : handleCreate()
                   }
-                  disabled={step === "name" && !canName}
+                  disabled={
+                    (step === "name" && !canName) || createClub.isPending
+                  }
                   className="rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-8 py-3 text-sm font-bold text-white shadow-sm shadow-gold-500/25 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next Step
+                  {createClub.isPending ? "Creating…" : "Next Step"}
                 </button>
               </div>
+
+              {error && (
+                <p className="mt-4 text-center text-xs font-semibold text-red-500">
+                  {error}
+                </p>
+              )}
             </div>
           </div>
         </main>

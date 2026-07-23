@@ -1,27 +1,84 @@
 "use client";
 
+import { useState } from "react";
 import { useClubEdit } from "@/context/ClubEditContext";
+import { useUploadClubImage, type ClubMediaGroup } from "@/lib/clubImages";
 import { FieldLabel, Divider, ImageUploadRow, inputCls } from "../shared";
 
-/** Step 2 — logo, cover, and the club's contact/social links. */
+/**
+ * Step 2 — logo, cover, and the club's contact/social links.
+ *
+ * Images upload immediately on pick (they go straight to Cloudflare via
+ * the app's chunked endpoint and are saved server-side), so they're
+ * independent of the wizard's Update Club save. The local object-URL
+ * preview shows instantly; the stored Cloudflare URL replaces it when
+ * the club record refetches.
+ */
 export function ClubProfilePanel() {
   const { club, setField } = useClubEdit();
+  const upload = useUploadClubImage();
+
+  const [progress, setProgress] = useState<Record<string, number>>({});
+  const [errors, setErrors] = useState<Record<string, string | null>>({});
+
+  const handlePick = async (
+    group: ClubMediaGroup,
+    file: File,
+    previewUrl: string,
+  ) => {
+    // Show the local preview straight away.
+    setField(group === "logo" ? "logo" : "coverImage", {
+      id: null,
+      url: previewUrl,
+    });
+    setErrors((e) => ({ ...e, [group]: null }));
+    setProgress((p) => ({ ...p, [group]: 0 }));
+
+    try {
+      await upload.mutateAsync({
+        clubId: club.encrypted_id,
+        file,
+        mediaGroup: group,
+        onProgress: (percent) =>
+          setProgress((p) => ({ ...p, [group]: percent })),
+      });
+    } catch (err) {
+      setErrors((e) => ({
+        ...e,
+        [group]:
+          err instanceof Error ? err.message : "Couldn't upload that image.",
+      }));
+    } finally {
+      setProgress((p) => {
+        const next = { ...p };
+        delete next[group];
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="space-y-6">
-      <ImageUploadRow
-        title="Club Logo"
-        hint="Ideal size: 800px x 800px"
-        previewUrl={club.logo?.url ?? null}
-        onPick={(_file, url) => setField("logo", { id: null, url })}
-      />
-      <ImageUploadRow
-        title="Club Cover Image"
-        description="Add an image that best represents your club."
-        hint="Ideal size: 1100px (width) x 500px (height)"
-        previewUrl={club.coverImage?.url ?? null}
-        onPick={(_file, url) => setField("coverImage", { id: null, url })}
-      />
+      <div>
+        <ImageUploadRow
+          title="Club Logo"
+          hint="Ideal size: 800px x 800px"
+          previewUrl={club.logo?.url ?? null}
+          onPick={(file, url) => handlePick("logo", file, url)}
+        />
+        <UploadStatus percent={progress.logo} error={errors.logo} />
+      </div>
+
+      <div>
+        <ImageUploadRow
+          title="Club Cover Image"
+          description="Add an image that best represents your club."
+          hint="Ideal size: 1100px (width) x 500px (height)"
+          previewUrl={club.coverImage?.url ?? null}
+          onPick={(file, url) => handlePick("cover", file, url)}
+        />
+        <UploadStatus percent={progress.cover} error={errors.cover} />
+      </div>
 
       <Divider />
 
@@ -73,6 +130,31 @@ export function ClubProfilePanel() {
           onChange={(e) => setField("merchandiseLink", e.target.value)}
         />
       </div>
+    </div>
+  );
+}
+
+/** Progress bar / error line under an image row. */
+function UploadStatus({
+  percent,
+  error,
+}: {
+  percent?: number;
+  error?: string | null;
+}) {
+  if (error) {
+    return <p className="mt-2 text-xs text-red-500">{error}</p>;
+  }
+  if (percent === undefined) return null;
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-600 transition-all"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="mt-1 text-xs text-ink-400">Uploading… {percent}%</p>
     </div>
   );
 }

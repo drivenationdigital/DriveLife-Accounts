@@ -26,7 +26,7 @@ const OPTIONS: CreateOption[] = [
   {
     title: "Car Club",
     description: "Start a club and let members apply to join.",
-    href: "/clubs/create",
+    href: "/club/create",
     icon: <CarIcon />,
   },
   {
