@@ -9,7 +9,15 @@ import type { EventRecord } from "@/lib/apiTypes";
 export default function SavedEventsPage() {
   const router = useRouter();
   const openEvent = (event: EventRecord) => {
-    router.push(`/events/${event.encrypted_id}`);
+    // Favourites are mostly events the user doesn't own. Only send
+    // owners/admins to the manage view (which needs an admin token);
+    // everyone else goes to the public event preview.
+    if (event.can_manage) {
+      router.push(`/events/${event.encrypted_id}`);
+    } else if (event.link) {
+      // Public permalink — open in a new tab (leaves the dashboard).
+      window.open(event.link, "_blank", "noopener,noreferrer");
+    }
   };
 
   const [scope, setScope] = useState<SavedEventScope>("upcoming");

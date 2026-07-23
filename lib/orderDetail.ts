@@ -26,6 +26,10 @@ export interface OrderDetailItem {
   event_title: string;
   event_date: string;
   event_time: string;
+  /** Y-m-d of the event's last day; "" when unknown. */
+  event_end_date: string;
+  /** This ticket's event has already finished. */
+  is_expired: boolean;
   meta: OrderDetailMeta;
   /** Base64 JPEG (no data: prefix). */
   qr_code: string;
@@ -56,7 +60,10 @@ export interface OrderDetail {
     email: string;
     phone: string;
   };
+  /** Every dated ticket's event has finished. */
+  is_expired: boolean;
   can_cancel: boolean;
+  can_resend: boolean;
   items: OrderDetailItem[];
   totals: OrderDetailTotal[];
   download_all_url: string;
@@ -71,7 +78,9 @@ export function useOrderDetail(oid: string | undefined) {
   return useQuery<OrderDetailResponse, Error, OrderDetail>({
     queryKey: ["order-detail", oid],
     queryFn: () =>
-      apiGet<OrderDetailResponse>(`/order?oid=${encodeURIComponent(oid ?? "")}`),
+      apiGet<OrderDetailResponse>(
+        `/order?oid=${encodeURIComponent(oid ?? "")}`,
+      ),
     enabled: !!oid,
     staleTime: 30_000,
     select: (data) => data.order,

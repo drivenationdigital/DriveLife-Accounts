@@ -44,6 +44,7 @@ export interface EventRecord {
   is_repeating: boolean;
   is_recurring: boolean;
   recurring: RecurringInfo | null;
+  can_manage: boolean;
   /** Added by the WP `dl_accounts_event_pricing_type()` helper. May be
    * absent on responses from older deployments — fall back to "free". */
   type?: EventPricingType;
