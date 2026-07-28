@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { VenueCard } from "@/components/venue/VenueCard";
@@ -28,7 +29,7 @@ export default function MyVenuesPage() {
     <div className="my-venues">
       <header className="mv-header">
         <h1 className="mv-title">My Venues</h1>
-        <Link href="/venues/create" className="mv-create-btn">
+        <Link href="/venue/create" className="mv-create-btn">
           + Create Venue
         </Link>
       </header>
@@ -39,9 +40,7 @@ export default function MyVenuesPage() {
         </div>
       )}
 
-      {isLoading && !data && (
-        <div className="mv-state">Loading your venues…</div>
-      )}
+      {isLoading && !data && <CardGridSkeleton variant="media" count={6} />}
 
       {!isLoading && venues.length === 0 && !error && (
         <div className="mv-state">

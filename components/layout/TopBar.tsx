@@ -2,7 +2,7 @@
 
 import { useUI } from "@/context/UIContext";
 import { MenuIcon, PlusIcon } from "@/components/ui/Icons";
-import { NotificationsMenu } from "./NotificationsMenu";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { Logo } from "./Logo";
 
@@ -20,11 +20,7 @@ export function TopBar() {
         >
           <MenuIcon />
         </button>
-        <button
-          type="button"
-          className="btn-create"
-          onClick={openCreateModal}
-        >
+        <button type="button" className="btn-create" onClick={openCreateModal}>
           <PlusIcon />
           <span className="create-label">Create</span>
         </button>
@@ -35,7 +31,7 @@ export function TopBar() {
       </div>
 
       <div className="topbar-right">
-        <NotificationsMenu />
+        <NotificationBell />
         <UserMenu />
       </div>
     </header>

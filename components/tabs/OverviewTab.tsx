@@ -32,7 +32,7 @@ export function OverviewTab() {
   
 
   // Needs Attention counts come from the API feature counts (the
-  // showCars/clubs/traders arrays aren't loaded on the overview, so
+  // showCars/club/traders arrays aren't loaded on the overview, so
   // filtering them would always read 0). counts.pending is the real
   // awaiting-review number — counts.applied is a legacy bucket.
   const showCarPending = features.show_cars.enabled

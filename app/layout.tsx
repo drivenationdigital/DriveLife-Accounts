@@ -4,6 +4,7 @@ import "./globals.css";
 import { QueryProvider } from "@/context/QueryProvider";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
+import NextTopLoader from "nextjs-toploader";
 
 export const metadata: Metadata = {
   title: "CarEvents",
@@ -30,11 +31,15 @@ export default function RootLayout({
         />
       </head>
       <body>
+        <NextTopLoader
+          color="#bd7420" // your --gold-deep
+          height={3}
+          showSpinner={false} // just the bar, no corner spinner
+          shadow="0 0 10px #bd7420, 0 0 5px #bd7420"
+        />
         <QueryProvider>
           <AuthProvider>
-            <ConfirmProvider>
-              {children}
-            </ConfirmProvider>
+            <ConfirmProvider>{children}</ConfirmProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

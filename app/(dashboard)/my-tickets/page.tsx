@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import Link from "next/link";
 import { useMyTickets, type TicketScope, type MyTicket } from "@/lib/myTickets";
 
@@ -39,7 +40,9 @@ export default function MyTicketsPage() {
           onClick={() => switchScope("active")}
         >
           Active Tickets
-          {counts ? <span className="mt-tab-count">{counts.active}</span> : null}
+          {counts ? (
+            <span className="mt-tab-count">{counts.active}</span>
+          ) : null}
         </button>
         <button
           type="button"
@@ -60,7 +63,7 @@ export default function MyTicketsPage() {
       )}
 
       {isLoading && !data && (
-        <div className="mt-state">Loading your tickets…</div>
+        <CardGridSkeleton variant="ticket" count={4} minCardWidth={520} />
       )}
 
       {!isLoading && tickets.length === 0 && !error && (
@@ -142,10 +145,7 @@ function TicketCard({ ticket }: { ticket: MyTicket }) {
           </div>
         </div>
 
-        <Link
-          href={`/orders/${ticket.encrypted_id}`}
-          className="mt-view-btn"
-        >
+        <Link href={`/orders/${ticket.encrypted_id}`} className="mt-view-btn">
           View Tickets
         </Link>
       </div>

@@ -65,7 +65,7 @@ export interface CreateVenueBody {
 export interface CreateVenueResponse {
   success: true;
   venue_id: number;
-  /** Use in the edit route: /venues/{encrypted_id}/edit */
+  /** Use in the edit route: /venue/{encrypted_id}/edit */
   encrypted_id: string;
   status: "draft";
 }

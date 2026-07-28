@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import { useRouter } from "next/navigation";
 import { EventCard } from "@/components/event/EventCard";
 import { useSavedEvents, type SavedEventScope } from "@/lib/savedEvents";
@@ -75,9 +76,7 @@ export default function SavedEventsPage() {
         </div>
       )}
 
-      {isLoading && !data && (
-        <div className="se-state">Loading your saved events…</div>
-      )}
+      {isLoading && !data && <CardGridSkeleton variant="media" count={6} />}
 
       {!isLoading && events.length === 0 && !error && (
         <div className="se-state">

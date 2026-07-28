@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ClubCard } from "@/components/club/ClubCard";
@@ -15,12 +16,12 @@ export default function MyClubsPage() {
   const pagination = data?.pagination;
 
   const openClub = (club: MyClub) => {
-    console.log(club.role);
-    
-    if (club.role == "owner" || club.role == "admin") {
+    // Owners and admins can edit (club-update allows both). Members and
+    // followers can't, so they open the public club page instead.
+    if (club.role === "owner" || club.role === "admin") {
       router.push(`/club/${club.encrypted_id}/edit`);
-    } else {
-      router.push(`/club/${club.encrypted_id}`);
+    } else if (club.permalink) {
+      window.open(club.permalink, "_blank", "noopener,noreferrer");
     }
   };
 
@@ -28,7 +29,7 @@ export default function MyClubsPage() {
     <div className="my-clubs">
       <header className="mc-header">
         <h1 className="mc-title">My Clubs</h1>
-        <Link href="/club/create" className="mc-create-btn">
+        <Link href="/clubs/create" className="mc-create-btn">
           + Create Club
         </Link>
       </header>
@@ -39,9 +40,7 @@ export default function MyClubsPage() {
         </div>
       )}
 
-      {isLoading && !data && (
-        <div className="mc-state">Loading your clubs…</div>
-      )}
+      {isLoading && !data && <CardGridSkeleton variant="media" count={6} />}
 
       {!isLoading && clubs.length === 0 && !error && (
         <div className="mc-state">
