@@ -1,37 +1,150 @@
 "use client";
 
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import {
+  useAccount,
+  useUpdateAccount,
+  useChangePassword,
+  type NotificationPrefs,
+} from "@/lib/account";
 
 /**
- * My Account — profile view for the signed-in user.
+ * My Account — editable profile for the signed-in user.
  *
- * Laid out to match the account screen (Your details + Notification
- * Preferences), but display-only: there's no profile-update endpoint
- * yet, so fields are disabled and prefilled from AuthContext. When a
- * WP update route lands, these inputs become editable with minimal
- * change — the structure is already here.
- *
- * AuthUser only carries id / email / display_name / roles, so First/
- * Last name are derived from display_name; Town and notification
- * preferences have no source yet and render as empty/disabled.
+ * Loads the full profile from /account (name, town, email, notification
+ * preferences), which is richer than AuthUser. "Your details" and
+ * "Notification Preferences" save independently; changing the password
+ * is a separate sub-form that requires the current password.
  */
-export default function AccountPage() {
-  const { user, signOut } = useAuth();
+const DEFAULT_NOTIFICATIONS: NotificationPrefs = {
+  events_email: true,
+  events_push: true,
+  news_email: true,
+  news_push: true,
+};
 
-  if (!user) {
+export default function AccountPage() {
+  const { signOut } = useAuth();
+  const { data, isLoading, error } = useAccount();
+  const account = data?.account;
+
+  // ── Details form ────────────────────────────────────────────────
+  // Seed the editable form from the loaded account. Rather than syncing
+  // via an effect (which double-renders), we reset state *during render*
+  // when the loaded values change — the "adjust state on prop change"
+  // pattern from the React docs. `hydratedFrom` tracks what we last
+  // seeded from, so we only reset when the server data actually changes
+  // (initial load, or after a save returns fresh values), never on every
+  // keystroke.
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [town, setTown] = useState("");
+  const [email, setEmail] = useState("");
+  const [initialEmail, setInitialEmail] = useState("");
+  const [notifs, setNotifs] = useState<NotificationPrefs>(
+    DEFAULT_NOTIFICATIONS,
+  );
+
+  // A signature of the server values we've hydrated from. When the query
+  // returns new data, this differs and we re-seed the fields once.
+  const [hydratedFrom, setHydratedFrom] = useState<string | null>(null);
+  const accountSig = account
+    ? JSON.stringify([
+        account.first_name,
+        account.last_name,
+        account.nearest_town,
+        account.email,
+        account.notifications,
+      ])
+    : null;
+
+  if (account && accountSig !== hydratedFrom) {
+    setFirstName(account.first_name);
+    setLastName(account.last_name);
+    setTown(account.nearest_town);
+    setEmail(account.email);
+    setInitialEmail(account.email);
+    setNotifs(account.notifications);
+    setHydratedFrom(accountSig);
+  }
+
+  const updateAccount = useUpdateAccount();
+  const [detailsMsg, setDetailsMsg] = useState<Msg>(null);
+  const [notifMsg, setNotifMsg] = useState<Msg>(null);
+
+  const saveDetails = async () => {
+    setDetailsMsg(null);
+    if (!firstName.trim() || !lastName.trim()) {
+      setDetailsMsg({
+        kind: "error",
+        text: "First and last name are required.",
+      });
+      return;
+    }
+    const emailChanged = email.trim() !== initialEmail;
+    try {
+      const res = await updateAccount.mutateAsync({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        nearest_town: town.trim(),
+        email: email.trim(),
+        email_changed: emailChanged,
+      });
+      setInitialEmail(res.account.email);
+      setDetailsMsg({ kind: "ok", text: "Saved ✓" });
+    } catch (err) {
+      setDetailsMsg({
+        kind: "error",
+        text:
+          err instanceof Error ? err.message : "Couldn't save your details.",
+      });
+    }
+  };
+
+  const saveNotifs = async () => {
+    setNotifMsg(null);
+    try {
+      await updateAccount.mutateAsync({ notifications: notifs });
+      setNotifMsg({ kind: "ok", text: "Saved ✓" });
+    } catch (err) {
+      setNotifMsg({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Couldn't save preferences.",
+      });
+    }
+  };
+
+  const toggle = (key: keyof NotificationPrefs) =>
+    setNotifs((n) => ({ ...n, [key]: !n[key] }));
+
+  // ── Loading / error ─────────────────────────────────────────────
+  if (isLoading && !account) {
     return (
-      <div className="section">
-        <div className="section-header">
-          <div>
-            <div className="section-title">My Account</div>
-            <div className="section-subtitle">Loading your details…</div>
-          </div>
+      <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+        <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-ink-100">
+          <p className="text-sm text-ink-500">Loading your details…</p>
         </div>
       </div>
     );
   }
 
-  const [firstName, lastName] = splitName(user.display_name);
+  if (error || !account) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
+        <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-ink-100">
+          <p className="text-sm font-semibold text-red-500">
+            Couldn&apos;t load your account.
+          </p>
+          {error && (
+            <p className="mt-1 text-sm text-ink-500">{error.message}</p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const savingDetails = updateAccount.isPending;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
@@ -43,11 +156,19 @@ export default function AccountPage() {
 
         <div className="space-y-5">
           <FieldRow label="First Name">
-            <input className={inputCls} value={firstName} disabled />
+            <input
+              className={inputCls}
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+            />
           </FieldRow>
 
           <FieldRow label="Last Name">
-            <input className={inputCls} value={lastName} disabled />
+            <input
+              className={inputCls}
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+            />
           </FieldRow>
 
           <FieldRow
@@ -56,40 +177,37 @@ export default function AccountPage() {
           >
             <input
               className={inputCls}
-              value=""
-              placeholder="Not set"
-              disabled
+              value={town}
+              placeholder="e.g. Manchester"
+              onChange={(e) => setTown(e.target.value)}
             />
           </FieldRow>
 
           <FieldRow label="Email">
-            <input className={inputCls} value={user.email} disabled />
-          </FieldRow>
-
-          <FieldRow label="Password">
-            <button
-              type="button"
-              disabled
-              className="rounded-lg bg-ink-900 px-4 py-2.5 text-sm font-semibold text-white opacity-60"
-            >
-              Change Password
-            </button>
+            <input
+              className={inputCls}
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </FieldRow>
         </div>
 
         <div className="mt-6 border-t border-ink-100 pt-6">
           <button
             type="button"
-            disabled
-            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white opacity-60"
+            onClick={saveDetails}
+            disabled={savingDetails}
+            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white transition hover:from-gold-600 hover:to-gold-700 disabled:opacity-50"
           >
-            Update
+            {savingDetails ? "Saving…" : "Update"}
           </button>
-          <p className="mt-2 text-xs text-ink-400">
-            Editing your profile isn’t available yet — coming soon.
-          </p>
+          {detailsMsg && <FeedbackLine msg={detailsMsg} />}
         </div>
       </div>
+
+      {/* ── Change password ──────────────────────────────────────── */}
+      <ChangePasswordCard />
 
       {/* ── Notification Preferences ─────────────────────────────── */}
       <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-100 md:p-8">
@@ -97,7 +215,7 @@ export default function AccountPage() {
           Notification Preferences
         </h2>
 
-        <div className="overflow-hidden">
+        <div>
           <div className="grid grid-cols-[1fr_100px_100px] items-center gap-2 border-b border-ink-100 pb-3">
             <span />
             <span className="text-center text-sm font-bold text-ink-900">
@@ -108,18 +226,32 @@ export default function AccountPage() {
             </span>
           </div>
 
-          <PrefRow label="Events that I might like" />
-          <PrefRow label="News & updates" />
+          <PrefRow
+            label="Events that I might like"
+            email={notifs.events_email}
+            push={notifs.events_push}
+            onEmail={() => toggle("events_email")}
+            onPush={() => toggle("events_push")}
+          />
+          <PrefRow
+            label="News & updates"
+            email={notifs.news_email}
+            push={notifs.news_push}
+            onEmail={() => toggle("news_email")}
+            onPush={() => toggle("news_push")}
+          />
         </div>
 
         <div className="mt-6">
           <button
             type="button"
-            disabled
-            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white opacity-60"
+            onClick={saveNotifs}
+            disabled={savingDetails}
+            className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white transition hover:from-gold-600 hover:to-gold-700 disabled:opacity-50"
           >
-            Update
+            {savingDetails ? "Saving…" : "Update"}
           </button>
+          {notifMsg && <FeedbackLine msg={notifMsg} />}
         </div>
       </div>
 
@@ -147,10 +279,145 @@ export default function AccountPage() {
   );
 }
 
+// ─── Change password ──────────────────────────────────────────────────
+
+function ChangePasswordCard() {
+  const changePassword = useChangePassword();
+  const [open, setOpen] = useState(false);
+  const [current, setCurrent] = useState("");
+  const [next, setNext] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [msg, setMsg] = useState<Msg>(null);
+
+  const submit = async () => {
+    setMsg(null);
+    if (!current || !next) {
+      setMsg({ kind: "error", text: "Fill in both password fields." });
+      return;
+    }
+    if (next.length < 8) {
+      setMsg({
+        kind: "error",
+        text: "New password must be at least 8 characters.",
+      });
+      return;
+    }
+    if (next !== confirm) {
+      setMsg({ kind: "error", text: "New passwords don't match." });
+      return;
+    }
+    try {
+      await changePassword.mutateAsync({
+        current_password: current,
+        new_password: next,
+      });
+      setMsg({ kind: "ok", text: "Password updated ✓" });
+      setCurrent("");
+      setNext("");
+      setConfirm("");
+      setOpen(false);
+    } catch (err) {
+      setMsg({
+        kind: "error",
+        text: err instanceof Error ? err.message : "Couldn't change password.",
+      });
+    }
+  };
+
+  return (
+    <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-ink-100 md:p-8">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-extrabold text-ink-900">Password</h2>
+        {!open && (
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded-lg bg-ink-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-ink-800"
+          >
+            Change Password
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="mt-6 space-y-5">
+          <FieldRow label="Current Password">
+            <input
+              className={inputCls}
+              type="password"
+              autoComplete="current-password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
+          </FieldRow>
+          <FieldRow label="New Password">
+            <input
+              className={inputCls}
+              type="password"
+              autoComplete="new-password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+            />
+          </FieldRow>
+          <FieldRow label="Confirm New Password">
+            <input
+              className={inputCls}
+              type="password"
+              autoComplete="new-password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
+          </FieldRow>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={submit}
+              disabled={changePassword.isPending}
+              className="rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white transition hover:from-gold-600 hover:to-gold-700 disabled:opacity-50"
+            >
+              {changePassword.isPending ? "Saving…" : "Save Password"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                setMsg(null);
+                setCurrent("");
+                setNext("");
+                setConfirm("");
+              }}
+              className="text-sm font-semibold text-ink-500 hover:text-ink-700"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {msg && <FeedbackLine msg={msg} />}
+    </div>
+  );
+}
+
 // ─── Bits ─────────────────────────────────────────────────────────────
 
 const inputCls =
-  "w-full rounded-lg border border-ink-200 bg-ink-50/50 px-4 py-2.5 text-sm text-ink-700 disabled:cursor-not-allowed";
+  "w-full rounded-lg border border-ink-200 bg-ink-50/50 px-4 py-2.5 text-sm text-ink-700 focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-500/20";
+
+type Msg = { kind: "ok" | "error"; text: string } | null;
+
+function FeedbackLine({ msg }: { msg: NonNullable<Msg> }) {
+  return (
+    <p
+      className={`mt-2 text-xs font-semibold ${
+        msg.kind === "error" ? "text-red-500" : "text-green-600"
+      }`}
+    >
+      {msg.text}
+    </p>
+  );
+}
 
 function FieldRow({
   label,
@@ -172,33 +439,38 @@ function FieldRow({
   );
 }
 
-function PrefRow({ label }: { label: string }) {
+function PrefRow({
+  label,
+  email,
+  push,
+  onEmail,
+  onPush,
+}: {
+  label: string;
+  email: boolean;
+  push: boolean;
+  onEmail: () => void;
+  onPush: () => void;
+}) {
   return (
     <div className="grid grid-cols-[1fr_100px_100px] items-center gap-2 border-b border-ink-100 py-4 last:border-0">
       <span className="text-sm text-ink-700">{label}</span>
       <div className="flex justify-center">
         <input
           type="checkbox"
-          disabled
+          checked={email}
+          onChange={onEmail}
           className="h-4 w-4 rounded border-ink-300 accent-gold-500"
         />
       </div>
       <div className="flex justify-center">
         <input
           type="checkbox"
-          disabled
+          checked={push}
+          onChange={onPush}
           className="h-4 w-4 rounded border-ink-300 accent-gold-500"
         />
       </div>
     </div>
   );
-}
-
-/** Split a display name into [first, last]. Single-word names put the
- *  whole thing in first; extra words fold into last. */
-function splitName(displayName: string): [string, string] {
-  const parts = (displayName || "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return ["", ""];
-  if (parts.length === 1) return [parts[0], ""];
-  return [parts[0], parts.slice(1).join(" ")];
 }
