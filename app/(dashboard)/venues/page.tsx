@@ -15,7 +15,13 @@ export default function MyVenuesPage() {
   const pagination = data?.pagination;
 
   const openVenue = (venue: MyVenue) => {
-    router.push(`/venue/${venue.encrypted_id}/edit`);
+    // Only owners can edit. Followers open the public venue page (in a
+    // new tab) rather than the edit wizard, which they can't access.
+    if (venue.role === "owner") {
+      router.push(`/venue/${venue.encrypted_id}/edit`);
+    } else if (venue.permalink) {
+      window.open(venue.permalink, "_blank", "noopener,noreferrer");
+    }
   };
 
   return (

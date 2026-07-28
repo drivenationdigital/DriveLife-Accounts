@@ -2,14 +2,16 @@
 
 import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
 import { EditorTextarea } from "@/components/event-create/EditorTextarea";
 import {
   useVenueEditQuery,
   useUpdateVenue,
   useUploadVenueImage,
+  useDeleteVenue,
 } from "@/lib/myVenues";
-import type { LatLng } from "@/context/EventCreateContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 /**
  * Edit Venue — multi-step wizard (UI only, no persistence yet).
@@ -117,8 +119,9 @@ export default function EditVenuePage({
 }: {
   params: Promise<{ venueId: string }>;
 }) {
-  // Route segment is [venueId]; it carries the encrypted id the API wants.
   const { venueId: vid } = use(params);
+  const router = useRouter();
+  const confirm = useConfirm();
 
   const [step, setStep] = useState<StepKey>("basic");
   const [form, setForm] = useState<VenueForm>(EMPTY);
@@ -233,6 +236,30 @@ export default function EditVenuePage({
   };
 
   const saving = updateVenue.isPending;
+
+  // ── Delete ──────────────────────────────────────────────────────
+  const deleteVenue = useDeleteVenue();
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: "Delete this venue?",
+      message:
+        "This will remove the venue. This can't be undone from here. Are you sure?",
+      confirmLabel: "Delete Venue",
+      cancelLabel: "Keep Venue",
+      danger: true,
+    });
+    if (!ok) return;
+
+    try {
+      await deleteVenue.mutateAsync({ vid });
+      router.push("/venues");
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Couldn't delete the venue.",
+      );
+    }
+  };
 
   // ── Image upload ────────────────────────────────────────────────
   const uploadVenueImage = useUploadVenueImage();
@@ -468,9 +495,11 @@ export default function EditVenuePage({
                 <div className="mt-4 text-center">
                   <button
                     type="button"
-                    className="text-xs font-semibold uppercase tracking-wide text-ink-500 underline underline-offset-4 hover:text-danger"
+                    onClick={handleDelete}
+                    disabled={deleteVenue.isPending}
+                    className="text-xs font-semibold uppercase tracking-wide text-ink-500 underline underline-offset-4 transition hover:text-red-500 disabled:opacity-50"
                   >
-                    Delete Venue
+                    {deleteVenue.isPending ? "Deleting…" : "Delete Venue"}
                   </button>
                 </div>
               )}

@@ -12,7 +12,7 @@ import {
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
-import { apiGet, apiPost } from "./apiClient";
+import { apiGet, apiPost, apiDelete } from "./apiClient";
 import { readTokenClient } from "./authCookies";
 
 export type VenueRole = "owner" | "follower";
@@ -283,6 +283,32 @@ export function useUploadVenueImage() {
     onSuccess: (_d, vars) => {
       qc.invalidateQueries({ queryKey: ["venue-edit", vars.encryptedId] });
       qc.invalidateQueries({ queryKey: ["my-venues"] });
+    },
+  });
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────
+
+export interface DeleteVenueResponse {
+  success: true;
+  venue_id: number;
+  deleted: true;
+}
+
+/**
+ * Delete (trash) a venue. Owner-only server-side. Invalidates the
+ * venues list so the card disappears.
+ */
+export function useDeleteVenue() {
+  const qc = useQueryClient();
+  return useMutation<DeleteVenueResponse, Error, { vid: string }>({
+    mutationFn: ({ vid }) =>
+      apiDelete<DeleteVenueResponse>(
+        `/venue-delete?vid=${encodeURIComponent(vid)}`,
+      ),
+    onSuccess: (_d, { vid }) => {
+      qc.invalidateQueries({ queryKey: ["my-venues"] });
+      qc.removeQueries({ queryKey: ["venue-edit", vid] });
     },
   });
 }
