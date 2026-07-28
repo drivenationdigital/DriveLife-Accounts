@@ -1,9 +1,14 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
 import { EditorTextarea } from "@/components/event-create/EditorTextarea";
+import {
+  useVenueEditQuery,
+  useUpdateVenue,
+  useUploadVenueImage,
+} from "@/lib/myVenues";
 import type { LatLng } from "@/context/EventCreateContext";
 
 /**
@@ -107,12 +112,45 @@ function validateField(key: keyof VenueForm, value: string): string | null {
   }
 }
 
-export default function EditVenuePage() {
+export default function EditVenuePage({
+  params,
+}: {
+  params: Promise<{ venueId: string }>;
+}) {
+  // Route segment is [venueId]; it carries the encrypted id the API wants.
+  const { venueId: vid } = use(params);
+
   const [step, setStep] = useState<StepKey>("basic");
-  const [form, setForm] = useState<VenueForm>({ ...EMPTY, title: "tes12" });
+  const [form, setForm] = useState<VenueForm>(EMPTY);
   const [touched, setTouched] = useState<
     Partial<Record<keyof VenueForm, boolean>>
   >({});
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [justSaved, setJustSaved] = useState(false);
+
+  // ── Load ────────────────────────────────────────────────────────
+  const { data, isLoading, error } = useVenueEditQuery(vid);
+  const updateVenue = useUpdateVenue();
+
+  useEffect(() => {
+    if (!data) return;
+    const v = data.venue;
+    setForm({
+      title: v.title,
+      location: v.location,
+      latitude: v.latitude,
+      longitude: v.longitude,
+      logo: v.logo?.url ?? null,
+      cover: v.coverImage?.url ?? null,
+      email: v.email,
+      phone: v.phone,
+      website: v.website,
+      facebook: v.facebook,
+      instagram: v.instagram,
+      description: v.description,
+      status: v.status,
+    });
+  }, [data]);
 
   const stepIndex = STEPS.findIndex((s) => s.key === step);
   const set = <K extends keyof VenueForm>(key: K, value: VenueForm[K]) =>
@@ -159,6 +197,125 @@ export default function EditVenuePage() {
     const prev = STEPS[stepIndex - 1];
     if (prev) setStep(prev.key);
   };
+
+  // ── Save ────────────────────────────────────────────────────────
+  const handleSave = async () => {
+    setSaveError(null);
+    // Block save while required fields are invalid; reveal their errors.
+    const required = ["title", "location"] as const;
+    if (required.some((f) => errors[f])) {
+      setTouched((t) => ({ ...t, title: true, location: true }));
+      setStep("basic");
+      return;
+    }
+    try {
+      await updateVenue.mutateAsync({
+        vid,
+        post_title: form.title.trim(),
+        venue_location: form.location,
+        latitude: form.latitude,
+        longitude: form.longitude,
+        description: form.description,
+        venue_email: form.email,
+        venue_phone: form.phone,
+        website: form.website,
+        facebook: form.facebook,
+        instagram: form.instagram,
+        post_status: form.status,
+      });
+      setJustSaved(true);
+      window.setTimeout(() => setJustSaved(false), 2500);
+    } catch (err) {
+      setSaveError(
+        err instanceof Error ? err.message : "Couldn't save your changes.",
+      );
+    }
+  };
+
+  const saving = updateVenue.isPending;
+
+  // ── Image upload ────────────────────────────────────────────────
+  const uploadVenueImage = useUploadVenueImage();
+  const [uploadProgress, setUploadProgress] = useState<Record<string, number>>(
+    {},
+  );
+  const [uploadError, setUploadError] = useState<Record<string, string | null>>(
+    {},
+  );
+
+  const handleUpload = async (
+    group: "logo" | "cover",
+    file: File,
+    previewUrl: string,
+  ) => {
+    // Instant local preview.
+    set(group === "logo" ? "logo" : "cover", previewUrl);
+    setUploadError((e) => ({ ...e, [group]: null }));
+    setUploadProgress((p) => ({ ...p, [group]: 0 }));
+
+    const rawId = data?.venue.id;
+    if (!rawId) {
+      setUploadError((e) => ({ ...e, [group]: "Venue not loaded yet." }));
+      return;
+    }
+
+    try {
+      await uploadVenueImage.mutateAsync({
+        venueId: rawId,
+        encryptedId: vid,
+        file,
+        mediaGroup: group,
+        onProgress: (percent) =>
+          setUploadProgress((p) => ({ ...p, [group]: percent })),
+      });
+    } catch (err) {
+      setUploadError((e) => ({
+        ...e,
+        [group]:
+          err instanceof Error ? err.message : "Couldn't upload that image.",
+      }));
+    } finally {
+      setUploadProgress((p) => {
+        const next = { ...p };
+        delete next[group];
+        return next;
+      });
+    }
+  };
+
+  // Load / error states — don't render an empty wizard over no data.
+  if (isLoading && !data) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40">
+        <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-ink-100">
+            <p className="text-sm text-ink-500">Loading venue…</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40">
+        <div className="mx-auto max-w-6xl px-4 py-8 md:px-6">
+          <div className="mx-auto max-w-2xl rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-ink-100">
+            <p className="text-sm font-semibold text-red-500">
+              Couldn&apos;t load this venue.
+            </p>
+            <p className="mt-1 text-sm text-ink-500">{error.message}</p>
+            <Link
+              href="/venues"
+              className="mt-6 inline-block rounded-xl bg-ink-900 px-6 py-3 text-sm font-bold text-white transition hover:bg-ink-800"
+            >
+              Back to venues
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40">
@@ -256,6 +413,9 @@ export default function EditVenuePage() {
                   errors={errors}
                   touched={touched}
                   markTouched={markTouched}
+                  onUpload={handleUpload}
+                  uploadProgress={uploadProgress}
+                  uploadError={uploadError}
                 />
               )}
               {step === "description" && (
@@ -285,12 +445,24 @@ export default function EditVenuePage() {
                 ) : (
                   <button
                     type="button"
-                    className="rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-8 py-3 text-sm font-bold text-white shadow-sm shadow-gold-500/25 transition hover:from-gold-600 hover:to-gold-700"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-8 py-3 text-sm font-bold text-white shadow-sm shadow-gold-500/25 transition hover:from-gold-600 hover:to-gold-700 disabled:opacity-50"
                   >
-                    Update Venue
+                    {saving ? "Saving…" : "Update Venue"}
                   </button>
                 )}
               </div>
+
+              {(justSaved || saveError) && (
+                <p
+                  className={`mt-4 text-center text-xs font-semibold ${
+                    saveError ? "text-red-500" : "text-green-600"
+                  }`}
+                >
+                  {saveError ?? "Saved ✓"}
+                </p>
+              )}
 
               {step === "publish" && (
                 <div className="mt-4 text-center">
@@ -438,23 +610,45 @@ function BasicStep({ form, set, errors, touched, markTouched }: StepProps) {
 
 // ─── Step 2: Venue Profile ────────────────────────────────────────────
 
-function ProfileStep({ form, set, errors, touched, markTouched }: StepProps) {
+function ProfileStep({
+  form,
+  set,
+  errors,
+  touched,
+  markTouched,
+  onUpload,
+  uploadProgress,
+  uploadError,
+}: StepProps & {
+  onUpload: (group: "logo" | "cover", file: File, previewUrl: string) => void;
+  uploadProgress: Record<string, number>;
+  uploadError: Record<string, string | null>;
+}) {
   const shared = { form, set, errors, touched, markTouched };
   return (
     <div className="space-y-6">
-      <ImageUploadRow
-        title="Venue Logo"
-        hint="Ideal size: 800px x 800px"
-        preview={form.logo}
-        onPick={(_file, url) => set("logo", url)}
-      />
-      <ImageUploadRow
-        title="Venue Cover Image"
-        description="Add an image that best represents your venue."
-        hint="Ideal size: 1100px (width) x 500px (height)"
-        preview={form.cover}
-        onPick={(_file, url) => set("cover", url)}
-      />
+      <div>
+        <ImageUploadRow
+          title="Venue Logo"
+          hint="Ideal size: 800px x 800px"
+          preview={form.logo}
+          onPick={(file, url) => onUpload("logo", file, url)}
+        />
+        <UploadStatus percent={uploadProgress.logo} error={uploadError.logo} />
+      </div>
+      <div>
+        <ImageUploadRow
+          title="Venue Cover Image"
+          description="Add an image that best represents your venue."
+          hint="Ideal size: 1100px (width) x 500px (height)"
+          preview={form.cover}
+          onPick={(file, url) => onUpload("cover", file, url)}
+        />
+        <UploadStatus
+          percent={uploadProgress.cover}
+          error={uploadError.cover}
+        />
+      </div>
 
       <div className="h-px w-full bg-ink-100" />
 
@@ -656,5 +850,30 @@ function CheckDot() {
     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-gold-500 to-gold-600 text-[10px] font-bold text-white">
       ✓
     </span>
+  );
+}
+
+/** Progress bar / error line under a venue image row. */
+function UploadStatus({
+  percent,
+  error,
+}: {
+  percent?: number;
+  error?: string | null;
+}) {
+  if (error) {
+    return <p className="mt-2 text-xs text-red-500">{error}</p>;
+  }
+  if (percent === undefined) return null;
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-600 transition-all"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="mt-1 text-xs text-ink-400">Uploading… {percent}%</p>
+    </div>
   );
 }

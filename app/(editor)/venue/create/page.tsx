@@ -3,29 +3,31 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCreateVenue } from "@/lib/myVenues";
 
 /**
- * Create Venue — entry step (UI only).
+ * Create Venue — entry step.
  *
- * A single "name your venue" step. In future, pressing Next Step /
- * Create will POST the title to create a draft venue, then forward to
- * /venues/edit/[venueId] where the full wizard (profile, description,
- * publish) continues. For now it's UI-only: see handleCreate().
+ * A single "name your venue" step: creates a draft venue then forwards
+ * to /venue/{encrypted_id}/edit where the full wizard (profile,
+ * description, publish) continues.
  */
 export default function CreateVenuePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const createVenue = useCreateVenue();
 
-  const handleCreate = () => {
-    // TODO (wire later): create a draft venue with { title } via the
-    // venue-create endpoint, then forward to the edit wizard:
-    //
-    //   const { venueId } = await createVenue({ title });
-    //   router.push(`/venue/edit/${venueId}`);
-    //
-    // UI-only for now — no-op so the button doesn't navigate anywhere
-    // half-built. Remove this line when the endpoint lands.
-    void router;
+  const handleCreate = async () => {
+    setError(null);
+    try {
+      const venue = await createVenue.mutateAsync({ post_title: title.trim() });
+      router.push(`/venue/${venue.encrypted_id}/edit`);
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Couldn't create the venue.",
+      );
+    }
   };
 
   const canProceed = title.trim().length > 0;
@@ -108,12 +110,18 @@ export default function CreateVenuePage() {
                 <button
                   type="button"
                   onClick={handleCreate}
-                  disabled={!canProceed}
+                  disabled={!canProceed || createVenue.isPending}
                   className="rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-8 py-3 text-sm font-bold text-white shadow-sm shadow-gold-500/25 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Next Step
+                  {createVenue.isPending ? "Creating…" : "Next Step"}
                 </button>
               </div>
+
+              {error && (
+                <p className="mt-4 text-center text-xs font-semibold text-red-500">
+                  {error}
+                </p>
+              )}
             </div>
           </div>
         </main>

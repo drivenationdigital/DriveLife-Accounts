@@ -548,10 +548,10 @@ export type EventCreateState = {
 const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
   eventType: "general",
-  hostName: "Caffeine & Machine: The Hill",
-  title: "Weekends in the Yard – Sunday Service @ The Hill",
+  hostName: "",
+  title: "",
   categoryIds: [23, 3, 6, 4, 5, 46, 40, 20], // pre-checked in mockup
-  location: "Caffeine & Machine: The Hill, Ettington, Stratford-upon-Avon",
+  location: "",
   locationCoords: { lat: 52.1498, lng: -1.6299 },
 
   // Mockup pre-fills the demo dates as 19 April 2026 (single mode);

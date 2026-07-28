@@ -15,14 +15,14 @@ export default function MyVenuesPage() {
   const pagination = data?.pagination;
 
   const openVenue = (venue: MyVenue) => {
-    router.push(`/venue/${venue.encrypted_id}`);
+    router.push(`/venue/${venue.encrypted_id}/edit`);
   };
 
   return (
     <div className="my-venues">
       <header className="mv-header">
         <h1 className="mv-title">My Venues</h1>
-        <Link href="/venue/create" className="mv-create-btn">
+        <Link href="/venues/create" className="mv-create-btn">
           + Create Venue
         </Link>
       </header>
