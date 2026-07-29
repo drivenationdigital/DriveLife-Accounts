@@ -143,17 +143,37 @@ function mapTicket(t: ApiTicketType): Ticket {
   };
 }
 
-function mapOrderStatus(order: ApiOrder): OrderStatus {
+/**
+ * The subset of order fields mapOrder actually reads. Both ApiOrder
+ * (event context) and EventOrder (orders query hook) satisfy this, so
+ * either source can be mapped without the two full types having to
+ * agree on every field (they differ only on `status`, which we derive
+ * here anyway).
+ */
+export interface MappableOrder {
+  id: number;
+  encrypted_id: string;
+  date_created: string | null;
+  buyer: { first_name: string; last_name: string; email: string };
+  quantity: number;
+  total_amount: number;
+  payment_method: string;
+  status: string;
+}
+
+function mapOrderStatus(
+  order: Pick<MappableOrder, "payment_method" | "total_amount" | "status">,
+): OrderStatus {
   if (order.payment_method === "admin") return "paid";
   if (order.total_amount > 0) {
-    if (order.status === "refunded") return "refunded";
-    return "paid";
+    if (order.status === "completed") return "paid";
+    return "pending";
   };
   if (order.total_amount === 0) return "free";
   return "pending";
 }
 
-export function mapOrder(o: ApiOrder): Order {
+export function mapOrder(o: MappableOrder): Order {
   return {
     id: String(o.id),
     encryptedId: o.encrypted_id,

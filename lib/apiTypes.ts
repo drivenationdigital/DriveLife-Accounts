@@ -2,6 +2,8 @@
 // Types matching the /wp-json/dl-accounts/v1/ response shape
 // ─────────────────────────────────────────────────────────────────────────
 
+import { OrderStatus } from "@/context/types";
+
 export type PostStatus = "publish" | "draft" | "future" | "cancelled" | string;
 export type PostType = "events" | "club_events";
 
@@ -174,7 +176,7 @@ export interface ApiOrder {
   marketing_opt_in: boolean;
   marketing_source: string | null;
   cars: ApiCar[];
-  status: "pending" | "completed" | "refunded" | "cancelled";
+  status: OrderStatus;
 }
 
 export interface ApiAttendee {

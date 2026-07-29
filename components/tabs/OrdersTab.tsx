@@ -53,9 +53,7 @@ export function OrdersTab() {
 
   // Any new search term resets to page 1.
   useEffect(() => {
-    if (page !== 1) {
-      setPage(1);
-    }
+    if (page !== 1) setPage(1);
   }, [debouncedSearch]);
 
   // ── Server-side fetch (search + pagination handled by the API) ──
