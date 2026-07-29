@@ -376,12 +376,17 @@ export type EventCreateState = {
   encryptedId: string | null;
 
   // ---- Create-flow result ----
-  // The kind of event picked in the create wizard. Drives a few
-  // display details in the editor (host callout copy, etc). Locked
-  // to the whitelist used by the WP /events route.
-  eventType: "general" | "dev_club" | "venue_dover";
+  // Who the event is hosted by, chosen from the "Hosted by" dropdown
+  // under the title. Replaces the old three-card event-type step.
+  //   me    → the user's own event
+  //   club  → hosted by a club they own/admin  (hostId = club id)
+  //   venue → hosted by a venue they own        (hostId = venue id)
+  hostType: "me" | "club" | "venue";
+  hostId: number | null;
 
   // ---- Basics ----
+  // Display name of the host (the dropdown label, e.g. the club/venue
+  // name, or the user's name for "me").
   hostName: string;
   title: string;
   categoryIds: number[];
@@ -547,11 +552,12 @@ export type EventCreateState = {
 
 const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
-  eventType: "general",
-  hostName: "",
-  title: "",
+  hostType: "me",
+  hostId: null,
+  hostName: "Me",
+  title: "Weekends in the Yard – Sunday Service @ The Hill",
   categoryIds: [23, 3, 6, 4, 5, 46, 40, 20], // pre-checked in mockup
-  location: "",
+  location: "Caffeine & Machine: The Hill, Ettington, Stratford-upon-Avon",
   locationCoords: { lat: 52.1498, lng: -1.6299 },
 
   // Mockup pre-fills the demo dates as 19 April 2026 (single mode);
@@ -641,7 +647,8 @@ const INITIAL_STATE: EventCreateState = {
  * easier to read and maintain. */
 type ScalarStateKey =
   | "encryptedId"
-  | "eventType"
+  | "hostType"
+  | "hostId"
   | "hostName"
   | "title"
   | "location"

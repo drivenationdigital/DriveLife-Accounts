@@ -32,6 +32,21 @@ import {
   type ApiEventUpdateResponse,
 } from "./eventSaveMapper";
 
+/**
+ * Map the "Hosted by" selection to the WP event_type whitelist the
+ * /events route expects. Kept here so the host model (me/club/venue) is
+ * the single source of truth on the client and the legacy event_type
+ * string is derived only at the network boundary.
+ */
+const HOST_TYPE_TO_EVENT_TYPE: Record<
+  EventCreateState["hostType"],
+  "general" | "dev_club" | "venue_dover"
+> = {
+  me: "general",
+  club: "dev_club",
+  venue: "venue_dover",
+};
+
 /** POST the update. `eid` rides in the query string (the route's
  *  registered arg); the section payload is the JSON body. */
 function postEventUpdate(eid: string, body: ApiEventUpdateRequest) {
@@ -89,7 +104,10 @@ export function useSaveEvent() {
           "/events",
           {
             title: state.title?.trim() || "Untitled event",
-            event_type: state.eventType,
+            // Map the host model to the WP event_type whitelist.
+            event_type: HOST_TYPE_TO_EVENT_TYPE[state.hostType],
+            host_type: state.hostType,
+            host_id: state.hostId,
           },
         );
         eid = created.encrypted_id;

@@ -188,6 +188,8 @@ export function useEventCategories() {
 export type CreateEventParams = {
   title: string;
   event_type: "general" | "dev_club" | "venue_dover";
+  host_type?: "me" | "club" | "venue"; 
+  host_id?: number | null;
 };
 
 /** Response shape from POST /events. `encrypted_id` is the canonical
