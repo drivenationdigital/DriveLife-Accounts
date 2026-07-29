@@ -107,6 +107,21 @@
   padding-left: 2.75rem;
 }
 
+/* Invalid field. The focus rule is repeated so a focused error field
+ * keeps the red treatment instead of reverting to the gold ring — the
+ * base :focus rule above would otherwise win on source order. */
+.input.has-error,
+.textarea.has-error,
+.select.has-error {
+  border-color: #ef4444;
+}
+.input.has-error:focus,
+.textarea.has-error:focus,
+.select.has-error:focus {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
+}
+
 /* iOS Safari fix — native time/date controls have an internal min-width
  * inside their shadow DOM that can overflow a 100%-width container.
  * Neutralising -webkit-appearance removes that inner chrome while keeping

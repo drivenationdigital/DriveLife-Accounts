@@ -8,7 +8,7 @@ import { FieldLabel } from "../shared";
 export function ClubDescriptionPanel() {
   const { club, setField } = useClubEdit();
   return (
-    <div>
+    <div className="mb-8">
       <FieldLabel>Tell us more about your club</FieldLabel>
       <EditorTextarea
         value={club.description}

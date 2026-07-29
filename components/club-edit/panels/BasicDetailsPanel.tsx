@@ -2,10 +2,18 @@
 
 import { useClubEdit } from "@/context/ClubEditContext";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
-import { FieldLabel, Divider, inputCls } from "../shared";
+import { FieldLabel, inputCls, selectCls } from "../shared";
 import type { ClubLocationType } from "@/lib/clubEditTypes";
 
-/** Step 1 — title, categories, location type (+ address when regional). */
+const TITLE_MAX = 60;
+
+/**
+ * Step 1 — title, categories, location type (+ address when regional).
+ *
+ * Field rhythm matches the event editor's BasicsPanel: mb-8 between
+ * blocks, a live character counter under the title, and the categories
+ * grid in a white bordered box using the editor's `.cb-label` checkboxes.
+ */
 export function BasicDetailsPanel() {
   const { club, categories, setField, toggleCategory, setAllCategories } =
     useClubEdit();
@@ -14,75 +22,76 @@ export function BasicDetailsPanel() {
     categories.length > 0 && club.categoryIds.length === categories.length;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <FieldLabel required>Club Title</FieldLabel>
+    <div>
+      {/* Title field. */}
+      <div className="mb-8">
+        <FieldLabel required>Club title</FieldLabel>
         <input
-          className={inputCls}
+          className={`${inputCls} text-lg`}
           value={club.title}
-          maxLength={60}
-          onChange={(e) => setField("title", e.target.value)}
-          placeholder="Club title"
+          maxLength={TITLE_MAX}
+          onChange={(e) =>
+            setField("title", e.target.value.slice(0, TITLE_MAX))
+          }
+          placeholder="e.g. Kent Classic Car Club"
         />
-        <p className="mt-1 text-right text-xs text-ink-400">
-          Max 60 characters
-        </p>
+        <div className="flex justify-between mt-2 text-xs text-ink-500">
+          <span>Keep it clear and recognisable</span>
+          <span>
+            {club.title.length}/{TITLE_MAX}
+          </span>
+        </div>
       </div>
 
-      <Divider />
-
-      <div>
-        <div className="mb-3 flex items-baseline gap-2">
-          <span className="text-sm font-bold text-ink-900">Categories</span>
+      {/* Categories grid. */}
+      <div className="mb-8">
+        <div className="flex items-baseline justify-between mb-3">
+          <label className="block text-sm font-semibold text-ink-900">
+            Categories
+          </label>
           <button
             type="button"
             onClick={() => setAllCategories(!allSelected)}
-            className="text-xs font-semibold text-gold-600 underline underline-offset-2 hover:text-gold-700"
+            className="text-xs font-semibold text-gold-600 hover:text-gold-700 transition"
           >
             {allSelected ? "Clear all" : "Select all"}
           </button>
         </div>
-        {categories.length === 0 ? (
-          <p className="text-sm text-ink-400">No categories available.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
-            {categories.map((cat) => (
-              <label
-                key={cat.id}
-                className="flex cursor-pointer items-center gap-2.5 text-sm text-ink-700"
-              >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-ink-300 accent-gold-500"
-                  checked={club.categoryIds.includes(cat.id)}
-                  onChange={() => toggleCategory(cat.id)}
-                />
-                {cat.name}
-              </label>
-            ))}
-          </div>
-        )}
+        <div className="bg-white border border-ink-200 rounded-xl p-5 sm:p-6">
+          {categories.length === 0 ? (
+            <p className="text-sm text-ink-500">No categories available.</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-0">
+              {categories.map((cat) => (
+                <label key={cat.id} className="cb-label">
+                  <input
+                    type="checkbox"
+                    value={cat.id}
+                    checked={club.categoryIds.includes(cat.id)}
+                    onChange={() => toggleCategory(cat.id)}
+                  />
+                  <span className="cb-box" />
+                  <span className="cb-text">{cat.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
-      <Divider />
-
-      <div>
-        <FieldLabel required>Club Location</FieldLabel>
-        <div className="relative">
-          <select
-            className={`${inputCls} appearance-none pr-10`}
-            value={club.locationType}
-            onChange={(e) =>
-              setField("locationType", e.target.value as ClubLocationType)
-            }
-          >
-            <option value="1">National Club</option>
-            <option value="2">Local/Regional Club</option>
-          </select>
-          <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-ink-400">
-            ▾
-          </span>
-        </div>
+      {/* Location. */}
+      <div className="mb-8">
+        <FieldLabel required>Club location</FieldLabel>
+        <select
+          className={selectCls}
+          value={club.locationType}
+          onChange={(e) =>
+            setField("locationType", e.target.value as ClubLocationType)
+          }
+        >
+          <option value="1">National club</option>
+          <option value="2">Local / regional club</option>
+        </select>
 
         {/* Regional clubs need an actual place. */}
         {club.locationType === "2" && (

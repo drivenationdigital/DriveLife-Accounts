@@ -2,20 +2,20 @@
 
 import { useRef, type ReactNode } from "react";
 
+import { useVenueEdit, type VenueFieldKey } from "@/context/VenueEditContext";
+
 /**
- * Shared form bits for the club edit panels.
+ * Shared form bits for the venue edit panels.
  *
  * Fields use the editor's own `.input` / `.select` / `.textarea` classes
  * from app/(editor)/editor.css rather than a local Tailwind string, so
- * the club editor's inputs are literally the same controls as the event
- * editor's — same radius, padding, focus ring, and placeholder colour.
- * Both pages live under the (editor) route group, which is where that
- * stylesheet is imported.
+ * the venue editor's controls are literally the same as the event and
+ * club editors'. All three pages live under the (editor) route group,
+ * which is where that stylesheet is imported.
  */
 
 export const inputCls = "input";
 export const selectCls = "select";
-export const textareaCls = "textarea";
 
 export function FieldLabel({
   children,
@@ -37,10 +37,52 @@ export function FieldLabel({
   );
 }
 
-/** Section divider used between field groups. */
-export function Divider() {
+/**
+ * Text input wired straight to the venue context, with a blur-triggered
+ * inline error. The error only shows once the field has been touched, so
+ * a half-typed email doesn't go red under the user's cursor.
+ */
+export function TextField({
+  field,
+  label,
+  required,
+  hint,
+  placeholder,
+  type,
+  onBlur,
+}: {
+  field: VenueFieldKey;
+  label: string;
+  required?: boolean;
+  hint?: string;
+  placeholder?: string;
+  type?: string;
+  /** Extra blur handling (e.g. normalising a handle) before markTouched. */
+  onBlur?: () => void;
+}) {
+  const { venue, set, errors, touched, markTouched } = useVenueEdit();
+  const error = errors[field];
+  const showError = Boolean(touched[field] && error);
+
   return (
-    <div className="h-px w-full bg-gradient-to-r from-transparent via-ink-100 to-transparent" />
+    <div className="mb-8">
+      <FieldLabel required={required} hint={hint}>
+        {label}
+      </FieldLabel>
+      <input
+        className={`${inputCls} ${showError ? "has-error" : ""}`}
+        value={String(venue[field] ?? "")}
+        onChange={(e) => set(field, e.target.value as never)}
+        onBlur={() => {
+          onBlur?.();
+          markTouched(field);
+        }}
+        placeholder={placeholder}
+        type={type}
+        aria-invalid={showError}
+      />
+      {showError && <p className="mt-2 text-xs text-red-500">{error}</p>}
+    </div>
   );
 }
 
@@ -109,6 +151,31 @@ export function ImageUploadRow({
           onChange={handleFile}
         />
       </div>
+    </div>
+  );
+}
+
+/** Progress bar / error line under an image row. */
+export function UploadStatus({
+  percent,
+  error,
+}: {
+  percent?: number;
+  error?: string | null;
+}) {
+  if (error) {
+    return <p className="mt-2 text-xs text-red-500">{error}</p>;
+  }
+  if (percent === undefined) return null;
+  return (
+    <div className="mt-2">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-200">
+        <div
+          className="h-full rounded-full bg-gold-500 transition-all"
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className="mt-1 text-xs text-ink-500">Uploading… {percent}%</p>
     </div>
   );
 }

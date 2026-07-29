@@ -58,10 +58,10 @@ export function ClubProfilePanel() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mb-8 space-y-6">
       <div>
         <ImageUploadRow
-          title="Club Logo"
+          title="Club logo"
           hint="Ideal size: 800px x 800px"
           previewUrl={club.logo?.url ?? null}
           onPick={(file, url) => handlePick("logo", file, url)}
@@ -71,7 +71,7 @@ export function ClubProfilePanel() {
 
       <div>
         <ImageUploadRow
-          title="Club Cover Image"
+          title="Club cover image"
           description="Add an image that best represents your club."
           hint="Ideal size: 1100px (width) x 500px (height)"
           previewUrl={club.coverImage?.url ?? null}
@@ -84,7 +84,7 @@ export function ClubProfilePanel() {
 
       <div>
         <FieldLabel hint="In case anyone wants to contact the club directly">
-          Club Email Address
+          Club email address
         </FieldLabel>
         <input
           className={inputCls}
@@ -94,7 +94,7 @@ export function ClubProfilePanel() {
         />
       </div>
       <div>
-        <FieldLabel>Club Website</FieldLabel>
+        <FieldLabel>Club website</FieldLabel>
         <input
           className={inputCls}
           value={club.website}
@@ -103,7 +103,7 @@ export function ClubProfilePanel() {
         />
       </div>
       <div>
-        <FieldLabel>Facebook Page</FieldLabel>
+        <FieldLabel>Facebook page</FieldLabel>
         <input
           className={inputCls}
           value={club.facebook}
@@ -112,7 +112,7 @@ export function ClubProfilePanel() {
         />
       </div>
       <div>
-        <FieldLabel>Instagram Username</FieldLabel>
+        <FieldLabel>Instagram username</FieldLabel>
         <input
           className={inputCls}
           value={club.instagram}
@@ -122,7 +122,7 @@ export function ClubProfilePanel() {
       </div>
       <div>
         <FieldLabel hint="If you sell club clothing or merch online, enter the link here">
-          Club Merchandise Link
+          Club merchandise link
         </FieldLabel>
         <input
           className={inputCls}
@@ -148,13 +148,13 @@ function UploadStatus({
   if (percent === undefined) return null;
   return (
     <div className="mt-2">
-      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100">
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-200">
         <div
-          className="h-full rounded-full bg-gradient-to-r from-gold-500 to-gold-600 transition-all"
+          className="h-full rounded-full bg-gold-500 transition-all"
           style={{ width: `${percent}%` }}
         />
       </div>
-      <p className="mt-1 text-xs text-ink-400">Uploading… {percent}%</p>
+      <p className="mt-1 text-xs text-ink-500">Uploading… {percent}%</p>
     </div>
   );
 }

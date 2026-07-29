@@ -62,7 +62,7 @@ export function ClubAdministratorsPanel({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="mb-8 space-y-6">
       {canInvite && (
         <div>
           <FieldLabel hint="They'll get an email invitation. They become an administrator once they accept.">
@@ -70,7 +70,7 @@ export function ClubAdministratorsPanel({
           </FieldLabel>
           <div className="flex gap-2">
             <input
-              className={inputCls}
+              className={`${inputCls} flex-1 min-w-0`}
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
@@ -90,13 +90,13 @@ export function ClubAdministratorsPanel({
               type="button"
               onClick={handleInvite}
               disabled={invite.isPending}
-              className="shrink-0 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-3 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className="shrink-0 rounded-lg bg-gold-500 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gold-600 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {invite.isPending ? "Sending…" : "Invite"}
             </button>
           </div>
           {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
-          <p className="mt-1 text-xs text-ink-400">
+          <p className="mt-1 text-xs text-ink-500">
             They need an existing account to be invited.
           </p>
         </div>
@@ -105,17 +105,17 @@ export function ClubAdministratorsPanel({
       {/* Pending invites from this session */}
       {invited.length > 0 && (
         <div>
-          <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-400">
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">
             Invitations sent
           </h3>
           <ul className="space-y-2">
             {invited.map((addr) => (
               <li
                 key={addr}
-                className="flex items-center justify-between gap-3 rounded-xl border border-gold-100 bg-gold-50/50 px-4 py-3"
+                className="flex items-center justify-between gap-3 rounded-xl border border-gold-200 bg-gold-50 px-4 py-3"
               >
                 <span className="truncate text-sm text-ink-700">{addr}</span>
-                <span className="shrink-0 rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wide text-gold-700">
+                <span className="shrink-0 rounded-full bg-gold-100 px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-gold-700">
                   Pending
                 </span>
               </li>
@@ -126,16 +126,16 @@ export function ClubAdministratorsPanel({
 
       {/* Current administrators (read-only — managed via invites) */}
       <div>
-        <h3 className="mb-2 text-xs font-bold uppercase tracking-wide text-ink-400">
+        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">
           Current administrators
         </h3>
         {club.administrators.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-ink-200 bg-ink-50/50 px-6 py-8 text-center text-sm text-ink-400">
+          <div className="rounded-xl border border-dashed border-ink-200 bg-white px-6 py-8 text-center text-sm text-ink-500">
             No administrators yet — you're the only one who can manage this
             club.
           </div>
         ) : (
-          <ul className="divide-y divide-ink-100 overflow-hidden rounded-xl border border-ink-100">
+          <ul className="divide-y divide-ink-200 overflow-hidden rounded-xl border border-ink-200">
             {club.administrators.map((admin) => (
               <li
                 key={admin.id}
@@ -145,7 +145,7 @@ export function ClubAdministratorsPanel({
                   <div className="truncate text-sm font-semibold text-ink-900">
                     {admin.name}
                   </div>
-                  <div className="truncate text-xs text-ink-400">
+                  <div className="truncate text-xs text-ink-500">
                     {admin.email}
                   </div>
                 </div>

@@ -18,16 +18,16 @@ export function ClubTermsPanel() {
   const isDefault = club.terms.trim() === defaultClubTerms(club.title).trim();
 
   return (
-    <div>
+    <div className="mb-8">
       <div className="mb-2 flex items-baseline justify-between gap-3">
         <FieldLabel hint="Members agree to these when they join.">
-          Club Terms
+          Club terms
         </FieldLabel>
         {!isDefault && (
           <button
             type="button"
             onClick={() => setField("terms", defaultClubTerms(club.title))}
-            className="shrink-0 text-xs font-semibold text-gold-600 underline underline-offset-2 transition hover:text-gold-700"
+            className="shrink-0 text-xs font-semibold text-gold-600 transition hover:text-gold-700"
           >
             Restore default terms
           </button>
