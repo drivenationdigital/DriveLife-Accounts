@@ -174,6 +174,7 @@ export interface ApiOrder {
   marketing_opt_in: boolean;
   marketing_source: string | null;
   cars: ApiCar[];
+  status: "pending" | "completed" | "refunded" | "cancelled";
 }
 
 export interface ApiAttendee {

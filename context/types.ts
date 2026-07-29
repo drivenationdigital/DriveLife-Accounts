@@ -1,5 +1,5 @@
 export type EventStatus = "published" | "draft" | "cancelled";
-export type OrderStatus = "paid" | "pending" | "refunded";
+export type OrderStatus = "paid" | "pending" | "refunded" | "cancelled" | "free";
 export type ShowCarStatus =
   | "pending"
   | "awaiting-payment"

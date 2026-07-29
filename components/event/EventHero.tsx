@@ -195,9 +195,9 @@ export function EventHero() {
               <MoreVerticalIcon />
             </DropdownTrigger>
             <DropdownMenu>
-              <DropdownItem>
+              {/* <DropdownItem>
                 <InfoCircleIcon /> Add Manual Order
-              </DropdownItem>
+              </DropdownItem> */}
               <DropdownItem
                 onClick={handleDuplicate}
                 // disabled={clone.isPending}

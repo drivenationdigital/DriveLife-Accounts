@@ -145,21 +145,24 @@ function mapTicket(t: ApiTicketType): Ticket {
 
 function mapOrderStatus(order: ApiOrder): OrderStatus {
   if (order.payment_method === "admin") return "paid";
-  if (order.total_amount > 0) return "paid";
-  if (order.total_amount === 0) return "refunded";
+  if (order.total_amount > 0) {
+    if (order.status === "refunded") return "refunded";
+    return "paid";
+  };
+  if (order.total_amount === 0) return "free";
   return "pending";
 }
 
-function mapOrder(o: ApiOrder): Order {
+export function mapOrder(o: ApiOrder): Order {
   return {
     id: String(o.id),
+    encryptedId: o.encrypted_id,
     customerName: `${o.buyer.first_name} ${o.buyer.last_name}`.trim(),
     customerEmail: o.buyer.email,
     quantity: o.quantity,
     amount: o.total_amount,
     status: mapOrderStatus(o),
     date: formatOrderDate(o.date_created),
-    encryptedId: o.encrypted_id
   };
 }
 

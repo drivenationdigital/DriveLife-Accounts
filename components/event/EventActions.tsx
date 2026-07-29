@@ -154,7 +154,7 @@ export function EventActions({
 
         {menuOpen && (
           <div role="menu" style={menuStyle}>
-            <MenuItem
+            {/* <MenuItem
               onClick={() => {
                 setMenuOpen(false);
                 onAddManualOrder?.();
@@ -162,7 +162,7 @@ export function EventActions({
               icon={<PlusCircleIcon />}
             >
               Add Manual Order
-            </MenuItem>
+            </MenuItem> */}
             <MenuItem
               onClick={handleDuplicate}
               icon={<CopyIcon />}
