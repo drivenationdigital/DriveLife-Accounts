@@ -5,6 +5,14 @@ import { useRouter } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { currency, statusPillClass } from "@/lib/utils";
 import { useExportOrders } from "@/lib/ordersExport";
+import {
+  useResendOrder,
+  useCancelOrder,
+  orderTicketsUrl,
+} from "@/lib/orderActions";
+import { useRefundOrder } from "@/lib/refundOrder";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { useEventOrders } from "@/lib/eventOrders";
 import { mapOrder } from "@/lib/eventMapper";
 import {
@@ -16,7 +24,6 @@ import {
 } from "@/components/ui/Dropdown";
 import {
   DownloadIcon,
-  PlusIcon,
   SearchIcon,
   MoreHorizontalIcon,
 } from "@/components/ui/Icons";
@@ -53,7 +60,7 @@ export function OrdersTab() {
 
   // Any new search term resets to page 1.
   useEffect(() => {
-    if (page !== 1) setPage(1);
+    setPage(1);
   }, [debouncedSearch]);
 
   // ── Server-side fetch (search + pagination handled by the API) ──
@@ -91,12 +98,88 @@ export function OrdersTab() {
 
   // ── Export (all orders, honouring the active search) ────────────
   const exportOrders = useExportOrders();
+  const toast = useToast();
   const handleExport = () => {
     if (exportOrders.isPending) return;
-    exportOrders.mutate({
-      eid: event.encryptedId,
-      search: debouncedSearch.trim() || undefined,
+    exportOrders.mutate(
+      {
+        eid: event.encryptedId,
+        search: debouncedSearch.trim() || undefined,
+      },
+      {
+        onSuccess: () => toast.success("Orders exported."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Export failed."),
+      },
+    );
+  };
+
+  // ── Row actions ─────────────────────────────────────────────────
+  const resend = useResendOrder();
+  const cancelOrder = useCancelOrder();
+  const refund = useRefundOrder();
+  const confirm = useConfirm();
+
+  // Which order id is mid-action, so we can show a spinner on that row
+  // (the mutation objects are shared across all rows).
+  const [busyOid, setBusyOid] = useState<string | null>(null);
+
+  const handleResend = (oid: string) => {
+    setBusyOid(oid);
+    resend.mutate(
+      { oid },
+      {
+        onSuccess: () => toast.success("Confirmation email re-sent."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't resend."),
+        onSettled: () => setBusyOid(null),
+      },
+    );
+  };
+
+  const handleCancelOrder = async (oid: string) => {
+    const ok = await confirm({
+      title: "Cancel this order?",
+      message:
+        "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
+      confirmLabel: "Cancel order",
+      cancelLabel: "Keep order",
+      danger: true,
     });
+    if (!ok) return;
+    setBusyOid(oid);
+    cancelOrder.mutate(
+      { oid },
+      {
+        onSuccess: () => toast.success("Order cancelled."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't cancel."),
+        onSettled: () => setBusyOid(null),
+      },
+    );
+  };
+
+  const handleRefund = async (oid: string, amount: number) => {
+    const ok = await confirm({
+      title: "Refund this order?",
+      message: `${currency(
+        amount,
+      )} will be refunded to the customer via Stripe. This can't be undone.`,
+      confirmLabel: "Refund",
+      cancelLabel: "Keep order",
+      danger: true,
+    });
+    if (!ok) return;
+    setBusyOid(oid);
+    refund.mutate(
+      { oid },
+      {
+        onSuccess: () => toast.success("Refund issued."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Refund failed."),
+        onSettled: () => setBusyOid(null),
+      },
+    );
   };
 
   const goToPage = (next: number) => {
@@ -204,7 +287,10 @@ export function OrdersTab() {
                 <td className="mono">{o.quantity}</td>
                 <td className="amount">{currency(o.amount)}</td>
                 <td>
-                  <span className={`pill ${statusPillClass(o.status)}`}>
+                  <span
+                    className={`pill ${statusPillClass(o.status)}`}
+                    style={pillStyle(o.status)}
+                  >
                     {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
                   </span>
                 </td>
@@ -223,14 +309,53 @@ export function OrdersTab() {
                       <DropdownItem
                         onClick={() => router.push(`/orders/${o.encryptedId}`)}
                       >
-                        View order
+                        View &amp; edit
                       </DropdownItem>
-                      <DropdownItem>Resend confirmation</DropdownItem>
-                      <DropdownItem>Download tickets</DropdownItem>
-                      <DropdownItem>Edit order</DropdownItem>
+                      <DropdownItem onClick={() => handleResend(o.encryptedId)}>
+                        {busyOid === o.encryptedId && resend.isPending
+                          ? "Sending…"
+                          : "Resend confirmation"}
+                      </DropdownItem>
+                      <DropdownItem
+                        onClick={() =>
+                          window.open(
+                            orderTicketsUrl(o.encryptedId),
+                            "_blank",
+                            "noopener,noreferrer",
+                          )
+                        }
+                      >
+                        Download tickets
+                      </DropdownItem>
                       <DropdownSeparator />
-                      <DropdownItem danger>Refund</DropdownItem>
-                      <DropdownItem danger>Delete order</DropdownItem>
+                      {o.amount > 0 && (
+                        <DropdownItem
+                          danger
+                          disabled={
+                            o.status === "cancelled" ||
+                            o.status === "refunded" ||
+                            (busyOid === o.encryptedId && refund.isPending)
+                          }
+                          onClick={() => handleRefund(o.encryptedId, o.amount)}
+                        >
+                          {busyOid === o.encryptedId && refund.isPending
+                            ? "Refunding…"
+                            : "Refund"}
+                        </DropdownItem>
+                      )}
+                      <DropdownItem
+                        danger
+                        disabled={
+                          o.status === "cancelled" ||
+                          o.status === "refunded" ||
+                          (busyOid === o.encryptedId && cancelOrder.isPending)
+                        }
+                        onClick={() => handleCancelOrder(o.encryptedId)}
+                      >
+                        {busyOid === o.encryptedId && cancelOrder.isPending
+                          ? "Cancelling…"
+                          : "Cancel order"}
+                      </DropdownItem>
                     </DropdownMenu>
                   </Dropdown>
                 </td>
@@ -272,6 +397,21 @@ export function OrdersTab() {
 /** Capitalise an order status for display ("paid" → "Paid"). */
 function labelFor(status: string): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+/**
+ * Inline colour override for the status pill. Cancelled + refunded read
+ * as red; everything else falls through to the existing `pill` CSS
+ * class. Inline so it works even where the stylesheet lacks a variant.
+ */
+function pillStyle(status: string): React.CSSProperties | undefined {
+  if (status === "cancelled" || status === "refunded") {
+    return {
+      background: "#fbe3e3",
+      color: "#b3261e",
+    };
+  }
+  return undefined;
 }
 
 function buildSubtitle(

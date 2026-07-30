@@ -158,19 +158,26 @@ export interface MappableOrder {
   quantity: number;
   total_amount: number;
   payment_method: string;
-  status: string;
+  /** Raw order status from the API, when available (e.g. "cancelled",
+   *  "refunded", "completed"). Preferred over the amount heuristic. */
+  status?: string;
 }
 
 function mapOrderStatus(
   order: Pick<MappableOrder, "payment_method" | "total_amount" | "status">,
 ): OrderStatus {
-  if (order.payment_method === "admin") return "paid";
-  if (order.total_amount > 0) {
-    if (order.status === "completed") return "paid";
-    return "pending";
-  };
+  // 1. Real status always wins. A cancelled or refunded order stays
+  //    cancelled/refunded regardless of its amount — otherwise a £0
+  //    cancelled order would be mislabelled "free" and look actionable.
+  const raw = (order.status ?? "").toLowerCase();
+  if (raw === "cancelled") return "cancelled";
+  if (raw === "refunded") return "refunded";
+  if (raw === "pending" || raw === "processing") return "pending";
+
+  // 2. Otherwise (completed / paid / admin), derive the label from the
+  //    amount: £0 reads as "free", anything above as "paid".
   if (order.total_amount === 0) return "free";
-  return "pending";
+  return "paid";
 }
 
 export function mapOrder(o: MappableOrder): Order {

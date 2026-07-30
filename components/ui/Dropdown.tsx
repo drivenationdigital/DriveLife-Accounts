@@ -56,7 +56,7 @@ export function Dropdown({
 
   const value = useMemo<DropdownContextValue>(
     () => ({ open, toggle, close, containerRef }),
-    [open, toggle, close]
+    [open, toggle, close],
   );
 
   return (
@@ -116,31 +116,56 @@ export function DropdownItem({
   children,
   onClick,
   danger,
+  disabled,
   as = "button",
   href,
 }: {
   children: ReactNode;
   onClick?: () => void;
   danger?: boolean;
+  disabled?: boolean;
   as?: "button" | "a";
   href?: string;
 }) {
   const { close } = useDropdown();
   const handle = (e: MouseEvent) => {
+    if (disabled) {
+      e.preventDefault();
+      return;
+    }
     if (as === "button") e.preventDefault();
     onClick?.();
     close();
   };
-  const className = cx("dropdown-menu-item", danger && "danger");
+  const className = cx(
+    "dropdown-menu-item",
+    danger && "danger",
+    disabled && "disabled",
+  );
+  const disabledStyle = disabled
+    ? { opacity: 0.45, cursor: "not-allowed", pointerEvents: "none" as const }
+    : undefined;
   if (as === "a") {
     return (
-      <a href={href ?? "#"} className={className} onClick={handle}>
+      <a
+        href={disabled ? undefined : (href ?? "#")}
+        className={className}
+        onClick={handle}
+        aria-disabled={disabled || undefined}
+        style={disabledStyle}
+      >
         {children}
       </a>
     );
   }
   return (
-    <button type="button" className={className} onClick={handle}>
+    <button
+      type="button"
+      className={className}
+      onClick={handle}
+      disabled={disabled}
+      style={disabledStyle}
+    >
       {children}
     </button>
   );

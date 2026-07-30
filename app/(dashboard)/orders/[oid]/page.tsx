@@ -1,7 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useOrderDetail, type OrderDetailItem } from "@/lib/orderDetail";
+import {
+  useUpdateLineItemMeta,
+  useResendOrder,
+  useCancelOrder,
+} from "@/lib/orderActions";
+import { useToast } from "@/context/ToastContext";
+import { useConfirm } from "@/context/ConfirmContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
 // shared helper; tweak to match your palette.
@@ -29,6 +37,44 @@ export default function OrderPage() {
   const oid = params?.oid;
 
   const { data: order, isLoading, error } = useOrderDetail(oid);
+
+  const resend = useResendOrder();
+  const cancelOrder = useCancelOrder();
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  const handleResend = () => {
+    if (!oid || resend.isPending) return;
+    resend.mutate(
+      { oid },
+      {
+        onSuccess: () => toast.success("Confirmation email re-sent."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't resend."),
+      },
+    );
+  };
+
+  const handleCancel = async () => {
+    if (!oid) return;
+    const ok = await confirm({
+      title: "Cancel this order?",
+      message:
+        "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
+      confirmLabel: "Cancel order",
+      cancelLabel: "Keep order",
+      danger: true,
+    });
+    if (!ok) return;
+    cancelOrder.mutate(
+      { oid },
+      {
+        onSuccess: () => toast.success("Order cancelled."),
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't cancel."),
+      },
+    );
+  };
 
   return (
     <div className="order-view">
@@ -85,21 +131,28 @@ export default function OrderPage() {
                   to come — hide them once it's finished. Download stays
                   available so past tickets remain retrievable. */}
               {order.can_resend && (
-                <button type="button" className="order-btn order-btn-gold">
-                  Resend Tickets
+                <button
+                  type="button"
+                  className="order-btn order-btn-gold"
+                  onClick={handleResend}
+                  disabled={resend.isPending}
+                >
+                  {resend.isPending ? "Sending…" : "Resend Tickets"}
                 </button>
               )}
               {order.can_cancel && (
                 <button
                   type="button"
                   className="order-btn order-btn-gold-outline"
+                  onClick={handleCancel}
+                  disabled={cancelOrder.isPending}
                 >
-                  Cancel
+                  {cancelOrder.isPending ? "Cancelling…" : "Cancel"}
                 </button>
               )}
             </div>
             {order.is_expired && (
-              <p className="order-expired-note">
+              <p className="order-expired-note mt-2">
                 This event has ended — tickets can no longer be resent or
                 cancelled.
               </p>
@@ -112,6 +165,7 @@ export default function OrderPage() {
               <TicketCard
                 key={item.line_id}
                 item={item}
+                oid={oid}
                 orderId={order.id}
                 transactionId={order.transaction_id}
               />
@@ -141,13 +195,73 @@ export default function OrderPage() {
 
 function TicketCard({
   item,
+  oid,
   orderId,
   transactionId,
 }: {
   item: OrderDetailItem;
+  oid: string;
   orderId: number;
   transactionId: string;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState({
+    full_name: item.meta.full_name ?? "",
+    phone: item.meta.phone ?? "",
+    car_make: item.meta.car_make ?? "",
+    car_model: item.meta.car_model ?? "",
+    car_reg: item.meta.car_reg ?? "",
+    car_club: item.meta.car_club ?? "",
+  });
+  const updateMeta = useUpdateLineItemMeta();
+  const toast = useToast();
+
+  const startEdit = () => {
+    // Seed the form from current values each time editing opens.
+    setForm({
+      full_name: item.meta.full_name ?? "",
+      phone: item.meta.phone ?? "",
+      car_make: item.meta.car_make ?? "",
+      car_model: item.meta.car_model ?? "",
+      car_reg: item.meta.car_reg ?? "",
+      car_club: item.meta.car_club ?? "",
+    });
+    setEditing(true);
+  };
+
+  const save = () => {
+    updateMeta.mutate(
+      {
+        oid,
+        line_id: item.line_id,
+        meta: { full_name: form.full_name, phone: form.phone },
+        car_details: {
+          car_make: form.car_make,
+          car_model: form.car_model,
+          car_reg: form.car_reg,
+          car_club: form.car_club,
+        },
+      },
+      {
+        onSuccess: () => {
+          setEditing(false);
+          toast.success("Ticket details updated.");
+        },
+        onError: (e) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't save."),
+      },
+    );
+  };
+
+  const field = (key: keyof typeof form, placeholder: string) => (
+    <input
+      type="text"
+      value={form[key]}
+      placeholder={placeholder}
+      onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+      style={metaInputStyle}
+    />
+  );
   const metaRows: Array<[string, string | undefined]> = [
     ["Full Name", item.meta.full_name],
     ["Phone Number", item.meta.phone],
@@ -164,8 +278,8 @@ function TicketCard({
         <h2 className="ticket-card-title" style={ticketTitleStyle}>
           🎟 Ticket #{item.ticket_number}
         </h2>
-        <hr />
-        <p className="ticket-event">
+        <hr style={hrStyle} />
+        <p className="ticket-event" style={{ lineHeight: 1.9, margin: 0 }}>
           <strong>{item.event_title}</strong>
           <br />
           <b>Event Date:</b> {item.event_date || "—"}
@@ -173,20 +287,44 @@ function TicketCard({
           <b>Event Time:</b> {item.event_time || "—"}
         </p>
 
-        {hasMeta && (
-          <div className="ticket-meta">
-            {metaRows.map(([label, value]) =>
-              value ? (
-                <p key={label}>
-                  <b>{label}:</b> {value}
-                </p>
-              ) : null,
+        {editing ? (
+          <div className="ticket-meta-edit" style={{ margin: "12px 0" }}>
+            {field("full_name", "Meta name")}
+            {field("phone", "Meta phone")}
+            {field("car_make", "Car make")}
+            {field("car_model", "Car model")}
+            {field("car_reg", "Car reg")}
+            {field("car_club", "Car club")}
+            {updateMeta.isError && (
+              <p
+                style={{
+                  color: "var(--danger, #c0492f)",
+                  fontSize: 13,
+                  marginTop: 6,
+                }}
+              >
+                {updateMeta.error instanceof Error
+                  ? updateMeta.error.message
+                  : "Couldn't save."}
+              </p>
             )}
           </div>
+        ) : (
+          hasMeta && (
+            <div className="ticket-meta" style={{ lineHeight: 1.9 }}>
+              {metaRows.map(([label, value]) =>
+                value ? (
+                  <p key={label} style={{ margin: "2px 0" }}>
+                    <b>{label}:</b> {value}
+                  </p>
+                ) : null,
+              )}
+            </div>
+          )
         )}
 
-        <hr />
-        <div className="ticket-product">
+        <hr style={hrStyle} />
+        <div className="ticket-product" style={{ lineHeight: 1.9 }}>
           <strong>1 × {item.product_title}</strong>
           <br />
           <b>Order</b>: #{orderId}
@@ -194,7 +332,10 @@ function TicketCard({
           <b>Transaction ID</b>: #{transactionId}
         </div>
 
-        <div className="ticket-price">
+        <div
+          className="ticket-price"
+          style={{ lineHeight: 1.8, marginTop: 14 }}
+        >
           {item.price.has_discount ? (
             <>
               <strong>Ticket Price: {item.price.subtotal}</strong>
@@ -227,6 +368,31 @@ function TicketCard({
         >
           Download ticket
         </a>
+
+        {editing ? (
+          <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+            <button
+              type="button"
+              onClick={save}
+              disabled={updateMeta.isPending}
+              style={ticketSaveStyle}
+            >
+              {updateMeta.isPending ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={updateMeta.isPending}
+              style={ticketCancelStyle}
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <button type="button" onClick={startEdit} style={ticketEditStyle}>
+            Edit
+          </button>
+        )}
       </div>
     </div>
   );
@@ -240,15 +406,21 @@ function TicketCard({
 
 const ticketCardStyle: React.CSSProperties = {
   display: "flex",
-  gap: 24,
+  gap: 32,
   flexWrap: "wrap",
   alignItems: "flex-start",
   background: "#fff",
   border: "1px solid #ecebe6",
   borderRadius: 12,
-  padding: 20,
-  marginBottom: 16,
+  padding: 28,
+  marginBottom: 20,
   boxShadow: "0 1px 3px rgba(31,29,24,.05)",
+};
+
+const hrStyle: React.CSSProperties = {
+  border: "none",
+  borderTop: "1px solid #ecebe6",
+  margin: "16px 0",
 };
 
 const ticketMainStyle: React.CSSProperties = {
@@ -290,6 +462,57 @@ const ticketDownloadStyle: React.CSSProperties = {
   borderRadius: 8,
   textDecoration: "none",
   textAlign: "center",
+};
+
+const ticketEditStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  width: 140,
+  marginTop: 8,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#fff",
+  background: "var(--gold-deep, #bd7420)",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+};
+
+const ticketSaveStyle: React.CSSProperties = {
+  flex: 1,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#fff",
+  background: "var(--gold-deep, #bd7420)",
+  border: "none",
+  borderRadius: 8,
+  cursor: "pointer",
+};
+
+const ticketCancelStyle: React.CSSProperties = {
+  flex: 1,
+  padding: "9px 12px",
+  fontSize: 13,
+  fontWeight: 600,
+  color: "var(--ink, #1f1d18)",
+  background: "#fff",
+  border: "1px solid #ecebe6",
+  borderRadius: 8,
+  cursor: "pointer",
+};
+
+const metaInputStyle: React.CSSProperties = {
+  width: "100%",
+  padding: "9px 12px",
+  marginBottom: 8,
+  fontSize: 14,
+  border: "1px solid #ecebe6",
+  borderRadius: 8,
+  background: "var(--ink-50, #faf9f7)",
+  boxSizing: "border-box",
 };
 
 // ============================================================
