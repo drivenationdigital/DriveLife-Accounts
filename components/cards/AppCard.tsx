@@ -3,8 +3,15 @@
 import { useUI } from "@/context/UIContext";
 import { CarEventsEyeIcon, TrashIcon } from "@/components/ui/Icons";
 import type { Club, Trader, DetailPayload } from "@/context/types";
-  import { useConfirm } from "@/context/ConfirmContext";
-
+import {
+  useApproveClubApplication,
+  useRejectClubApplication,
+} from "@/lib/clubApplications";
+import {
+  useApproveTraderApplication,
+  useRejectTraderApplication,
+} from "@/lib/traderApplications";
+import { useToast } from "@/context/ToastContext";
 
 type AppCardProps =
   | { kind: "club"; entity: Club }
@@ -12,7 +19,17 @@ type AppCardProps =
 
 export function AppCard(props: AppCardProps) {
   const { openDetail } = useUI();
-   const confirm = useConfirm();
+  const toast = useToast();
+
+  // Approve / reject mutations — the pair is picked by kind below.
+  const clubApprove = useApproveClubApplication();
+  const clubReject = useRejectClubApplication();
+  const traderApprove = useApproveTraderApplication();
+  const traderReject = useRejectTraderApplication();
+
+  const approver = props.kind === "club" ? clubApprove : traderApprove;
+  const rejecter = props.kind === "club" ? clubReject : traderReject;
+  const isBusy = approver.isPending || rejecter.isPending;
 
   const payload: DetailPayload =
     props.kind === "club"
@@ -24,6 +41,28 @@ export function AppCard(props: AppCardProps) {
   const stopThen = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
+  };
+
+  const handleApprove = () => {
+    approver.mutate(
+      { applicationId: Number(props.entity.id) },
+      {
+        onSuccess: () => toast.success("Application approved."),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't approve."),
+      },
+    );
+  };
+
+  const handleReject = () => {
+    rejecter.mutate(
+      { applicationId: Number(props.entity.id) },
+      {
+        onSuccess: () => toast.success("Application rejected."),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't reject."),
+      },
+    );
   };
 
   const isPending = props.entity.status === "pending";
@@ -39,7 +78,13 @@ export function AppCard(props: AppCardProps) {
           <>
             <strong>Members attending:</strong> {c.membersAttending}
             <br />
-            <strong>{c.status === "pending" ? "Applied:" : c.status === "approved" ? "Approved:" : "Rejected:"}</strong>{" "}
+            <strong>
+              {c.status === "pending"
+                ? "Applied:"
+                : c.status === "approved"
+                  ? "Approved:"
+                  : "Rejected:"}
+            </strong>{" "}
             {c.updatedLabel.replace(/^(Applied|Approved|Rejected)\s*/i, "")}
             <br />
             <strong>Contact:</strong> {c.contactName}, {c.contactEmail}
@@ -103,20 +148,18 @@ export function AppCard(props: AppCardProps) {
             <button
               type="button"
               className="btn btn-primary"
-              onClick={stopThen(() =>
-                console.log("approve", props.kind, props.entity.id),
-              )}
+              disabled={isBusy}
+              onClick={stopThen(handleApprove)}
             >
-              Approve
+              {approver.isPending ? "Approving…" : "Approve"}
             </button>
             <button
               type="button"
               className="btn btn-secondary btn-danger-outline"
-              onClick={stopThen(() =>
-                console.log("reject", props.kind, props.entity.id),
-              )}
+              disabled={isBusy}
+              onClick={stopThen(handleReject)}
             >
-              Reject
+              {rejecter.isPending ? "Rejecting…" : "Reject"}
             </button>
           </>
         ) : (
@@ -129,19 +172,17 @@ export function AppCard(props: AppCardProps) {
             >
               <CarEventsEyeIcon /> Details
             </button>
+            {/* Delete has no backend endpoint yet — surface that
+                honestly instead of a confirm dialog that silently does
+                nothing. Wire to a useDelete*Application mutation once the
+                endpoint exists. */}
             <button
               type="button"
               className="btn btn-secondary btn-delete"
-              title="Delete"
-              onClick={stopThen(async () => {
-                const ok = await confirm({
-                  title: "Delete this application?",
-                  message: "This action cannot be undone.",
-                  confirmLabel: "Delete",
-                  danger: true,
-                });
-                if (ok) console.log("delete", props.kind, props.entity.id);
-              })}
+              title="Delete (coming soon)"
+              onClick={stopThen(() =>
+                toast.info("Deleting applications isn't available yet."),
+              )}
             >
               <TrashIcon />
             </button>

@@ -6,8 +6,13 @@
  * otherwise my role.
  */
 
-import { useQuery, keepPreviousData } from "@tanstack/react-query";
-import { apiGet } from "./apiClient";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  keepPreviousData,
+} from "@tanstack/react-query";
+import { apiGet, apiDelete } from "./apiClient";
 
 export type ClubRole = "owner" | "admin" | "member";
 
@@ -48,5 +53,31 @@ export function useMyClubs(page: number, perPage = 12) {
       apiGet<MyClubsResponse>(`/my-clubs?page=${page}&per_page=${perPage}`),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
+  });
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────
+
+export interface DeleteClubResponse {
+  success: true;
+  club_id: number;
+  deleted: true;
+}
+
+/**
+ * Delete (trash) a club. Owner-only server-side. Invalidates the clubs
+ * list so the card disappears, and drops any cached edit query.
+ */
+export function useDeleteClub() {
+  const qc = useQueryClient();
+  return useMutation<DeleteClubResponse, Error, { cid: string }>({
+    mutationFn: ({ cid }) =>
+      apiDelete<DeleteClubResponse>(
+        `/club-delete?cid=${encodeURIComponent(cid)}`,
+      ),
+    onSuccess: (_d, { cid }) => {
+      qc.invalidateQueries({ queryKey: ["my-clubs"] });
+      qc.removeQueries({ queryKey: ["club-edit", cid] });
+    },
   });
 }

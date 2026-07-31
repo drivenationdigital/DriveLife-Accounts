@@ -26,6 +26,9 @@ import {
 } from "@/lib/clubEditSteps";
 import { defaultClubTerms } from "@/lib/clubEditTypes";
 import { useClubEditQuery } from "@/lib/clubEdit";
+import { useDeleteClub } from "@/lib/myClubs";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 
 /**
  * Edit Club.
@@ -90,7 +93,7 @@ function EditClubEditor({ clubId }: { clubId: string }) {
         <div className="lg:flex-1 lg:min-w-0">
           <ClubEditorTabBar />
           <main className="max-w-3xl mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-32 sm:pb-16">
-            <ActivePanel />
+            <ActivePanel clubId={clubId} />
           </main>
         </div>
       </div>
@@ -107,7 +110,7 @@ function EditClubEditor({ clubId }: { clubId: string }) {
  * header and footer are rendered once here off the step config instead —
  * same markup, less duplication across seven files.
  */
-function ActivePanel() {
+function ActivePanel({ clubId }: { clubId: string }) {
   const searchParams = useSearchParams();
   const step = getClubStep(searchParams.get("step") ?? DEFAULT_CLUB_STEP);
 
@@ -128,7 +131,7 @@ function ActivePanel() {
       {step.key === "admins" && <ClubAdministratorsPanel />}
       {step.key === "publish" && <PublishPanel />}
 
-      <PanelFooter stepKey={step.key} />
+      <PanelFooter stepKey={step.key} clubId={clubId} />
     </section>
   );
 }
@@ -137,12 +140,48 @@ function ActivePanel() {
  * Desktop CTA row. Mobile uses the sticky bottom bar instead, so this is
  * hidden below sm — matching the event panels' footer exactly.
  */
-function PanelFooter({ stepKey }: { stepKey: ClubEditStepKey }) {
+function PanelFooter({
+  stepKey,
+  clubId,
+}: {
+  stepKey: ClubEditStepKey;
+  clubId: string;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { isDirty } = useClubEdit();
   const { save, isSaving, error } = useClubSave();
+
+  // ── Delete ──────────────────────────────────────────────────────
+  const confirm = useConfirm();
+  const toast = useToast();
+  const deleteClub = useDeleteClub();
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: "Delete this club?",
+      message:
+        "The club will be removed from your clubs. This can be restored from wp-admin if needed.",
+      confirmLabel: "Delete Club",
+      cancelLabel: "Keep Club",
+      danger: true,
+    });
+    if (!ok) return;
+    deleteClub.mutate(
+      { cid: clubId },
+      {
+        onSuccess: () => {
+          toast.success("Club deleted.");
+          router.push("/clubs");
+        },
+        onError: (e: unknown) =>
+          toast.error(
+            e instanceof Error ? e.message : "Couldn't delete the club.",
+          ),
+      },
+    );
+  };
 
   const { prev, next } = adjacentClubSteps(stepKey);
 
@@ -202,9 +241,11 @@ function PanelFooter({ stepKey }: { stepKey: ClubEditStepKey }) {
         <div className="mt-6 text-center sm:text-right">
           <button
             type="button"
-            className="text-xs font-semibold uppercase tracking-wide text-ink-500 underline underline-offset-4 hover:text-red-500"
+            onClick={handleDelete}
+            disabled={deleteClub.isPending}
+            className="text-xs font-semibold uppercase tracking-wide text-ink-500 underline underline-offset-4 hover:text-red-500 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            Delete Club
+            {deleteClub.isPending ? "Deleting…" : "Delete Club"}
           </button>
         </div>
       )}
