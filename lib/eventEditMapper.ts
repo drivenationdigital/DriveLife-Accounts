@@ -61,6 +61,7 @@ import type {
 export type HydratedEventState = Pick<
   EventCreateState,
   | "encryptedId"
+  | "postId"
   | "title"
   | "categoryIds"
   | "location"
@@ -111,6 +112,7 @@ export function mapEventEditResponse(
 ): HydratedEventState {
   return {
     encryptedId: response.encrypted_id,
+    postId: response.event_id ?? null,
 
     // ---- Basics -------------------------------------------------------
     title: response.basics.title,
@@ -523,7 +525,6 @@ function mapDiscount(row: ApiEventDiscount): Discount {
 
   return {
     id: row.ID as unknown as DiscountId,
-    discountGiven: row.discount_given ?? 0,
     code: row.coupon_code,
     kind: mapDiscountKind(row.discount_type),
     amount: parseFloat(row.discount_amount),
@@ -539,6 +540,7 @@ function mapDiscount(row: ApiEventDiscount): Discount {
     availableUntil: extractIsoDate(row.end_date),
     // Free-text "note" doesn't have a column in the legacy table.
     note: "",
+    discountGiven: row.discount_given ?? 0,
   };
 }
 

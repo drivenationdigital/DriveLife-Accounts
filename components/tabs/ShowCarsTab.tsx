@@ -6,6 +6,8 @@ import { ShowCarCard } from "@/components/cards/ShowCarCard";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { useShowCarApplications } from "@/lib/showCarApplications";
+import { useExportApplications } from "@/lib/exportApplications";
+import { useToast } from "@/context/ToastContext";
 import type { ShowCar, Ticket } from "@/context/types";
 
 /**
@@ -42,6 +44,20 @@ import type { ShowCar, Ticket } from "@/context/types";
 export function ShowCarsTab() {
   const { event, showCarTickets } = useEventData();
   const eid = event.encryptedId;
+
+  const exportApps = useExportApplications();
+  const toast = useToast();
+  const handleExport = () => {
+    if (exportApps.isPending) return;
+    exportApps.mutate(
+      { eid, type: "show_car" },
+      {
+        onSuccess: () => toast.success("Applications exported."),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Export failed."),
+      },
+    );
+  };
   // Applications live on a dedicated query — see useShowCarApplications.
   // Fall back to [] while loading or on error so the rest of the tab
   // (KPIs, category table, "no applications" empty state) still
@@ -193,8 +209,13 @@ export function ShowCarsTab() {
             </div>
           </div>
           {showCars.length > 0 && (
-            <button type="button" className="btn btn-secondary">
-              <DownloadIcon /> Export
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={handleExport}
+              disabled={exportApps.isPending}
+            >
+              <DownloadIcon /> {exportApps.isPending ? "Exporting…" : "Export"}
             </button>
           )}
         </div>
@@ -233,7 +254,9 @@ function CategoryRow({ ticket }: { ticket: Ticket }) {
   // Guard against 0 capacity so empty categories read 0% rather than
   // NaN%, and so the progress bar fill width collapses cleanly.
   const pct =
-    ticket.capacity > 0 ? Math.round((ticket.sold / ticket.capacity) * 100) : 0;
+    ticket.capacity > 0
+      ? Math.round((ticket.sold / ticket.capacity) * 100)
+      : 0;
   return (
     <tr>
       <td>

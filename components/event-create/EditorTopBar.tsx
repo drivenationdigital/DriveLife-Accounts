@@ -31,7 +31,8 @@ export function EditorTopBar() {
     if (isSaving) return;
     try {
       const res = await run({
-        overrideStatus: state.status === "scheduled" ? "scheduled" : "published",
+        overrideStatus:
+          state.status === "scheduled" ? "scheduled" : "published",
       });
       // Drafts stay in the editor; anything live/scheduled goes to the
       // event view. (post_status from the API: publish | future | draft.)
@@ -54,13 +55,18 @@ export function EditorTopBar() {
           className="flex items-center gap-2 text-ink-500 hover:text-ink-900 transition"
         >
           <i className="fa-solid fa-arrow-left text-sm" aria-hidden />
-          <span className="hidden sm:inline text-sm font-medium">Dashboard</span>
+          <span className="hidden sm:inline text-sm font-medium">
+            Dashboard
+          </span>
         </Link>
 
         {/* Vertical divider — only visible on tablets where both the back
             link and the title are showing. Hidden on lg+ since the title
             moves into the sidebar. */}
-        <div className="h-6 w-px bg-ink-200 hidden sm:block lg:hidden" aria-hidden />
+        <div
+          className="h-6 w-px bg-ink-200 hidden sm:block lg:hidden"
+          aria-hidden
+        />
 
         {/* Title block (mobile/tablet only). On phones we drop the
             "Edit event" eyebrow to save vertical space. */}
@@ -80,14 +86,23 @@ export function EditorTopBar() {
             Reflects the shared save mutation state. */}
         <SaveStatusPill phase={phase} />
 
-        {/* Preview button — sm+ (no value squeezing it onto a phone). */}
-        <button
-          type="button"
-          className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-ink-900 hover:bg-black rounded-lg transition"
-        >
-          <i className="fa-regular fa-eye" aria-hidden />
-          Preview
-        </button>
+        {/* Preview button — sm+ (no value squeezing it onto a phone).
+            Only shown once the event is saved and has a post id; opens
+            the WP preview URL. */}
+        {state.postId && (
+          <a
+            href={`${
+              process.env.NEXT_PUBLIC_CAREVENTS_URL ||
+              "https://www.carevents.com/uk"
+            }/?post_type=events&p=${state.postId}&preview=true`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hidden sm:inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-ink-900 hover:bg-black rounded-lg transition"
+          >
+            <i className="fa-regular fa-eye" aria-hidden />
+            Preview
+          </a>
+        )}
 
         {/* Publish — primary CTA. Label hides on phones, icon stays. */}
         <button
@@ -116,7 +131,11 @@ export function EditorTopBar() {
  * mutation. Idle (before the first save) reads "Not saved yet" so the
  * pill never claims a state that isn't true.
  */
-function SaveStatusPill({ phase }: { phase: "idle" | "saving" | "saved" | "error" }) {
+function SaveStatusPill({
+  phase,
+}: {
+  phase: "idle" | "saving" | "saved" | "error";
+}) {
   const config = {
     idle: { dot: "bg-ink-300", label: "Not saved yet", pulse: false },
     saving: { dot: "bg-amber-500", label: "Saving…", pulse: true },

@@ -375,6 +375,11 @@ export type EventCreateState = {
   // saved on the server yet.
   encryptedId: string | null;
 
+  // Raw WP post id of the saved event, when editing an existing event.
+  // null for a brand-new event with nothing saved yet. Used to build
+  // the topbar Preview link (WP preview URL), which only shows when set.
+  postId: number | null;
+
   // ---- Create-flow result ----
   // Who the event is hosted by, chosen from the "Hosted by" dropdown
   // under the title. Replaces the old three-card event-type step.
@@ -552,6 +557,7 @@ export type EventCreateState = {
 
 const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
+  postId: null,
   hostType: "me",
   hostId: null,
   hostName: "Me",

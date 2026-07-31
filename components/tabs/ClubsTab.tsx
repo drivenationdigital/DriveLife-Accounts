@@ -6,6 +6,8 @@ import { KpiCard } from "@/components/cards/KpiCard";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { CheckIcon, XIcon, DownloadIcon } from "@/components/ui/Icons";
 import { useClubApplications } from "@/lib/clubApplications";
+import { useExportApplications } from "@/lib/exportApplications";
+import { useToast } from "@/context/ToastContext";
 import type { Club } from "@/context/types";
 
 /**
@@ -21,6 +23,20 @@ export function ClubsTab() {
   const { event } = useEventData();
   const eid = event.encryptedId;
   const { data, isLoading, error } = useClubApplications(eid);
+
+  const exportApps = useExportApplications();
+  const toast = useToast();
+  const handleExport = () => {
+    if (exportApps.isPending) return;
+    exportApps.mutate(
+      { eid, type: "car_club" },
+      {
+        onSuccess: () => toast.success("Applications exported."),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Export failed."),
+      },
+    );
+  };
   const clubs = data?.clubs ?? [];
   const sales = data?.sales;
 
@@ -79,9 +95,14 @@ export function ClubsTab() {
               All clubs organised by status
             </div>
           </div>
-          <button type="button" className="btn btn-secondary">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={exportApps.isPending}
+          >
             <DownloadIcon />
-            Export
+            {exportApps.isPending ? "Exporting…" : "Export"}
           </button>
         </div>
 

@@ -8,6 +8,16 @@ import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { useTraderApplications } from "@/lib/traderApplications";
 import type { Trader } from "@/context/types";
 
+/**
+ * Public trader application link for an event. Route is
+ * /apply/trader/[eventEid] (singular "trader" — the plural "traders"
+ * 404s). Built on the current origin so it works in any environment.
+ */
+function traderApplyUrl(eid: string): string {
+  const base = typeof window !== "undefined" ? window.location.origin : "";
+  return `${base}/apply/trader/${encodeURIComponent(eid)}`;
+}
+
 function TraderGroup({
   title,
   subtitle,
@@ -81,7 +91,13 @@ export function TradersTab() {
         subtitle={`${approved.length} confirmed for event`}
         traders={approved}
         action={
-          <button type="button" className="btn btn-secondary">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() =>
+              window.open(traderApplyUrl(eid), "_blank", "noopener,noreferrer")
+            }
+          >
             <PlusIcon /> Add Trader
           </button>
         }

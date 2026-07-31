@@ -4,6 +4,8 @@ import { useUI } from "@/context/UIContext";
 import { EyeIcon, TrashIcon } from "@/components/ui/Icons";
 import type { ShowCar } from "@/context/types";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
+import { useDeleteShowCarApplication } from "@/lib/showCarApplications";
 
 interface ShowCarCardProps {
   car: ShowCar;
@@ -29,13 +31,33 @@ interface ShowCarCardProps {
  */
 export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
   const { openDetail } = useUI();
-const confirm = useConfirm();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const deleteApp = useDeleteShowCarApplication();
 
   const openView = () => openDetail({ type: "showcar", data: car });
 
   const stopThen = (fn: () => void) => (e: React.MouseEvent) => {
     e.stopPropagation();
     fn();
+  };
+
+  const handleDelete = async () => {
+    const ok = await confirm({
+      title: "Delete this application?",
+      message: "This action cannot be undone.",
+      confirmLabel: "Delete",
+      danger: true,
+    });
+    if (!ok) return;
+    deleteApp.mutate(
+      { applicationId: Number(car.id) },
+      {
+        onSuccess: () => toast.success("Application deleted."),
+        onError: (e: unknown) =>
+          toast.error(e instanceof Error ? e.message : "Couldn't delete."),
+      },
+    );
   };
 
   return (
@@ -91,15 +113,8 @@ const confirm = useConfirm();
               type="button"
               className="showcar-action-btn delete"
               title="Delete"
-              onClick={stopThen(async () => {
-                const ok = await confirm({
-                  title: "Delete this application?",
-                  message: "This action cannot be undone.",
-                  confirmLabel: "Delete",
-                  danger: true,
-                });
-                if (ok) console.log("delete", car.id);
-              })}
+              disabled={deleteApp.isPending}
+              onClick={stopThen(handleDelete)}
             >
               <TrashIcon />
             </button>

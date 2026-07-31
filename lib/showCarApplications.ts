@@ -77,6 +77,12 @@ export function useApproveShowCarApplication() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["event-show-car-applications"] });
+      // Confirmed Spaces by Category on the Show Cars tab reads from
+      // sales.show_car_tickets in the /event payload. Auto-confirming
+      // a free application mutates stock + stock_sold server-side, so
+      // we have to invalidate the /event query too or the table sits
+      // on stale values until the user hard-refreshes.
+      qc.invalidateQueries({ queryKey: ["event"] });
     },
   });
 }
@@ -91,6 +97,37 @@ export function useRejectShowCarApplication() {
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["event-show-car-applications"] });
+      // Same reasoning as approve: a reject from 'paid' restores
+      // stock on the ticket row, which the Confirmed Spaces table
+      // displays.
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}
+
+// ─── Delete ───────────────────────────────────────────────────────────
+
+export interface DeleteShowCarResponse {
+  success: true;
+  application_id: number;
+  deleted: true;
+}
+
+/**
+ * Permanently delete a show car application. Owner/admin-only server-
+ * side. Invalidates the applications list so the card disappears.
+ */
+export function useDeleteShowCarApplication() {
+  const qc = useQueryClient();
+  return useMutation<DeleteShowCarResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<DeleteShowCarResponse, { application_id: number }>(
+        "/event-show-car-application-delete",
+        { application_id: applicationId },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-show-car-applications"] });
+      qc.invalidateQueries({ queryKey: ["event"] });
     },
   });
 }
