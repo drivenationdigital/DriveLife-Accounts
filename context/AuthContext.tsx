@@ -19,6 +19,7 @@ import {
   writeUserClient,
 } from "@/lib/authCookies";
 import type { AuthUser, LoginParams, LoginResponse } from "@/lib/apiTypes";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -31,6 +32,7 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   // Hydrate synchronously from cookies. Lazy initialisers only run once, on
   // mount, so there's no cascading render and no SSR/CSR mismatch (cookies
   // aren't available on the server anyway — we return null there, then the
@@ -82,8 +84,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     clearTokenClient();
     setUser(null);
-    router.push("/login");
-  }, [router]);
+    queryClient.clear(); // wipe all cached account data
+    window.location.href = "/login"; // hard reload — NOT router.push
+  }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

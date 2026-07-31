@@ -116,8 +116,10 @@ function EventsContent() {
     }
   };
 
-  const activeCount = tab === "active" ? data?.pagination.total : undefined;
-  const pastCount = tab === "past" ? data?.pagination.total : undefined;
+  const settledTotal =
+    !isPlaceholderData && data ? data.pagination.total : undefined;
+  const activeCount = tab === "active" ? settledTotal : undefined;
+  const pastCount = tab === "past" ? settledTotal : undefined;
 
   const goToEvent = (ev: EventRecord) => {
     router.push(`/events/${ev.encrypted_id}`);
@@ -132,7 +134,9 @@ function EventsContent() {
       <div className="page-header">
         <div className="page-header-text">
           <h1 className="page-title">My Events</h1>
-          <p className="page-sub">Manage all the events you&apos;re organising.</p>
+          <p className="page-sub">
+            Manage all the events you&apos;re organising.
+          </p>
         </div>
         <div className="page-header-actions">
           <button
@@ -217,9 +221,7 @@ function EventsContent() {
 
       {data && data.pagination.total === 0 && (
         <EmptyState
-          title={
-            urlSearch ? "No matches" : data.empty_state?.title
-          }
+          title={urlSearch ? "No matches" : data.empty_state?.title}
           content={
             urlSearch
               ? `No events match "${urlSearch}".`
