@@ -78,7 +78,7 @@ export function UserMenu() {
         <DropdownItem as="a" href="/settings">
           <SettingsIcon /> Settings
         </DropdownItem>
-        <DropdownItem as="a" href="#">
+        <DropdownItem as="a" href="mailto:info@carevents.com">
           <HelpIcon /> Help &amp; Support
         </DropdownItem>
         <DropdownItem danger onClick={signOut}>

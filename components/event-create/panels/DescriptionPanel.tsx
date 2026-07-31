@@ -250,7 +250,7 @@ export function DescriptionPanel() {
           >
             About this event
           </label>
-          <button
+          {/* <button
             type="button"
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gold-700 bg-gold-50 hover:bg-gold-100 border border-gold-200 rounded-lg transition shrink-0"
             // Decorative for now — AI generation comes later.
@@ -259,7 +259,7 @@ export function DescriptionPanel() {
           >
             <span className="ai-sparkle">✨</span>
             Generate with AI
-          </button>
+          </button> */}
         </div>
 
         {/* WYSIWYG editor for the description. The shared

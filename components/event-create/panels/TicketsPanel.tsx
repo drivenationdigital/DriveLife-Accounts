@@ -560,7 +560,6 @@ export function TicketsPanel() {
         <button
           type="button"
           onClick={() => {
-            console.log(state);
             if (next) goTo(next);
           }}
           className="px-5 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition inline-flex items-center gap-2"

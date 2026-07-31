@@ -28,9 +28,6 @@ export function OverviewTab() {
   const pendingClubs = clubs.filter((c) => c.status === "pending");
   const pendingTraders = traders.filter((t) => t.status === "pending");
 
-  console.log(features);
-  
-
   // Needs Attention counts come from the API feature counts (the
   // showCars/club/traders arrays aren't loaded on the overview, so
   // filtering them would always read 0). counts.pending is the real
@@ -102,9 +99,9 @@ export function OverviewTab() {
             <div>
               <div className="section-title">Tickets Breakdown</div>
             </div>
-            <a href="#" className="section-link">
+            {/* <a href="#" className="section-link">
               Manage tickets →
-            </a>
+            </a> */}
           </div>
           {/* Header stays fixed; only the rows scroll. ~6 rows then
               scroll (≈76px each). Inline so it overrides the shared

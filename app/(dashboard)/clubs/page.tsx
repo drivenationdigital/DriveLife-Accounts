@@ -29,7 +29,7 @@ export default function MyClubsPage() {
     <div className="my-clubs">
       <header className="mc-header">
         <h1 className="mc-title">My Clubs</h1>
-        <Link href="/clubs/create" className="mc-create-btn">
+        <Link href="/club/create" className="mc-create-btn">
           + Create Club
         </Link>
       </header>

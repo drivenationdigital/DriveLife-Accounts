@@ -70,11 +70,14 @@ export function Sidebar() {
     pathname === "/my-tickets" || pathname.startsWith("/my-tickets/");
   const isSavedEvents =
     pathname === "/saved-events" || pathname.startsWith("/saved-events/");
-  const isClubs = pathname === "/clubs" || pathname.startsWith("/clubs/");
-  const isVenues = pathname === "/venues" || pathname.startsWith("/venues/");
+  const isClubs =
+    pathname === "/clubs" || pathname.startsWith("/clubs/");
+  const isVenues =
+    pathname === "/venues" || pathname.startsWith("/venues/");
   const isSettings =
     pathname === "/settings" || pathname.startsWith("/settings/");
-  const isEvents = pathname === "/events" || pathname.startsWith("/events/");
+  const isEvents =
+    pathname === "/events" || pathname.startsWith("/events/");
   const isAccount = pathname === "/account";
 
   return (
@@ -112,7 +115,6 @@ export function Sidebar() {
         <NavItem
           icon={<CalendarIcon />}
           label="My Events"
-          badge="12"
           href="/events"
           active={isEvents}
           onClick={() => handleClick("")}
