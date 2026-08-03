@@ -775,7 +775,11 @@
 .event-url a:hover {
   text-decoration: underline;
 }
-.copy-btn {
+/* Scoped to .event-url on purpose - this is the small icon-only copy
+ * button that sits inside the URL pill. The editor has its own,
+ * label-bearing .copy-btn (ApplicationLinksCard); leaving this rule
+ * unscoped forced that one to 24x24 and clipped its "Copy" text. */
+.event-url .copy-btn {
   width: 24px;
   height: 24px;
   border-radius: 5px;
@@ -785,11 +789,11 @@
   justify-content: center;
   flex-shrink: 0;
 }
-.copy-btn:hover {
+.event-url .copy-btn:hover {
   color: var(--ink);
   background: var(--surface);
 }
-.copy-btn svg {
+.event-url .copy-btn svg {
   width: 13px;
   height: 13px;
 }
@@ -3878,3 +3882,90 @@
 .embed-shell [class*="min-h-[100vh]"] {
   min-height: 0;
 }
+
+.spaces-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #9a9a9a;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover { background: #f0f0f0; color: #0b0b0b; }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.icon-btn.confirm { color: #1e7b3c; }
+.icon-btn.confirm:hover { background: #e7f6ec; }
+.icon-btn.cancel:hover { background: #fdf0f0; color: #b33; }
+
+.spaces-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.spaces-input {
+  width: 64px;
+  padding: 3px 8px;
+  font-size: 13px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  outline: none;
+}
+.spaces-input:focus { border-color: #c4a062; }
+/* Hide number-input spinners — they fight the compact layout */
+.spaces-input::-webkit-outer-spin-button,
+.spaces-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.spaces-input[type="number"] { -moz-appearance: textfield; }
+
+.field-error {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: #b33;
+  font-weight: 600;
+}
+
+.spinner-xs {
+  width: 11px;
+  height: 11px;
+  border: 2px solid #ccc;
+  border-top-color: #1e7b3c;
+  border-radius: 50%;
+  display: inline-block;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.icon-btn {
+  /* Reset everything a global `button` rule might impose */
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  color: #9a9a9a;
+  cursor: pointer;
+  font-size: 11px;
+  line-height: 1;
+  transition: background 0.12s, color 0.12s;
+}
+.icon-btn:hover { background: #eee; color: #0b0b0b; }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.icon-btn.confirm { color: #1e7b3c; }
+.icon-btn.confirm:hover { background: #e7f6ec; }
+.icon-btn.cancel:hover { background: #fdf0f0; color: #b33; }

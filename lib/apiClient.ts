@@ -131,9 +131,6 @@ export async function apiPost<TResponse, TBody = unknown>(
     body: JSON.stringify(body ?? {}),
   });
 
-  console.log(res.body);
-  
-
   const parsed = await safeParseJson(res);
 
   if (res.status === 401 && !opts.skipAuthRedirect) {

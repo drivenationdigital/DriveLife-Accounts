@@ -89,7 +89,7 @@ export function EditorTopBar() {
         {/* Preview button - sm+ (no value squeezing it onto a phone).
             Only shown once the event is saved and has a post id; opens
             the WP preview URL. */}
-        {state.postId && (
+        {/* {state.postId && (
           <a
             href={`${
               process.env.NEXT_PUBLIC_CAREVENTS_URL ||
@@ -102,7 +102,7 @@ export function EditorTopBar() {
             <i className="fa-regular fa-eye" aria-hidden />
             Preview
           </a>
-        )}
+        )} */}
 
         {/* Publish - primary CTA. Label hides on phones, icon stays. */}
         <button

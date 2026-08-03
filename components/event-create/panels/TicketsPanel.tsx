@@ -571,94 +571,95 @@ export function TicketsPanel() {
               </button>
             </div>
           </div>
+          {/* ---- Ticket presentation + policy ----
+              CarEvents ticketing only. The logo, extra info, terms and
+              on-the-gate details all describe tickets we issue, so
+              there's nothing for them to attach to in the external /
+              free modes. */}
+          <TicketLogoField />
+
+          <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
+            <label className="block text-sm font-semibold text-ink-900 mb-2">
+              Additional ticket information
+            </label>
+            <p className="text-xs text-ink-500 mb-3">
+              Shown alongside the tickets on your event page and repeated on
+              the ticket itself. Arrival times, what&apos;s included, parking,
+              anything buyers should read before booking.
+            </p>
+            <EditorTextarea
+              value={state.ticketInfo}
+              onChange={(value) =>
+                dispatch({ type: "SET_FIELD", key: "ticketInfo", value })
+              }
+              placeholder="Gates open at 9am. Entry includes parking for one vehicle. Under 12s go free."
+            />
+          </div>
+
+          <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
+            <label className="block text-sm font-semibold text-ink-900 mb-2">
+              Terms &amp; conditions / refund policy
+            </label>
+            <p className="text-xs text-ink-500 mb-3">
+              Buyers agree to this at checkout, so be specific about refunds,
+              transfers and what happens if the event is cancelled.
+            </p>
+            <EditorTextarea
+              value={state.ticketTerms}
+              onChange={(value) =>
+                dispatch({ type: "SET_FIELD", key: "ticketTerms", value })
+              }
+              placeholder="Tickets are non-refundable within 14 days of the event. Tickets may be transferred to another attendee at any time by contacting us."
+            />
+          </div>
+
+          {/* Tickets on the gate - tickbox reveals the details textarea. */}
+          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold text-ink-900">
+                  Tickets on the gate
+                </p>
+                <p className="text-xs text-ink-500 mt-0.5">
+                  Tickets will also be available to buy on the day
+                </p>
+              </div>
+              <span className="switch">
+                <input
+                  type="checkbox"
+                  checked={state.ticketsOnGate}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_FIELD",
+                      key: "ticketsOnGate",
+                      value: e.target.checked,
+                    })
+                  }
+                />
+                <span className="slider" />
+              </span>
+            </label>
+            {state.ticketsOnGate && (
+              <div className="mt-4 pt-4 border-t border-ink-200">
+                <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+                  On the gate details
+                </label>
+                <EditorTextarea
+                  value={state.ticketsOnGateInfo}
+                  onChange={(value) =>
+                    dispatch({
+                      type: "SET_FIELD",
+                      key: "ticketsOnGateInfo",
+                      value,
+                    })
+                  }
+                  placeholder="Cash and card accepted on the gate. £15 per adult, under 12s free. Gate prices are higher than advance tickets."
+                />
+              </div>
+            )}
+          </div>
         </>
       )}
-
-      {/* ---- Ticket presentation + policy ----
-          Applies to every ticketing mode, so it sits outside the
-          `ce`-only block above. */}
-      <TicketLogoField />
-
-      <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
-        <label className="block text-sm font-semibold text-ink-900 mb-2">
-          Additional ticket information
-        </label>
-        <p className="text-xs text-ink-500 mb-3">
-          Shown alongside the tickets on your event page and repeated on the
-          ticket itself. Arrival times, what&apos;s included, parking, anything
-          buyers should read before booking.
-        </p>
-        <EditorTextarea
-          value={state.ticketInfo}
-          onChange={(value) =>
-            dispatch({ type: "SET_FIELD", key: "ticketInfo", value })
-          }
-          placeholder="Gates open at 9am. Entry includes parking for one vehicle. Under 12s go free."
-        />
-      </div>
-
-      <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
-        <label className="block text-sm font-semibold text-ink-900 mb-2">
-          Terms &amp; conditions / refund policy
-        </label>
-        <p className="text-xs text-ink-500 mb-3">
-          Buyers agree to this at checkout, so be specific about refunds,
-          transfers and what happens if the event is cancelled.
-        </p>
-        <EditorTextarea
-          value={state.ticketTerms}
-          onChange={(value) =>
-            dispatch({ type: "SET_FIELD", key: "ticketTerms", value })
-          }
-          placeholder="Tickets are non-refundable within 14 days of the event. Tickets may be transferred to another attendee at any time by contacting us."
-        />
-      </div>
-
-      {/* Tickets on the gate - tickbox reveals the details textarea. */}
-      <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
-        <label className="flex items-center justify-between gap-3 cursor-pointer">
-          <div>
-            <p className="text-sm font-semibold text-ink-900">
-              Tickets on the gate
-            </p>
-            <p className="text-xs text-ink-500 mt-0.5">
-              Tickets will also be available to buy on the day
-            </p>
-          </div>
-          <span className="switch">
-            <input
-              type="checkbox"
-              checked={state.ticketsOnGate}
-              onChange={(e) =>
-                dispatch({
-                  type: "SET_FIELD",
-                  key: "ticketsOnGate",
-                  value: e.target.checked,
-                })
-              }
-            />
-            <span className="slider" />
-          </span>
-        </label>
-        {state.ticketsOnGate && (
-          <div className="mt-4 pt-4 border-t border-ink-200">
-            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-              On the gate details
-            </label>
-            <EditorTextarea
-              value={state.ticketsOnGateInfo}
-              onChange={(value) =>
-                dispatch({
-                  type: "SET_FIELD",
-                  key: "ticketsOnGateInfo",
-                  value,
-                })
-              }
-              placeholder="Cash and card accepted on the gate. £15 per adult, under 12s free. Gate prices are higher than advance tickets."
-            />
-          </div>
-        )}
-      </div>
 
       {/* ---- Desktop nav row ---- */}
       <div className="hidden sm:flex items-center justify-between gap-3 pt-6 mt-8 border-t border-ink-200">

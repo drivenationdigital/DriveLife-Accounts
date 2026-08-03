@@ -95,17 +95,18 @@ export function Sidebar() {
       <div className="nav-section">
         <div className="nav-label">Attending</div>
         <NavItem
-          icon={<TicketIcon />}
-          label="My Tickets"
-          href="/my-tickets"
-          active={isMyTickets}
-          onClick={() => handleClick("")}
-        />
-        <NavItem
           icon={<BookmarkIcon />}
           label="Saved Events"
           href="/saved-events"
           active={isSavedEvents}
+          onClick={() => handleClick("")}
+        />
+        
+        <NavItem
+          icon={<TicketIcon />}
+          label="My Tickets"
+          href="/my-tickets"
+          active={isMyTickets}
           onClick={() => handleClick("")}
         />
       </div>

@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+
 import { useUI } from "@/context/UIContext";
 import { statusPillClass } from "@/lib/utils";
-import { XIcon, CheckIcon } from "@/components/ui/Icons";
+import { XIcon, CheckIcon, EditIcon } from "@/components/ui/Icons";
 import type { ShowCar, Club, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
-import { useApproveClubApplication, useRejectClubApplication } from "@/lib/clubApplications";
+import { useApproveClubApplication, useRejectClubApplication, useUpdateClubSpaces } from "@/lib/clubApplications";
 import { useApproveTraderApplication, useConfirmTraderApplication, useRejectTraderApplication } from "@/lib/traderApplications";
 import { useAction } from "@/context/ActionContext";
 
@@ -397,13 +399,16 @@ function ClubDetail({ club }: { club: Club }) {
       <div className="detail-section">
         <div className="detail-section-title">Club Details</div>
         <div className="detail-grid">
-          <div className="detail-field">
+          {/* Full width so the allocated / sold pair sits together on
+              its own row - they read as a comparison. */}
+          <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
             <div className="detail-label">Club name</div>
             <div className="detail-value">{club.name}</div>
           </div>
+          <ClubSpacesField club={club} />
           <div className="detail-field">
-            <div className="detail-label">Spaces requested</div>
-            <div className="detail-value mono">{club.membersAttending}</div>
+            <div className="detail-label">Spaces sold</div>
+            <div className="detail-value mono">{club.ticketsSold}</div>
           </div>
         </div>
       </div>
@@ -431,6 +436,122 @@ function ClubDetail({ club }: { club: Club }) {
         <div className="detail-description">{club.description}</div>
       </div>
     </>
+  );
+}
+
+function ClubSpacesField({ club }: { club: Club }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(String(club.membersAttending));
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const updateSpaces = useUpdateClubSpaces();
+  const saving = updateSpaces.isPending;
+
+  const current = Number(club.membersAttending) || 0;
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(String(current));
+    setError(null);
+    setEditing(true);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setError(null);
+  };
+
+  const save = () => {
+    const parsed = parseInt(draft, 10);
+    if (isNaN(parsed) || parsed < 0) {
+      setError("Enter a valid number");
+      return;
+    }
+    if (parsed === current) {
+      setEditing(false);
+      return;
+    }
+    if (parsed < club.ticketsSold) {
+      setError(`Can't go below ${club.ticketsSold} sold`);
+      return;
+    }
+
+    setError(null);
+    updateSpaces.mutate(
+      { applicationId: Number(club.id), spaces: parsed },
+      {
+        onSuccess: () => setEditing(false),
+        onError: (e) => setError(e.message || "Save failed"),
+      },
+    );
+  };
+
+  return (
+    <div className="detail-field">
+      <div className="detail-label">Spaces allocated</div>
+
+      {!editing ? (
+        <div className="detail-value mono spaces-view">
+          {current}
+          <button
+            type="button"
+            className="icon-btn"
+            title="Edit allocated spaces"
+            onClick={startEdit}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="spaces-edit">
+          <input
+            ref={inputRef}
+            className="spaces-input mono"
+            type="number"
+            min={0}
+            value={draft}
+            disabled={saving}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+          />
+          <button
+            type="button"
+            className="icon-btn confirm"
+            onClick={save}
+            disabled={saving}
+            title="Save"
+          >
+            {saving ? <span className="spinner-xs" /> : "✓"}
+          </button>
+          <button
+            type="button"
+            className="icon-btn cancel"
+            onClick={cancel}
+            disabled={saving}
+            title="Cancel"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {error && <div className="field-error">{error}</div>}
+    </div>
   );
 }
 

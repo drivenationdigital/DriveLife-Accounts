@@ -190,3 +190,54 @@ export function useRejectClubApplication() {
     },
   });
 }
+
+// ============================================================
+// Allocated-spaces edit
+// ============================================================
+
+/**
+ * NOT YET IMPLEMENTED SERVER-SIDE.
+ *
+ * The endpoint below doesn't exist yet - the types and hook are here
+ * so the DetailModal edit control can be built and wired now, with
+ * only the route left to add. Once the WP side lands, this should
+ * work unchanged provided it accepts { application_id, spaces } and
+ * returns the shape in ClubUpdateSpacesResponse.
+ *
+ * Behaviour expected of the endpoint:
+ *   - Approved clubs only (the UI only offers the control there).
+ *   - Resizes the club's ticket stock to `spaces`.
+ *   - Should reject a value below the club's tickets_sold rather than
+ *     orphaning already-sold spaces. The UI blocks this too, but the
+ *     count can move between render and submit.
+ */
+export interface ClubUpdateSpacesResponse {
+  success: true;
+  application_id: number;
+  /** The allocation the server settled on - echo it back rather than
+   *  trusting the requested number, in case it clamps. */
+  spaces: number;
+}
+
+export function useUpdateClubSpaces() {
+  const qc = useQueryClient();
+  return useMutation<
+    ClubUpdateSpacesResponse,
+    Error,
+    { applicationId: number; spaces: number }
+  >({
+    mutationFn: ({ applicationId, spaces }) =>
+      apiPost<
+        ClubUpdateSpacesResponse,
+        { application_id: number; spaces: number }
+      >("/event-car-club-application-update-spaces", {
+        application_id: applicationId,
+        spaces,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
+      // Capacity KPIs read confirmed slots off the event payload.
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}

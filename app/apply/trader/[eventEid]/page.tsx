@@ -9,7 +9,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { ConfettiBurst } from "@/components/apply/ConfettiBurst";
 import { ApiError } from "@/lib/apiClient";
+import { eventPageUrl } from "@/lib/eventPageUrl";
 import {
   useTraderPublic,
   useSubmitTraderApplication,
@@ -114,12 +116,27 @@ export default function TraderApplyPage({
   if (submit.isSuccess) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold mb-2">Application received</h1>
-        <p className="text-sm text-ink-700">
-          Thanks for applying to trade at <strong>{data.event_title}</strong>.
-          The organiser will review your application and email you with next
-          steps.
-        </p>
+        <ConfettiBurst />
+        <div className="flex flex-col items-center text-center py-6">
+          <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gold-500 text-white mb-5 shadow-sm shadow-gold-500/30">
+            <i className="fa-solid fa-check text-2xl" aria-hidden />
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-900 tracking-tight mb-3">
+            Application received
+          </h1>
+          <p className="text-sm text-ink-700 leading-relaxed max-w-md">
+            Thanks for applying to trade at <strong>{data.event_title}</strong>.
+            The organiser will review your application and email you with next
+            steps.
+          </p>
+          <a
+            href={eventPageUrl(data.event_id)}
+            className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
+          >
+            Continue
+            <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
+          </a>
+        </div>
       </PageShell>
     );
   }

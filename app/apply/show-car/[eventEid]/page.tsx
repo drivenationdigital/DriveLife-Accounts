@@ -7,6 +7,8 @@ import {
   type ChangeEvent,
   type FormEvent,
   type ReactNode,
+  useRef,
+  useEffect,
 } from "react";
 
 import { ApiError } from "@/lib/apiClient";
@@ -96,6 +98,7 @@ export default function ShowCarApplyPage({
       </PageShell>
     );
   }
+  
   if (error || !data) {
     // Surface the actual error message rather than a blanket "not
     // found" - 404s, network failures, and validation rejections all
@@ -146,13 +149,28 @@ export default function ShowCarApplyPage({
   if (submit.isSuccess) {
     return (
       <PageShell>
-        <h1 className="text-2xl font-bold mb-2">Application received</h1>
-        <p className="text-sm text-ink-700">
-          Thanks for applying to display your car at{" "}
-          <strong>{data.event_title}</strong>. The organiser will review your
-          application and email you with next steps - typically within a few
-          days.
-        </p>
+        <ConfettiBurst />
+        <div className="flex flex-col items-center text-center py-6">
+          <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gold-500 text-white mb-5 shadow-sm shadow-gold-500/30">
+            <i className="fa-solid fa-check text-2xl" aria-hidden />
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-900 tracking-tight mb-3">
+            Application received
+          </h1>
+          <p className="text-sm text-ink-700 leading-relaxed max-w-md">
+            Thanks for applying to display your car at{" "}
+            <strong>{data.event_title}</strong>. The organiser will review your
+            application and email you with next steps - typically within a few
+            days.
+          </p>
+          <a
+            href={eventPageUrl(data.event_id)}
+            className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
+          >
+            Continue
+            <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
+          </a>
+        </div>
       </PageShell>
     );
   }
@@ -532,6 +550,137 @@ export default function ShowCarApplyPage({
 // Subcomponents
 // ============================================================
 
+/**
+ * Public event page on the main site.
+ *
+ * The /event-show-cars-public payload gives us `event_id` but no
+ * permalink, so we use WordPress' canonical post URL - it 302s to the
+ * pretty permalink, which means we don't need the slug and can't
+ * produce a broken link if the organiser renames the event. Same
+ * shape the editor's Preview button uses.
+ */
+const CAREVENTS_BASE =
+  process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com/uk";
+
+function eventPageUrl(eventId: number): string {
+  return `${CAREVENTS_BASE}/?post_type=events&p=${eventId}`;
+}
+
+/**
+ * One-shot gold-and-black confetti burst, fired on mount.
+ *
+ * Hand-rolled on a canvas rather than pulling in a confetti package -
+ * this is ~60 lines and the public apply pages are the only thing
+ * that needs it, so a dependency (and its bundle cost on a page users
+ * hit once) isn't worth it.
+ *
+ * Particles fire radially from just above centre with an upward bias,
+ * then fall under gravity and fade out. The canvas unmounts itself
+ * once the last particle is done so it isn't left sitting over the
+ * page swallowing nothing.
+ */
+function ConfettiBurst() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    // Respect reduced-motion - a full-screen particle explosion is
+    // exactly the kind of thing that setting exists for.
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Cap DPR at 2 - beyond that we're paying for pixels nobody can
+    // see on a 200-frame animation.
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    canvas.width = Math.floor(width * dpr);
+    canvas.height = Math.floor(height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+    const COLORS = [
+      "#e8c06a", // gold
+      "#b89855", // gold, deeper
+      "#f4dfa8", // gold, pale
+      "#bd7420", // gold, burnt
+      "#141414", // black
+      "#2e2e2e", // off-black
+    ];
+    const COUNT = 150;
+    const MAX_LIFE = 190;
+    const originX = width / 2;
+    const originY = height * 0.34;
+
+    const particles = Array.from({ length: COUNT }, (_, i) => {
+      // Even angular spread with a jitter, so the burst reads as a
+      // ring rather than clumping wherever Math.random happened to go.
+      const angle = (Math.PI * 2 * i) / COUNT + Math.random() * 0.3;
+      const speed = 4 + Math.random() * 9;
+      return {
+        x: originX,
+        y: originY,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 3.5,
+        w: 5 + Math.random() * 5,
+        h: 8 + Math.random() * 6,
+        rot: Math.random() * Math.PI,
+        vr: (Math.random() - 0.5) * 0.35,
+        color: COLORS[i % COLORS.length] as string,
+      };
+    });
+
+    let frame = 0;
+    let raf = 0;
+
+    const tick = () => {
+      frame += 1;
+      ctx.clearRect(0, 0, width, height);
+
+      for (const p of particles) {
+        p.vy += 0.19; // gravity
+        p.vx *= 0.99; // air drag
+        p.vy *= 0.99;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.rot += p.vr;
+
+        // Hold full opacity for most of the run, then fade over the
+        // last quarter so it ends softly instead of blinking out.
+        const fadeFrom = MAX_LIFE * 0.75;
+        ctx.globalAlpha =
+          frame < fadeFrom ? 1 : 1 - (frame - fadeFrom) / (MAX_LIFE - fadeFrom);
+
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+        ctx.restore();
+      }
+
+      if (frame < MAX_LIFE) {
+        raf = window.requestAnimationFrame(tick);
+      } else {
+        ctx.clearRect(0, 0, width, height);
+      }
+    };
+
+    raf = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className="pointer-events-none fixed inset-0 z-50 w-full h-full"
+    />
+  );
+}
+
 function PageShell({ children }: { children: ReactNode }) {
   return (
     <div className="apply-shell min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40 py-8 sm:py-14 px-4">
@@ -627,6 +776,17 @@ function Field({
   );
 }
 
+/** "2026-04-15" → "15/04/26". Parsed by hand rather than through Date
+ *  so the value isn't shifted a day by the viewer's timezone - the API
+ *  sends a plain calendar date with no time attached. Anything that
+ *  isn't the expected shape falls through unchanged. */
+function formatShortDate(iso: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return iso;
+  const [, year, month, day] = m;
+  return `${day}/${month}/${year!.slice(2)}`;
+}
+
 function SelectedCategoryDetails({
   category,
 }: {
@@ -647,7 +807,9 @@ function SelectedCategoryDetails({
           <span>{category.spaces_remaining} spaces remaining</span>
         )}
         {category.applications_close && (
-          <span>Applications close {category.applications_close}</span>
+          <span>
+            Applications close {formatShortDate(category.applications_close)}
+          </span>
         )}
       </div>
     </div>

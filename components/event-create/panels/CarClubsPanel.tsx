@@ -149,7 +149,7 @@ export function CarClubsPanel() {
           </div>
 
           {/* Limit */}
-          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4 hidden">
             <label className="flex items-center justify-between gap-3 cursor-pointer">
               <div>
                 <p className="text-sm font-semibold text-ink-900">
