@@ -114,7 +114,7 @@ export function EventActions({
       confirm: {
         title: "Delete this event?",
         message:
-          "The event will be removed from your events. Contact support if you need it restored.",
+          "The event will be removed from your events. This action cannot be undone.",
         confirmLabel: "Delete Event",
         cancelLabel: "Keep Event",
         danger: true,
