@@ -1,5 +1,5 @@
 /**
- * Club edit — data shapes.
+ * Club edit - data shapes.
  *
  * Mirrors the WP club ACF fields so the eventual load/save endpoints map
  * 1:1 with no translation layer:
@@ -29,7 +29,7 @@ export type ClubPostStatus = "publish" | "draft";
 export interface ClubImage {
   /** Attachment id once saved; null while it's a local pick. */
   id: number | null;
-  /** Display URL — remote src, or an object URL before upload. */
+  /** Display URL - remote src, or an object URL before upload. */
   url: string;
 }
 
@@ -87,7 +87,7 @@ export interface ClubEditData {
 }
 
 /**
- * Options the edit screen needs but doesn't own — supplied by the load
+ * Options the edit screen needs but doesn't own - supplied by the load
  * endpoint alongside the record (so the category list stays server-driven).
  */
 export interface ClubEditOptions {
@@ -184,7 +184,7 @@ export function toClubUpdateBody(club: ClubEditData): ClubUpdateBody {
     membership_questions: club.membershipQuestions
       .filter((q) => q.question.trim() !== "")
       .map((q) => ({ question: q.question.trim() })),
-    // club_administrators intentionally omitted — see the type note.
+    // club_administrators intentionally omitted - see the type note.
   };
 }
 
@@ -193,7 +193,7 @@ export function toClubUpdateBody(club: ClubEditData): ClubUpdateBody {
  *
  * Applied when a club has no terms yet (see the edit page's load step)
  * so new clubs start with sensible defaults rather than a blank box.
- * Once saved these are just normal content — renaming the club later
+ * Once saved these are just normal content - renaming the club later
  * won't rewrite them, since by then they may have been edited.
  *
  * Returns HTML, matching the WYSIWYG field it populates.

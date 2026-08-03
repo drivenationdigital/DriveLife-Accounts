@@ -54,7 +54,7 @@ export interface ApiEventUpdateDates {
   exclude_time?: boolean;
   is_multi_timeslot?: boolean;
   date_rows?: ApiEventDateRow[];
-  // `is_recurring` is intentionally absent — the endpoint rejects
+  // `is_recurring` is intentionally absent - the endpoint rejects
   // recurring conversion, and this mapper never sends it.
 }
 
@@ -76,9 +76,6 @@ export interface ApiEventUpdateTickets {
   entry_details?: string;
   external_tickets_url?: string;
   external_entry_details?: string;
-  // The editor doesn't currently model these four, so the mapper
-  // never emits them; kept on the type so the endpoint contract stays
-  // complete and a future panel can populate them.
   event_tickets_information?: string;
   ticket_terms_and_conditions?: string;
   on_the_gate?: boolean;
@@ -109,7 +106,7 @@ export interface ApiEventUpdateRequest {
   tickets?: ApiEventUpdateTickets;
   show_cars?: ApiEventUpdateSection;
   car_clubs?: ApiEventUpdateSection;
-  /** Traders — only the enable flag is sent here. Categories save
+  /** Traders - only the enable flag is sent here. Categories save
    *  individually via /event-trader, so there are no per-section
    *  fields to persist. */
   traders?: { enabled: boolean };
@@ -167,7 +164,7 @@ function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
     title: state.title,
     category_ids: state.categoryIds,
     location: state.location,
-    // Editor's LatLng is { lat, lng } — same shape the endpoint wants.
+    // Editor's LatLng is { lat, lng } - same shape the endpoint wants.
     location_coords: state.locationCoords,
   };
 }
@@ -177,7 +174,7 @@ function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
  *
  * Mirrors the legacy WP behaviour of storing one repeater row per
  * calendar day for multi-day events (the new endpoint stores rows
- * verbatim — it does NOT expand ranges — so the client must do it):
+ * verbatim - it does NOT expand ranges - so the client must do it):
  *
  *   - single day              → 1 row
  *   - multi-day, per-day times → 1 row per perDayTimes entry
@@ -241,13 +238,19 @@ function mapTickets(state: EventCreateState): ApiEventUpdateTickets {
     entry_details: state.freeEntryInfo,
     external_tickets_url: state.externalTicketUrl,
     external_entry_details: state.externalTicketInfo,
-    // Individual ticket ROWS (state.ticketList) are NOT sent here —
+    event_tickets_information: state.ticketInfo,
+    ticket_terms_and_conditions: state.ticketTerms,
+    on_the_gate: state.ticketsOnGate,
+    // Only meaningful when on_the_gate is set; cleared otherwise so a
+    // stale blurb can't linger after the toggle is switched off.
+    on_gate_details: state.ticketsOnGate ? state.ticketsOnGateInfo : "",
+    // Individual ticket ROWS (state.ticketList) are NOT sent here -
     // they have their own add/edit/remove endpoints.
   };
 }
 
 /**
- * Car clubs — clean event-level → event-level mapping.
+ * Car clubs - clean event-level → event-level mapping.
  * Combines the separate date + time fields into the single datetime
  * the ACF field stores; the PHP side canonicalises it via strtotime.
  */
@@ -278,14 +281,14 @@ function mapCarClubs(state: EventCreateState): ApiEventUpdateSection {
 }
 
 /**
- * Show cars — only the event-level fields the editor genuinely has.
+ * Show cars - only the event-level fields the editor genuinely has.
  *
  * TODO: the editor models show-cars per category (windows + per-cat
  * ticket cost via state.showCarCategories), which the event-level
  * endpoint can't represent. Until there's a per-category show-cars
  * save endpoint (or the editor collapses to a single event-level
  * window), open_date/close_date/paid/ticket_cost are deliberately
- * NOT sent — the PHP leaves those fields untouched.
+ * NOT sent - the PHP leaves those fields untouched.
  */
 function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
   return {
@@ -296,7 +299,7 @@ function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
     // "clear" rather than JSON dropping the key entirely (which
     // leaves the previous value in place).
     info: state.showCarsInfo ?? "",
-    // Secret codes moved per-category — see ShowCarCategoryDrawer.
+    // Secret codes moved per-category - see ShowCarCategoryDrawer.
     // The event-level secret_code field is gone; each show car
     // ticket carries its own code in the cc table now.
   };

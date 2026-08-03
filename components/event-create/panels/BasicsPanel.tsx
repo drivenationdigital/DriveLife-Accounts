@@ -73,7 +73,7 @@ export function BasicsPanel() {
   };
 
   // The title input is bounded by maxLength but we still gate the
-  // dispatch on length — defence-in-depth against paste events that
+  // dispatch on length - defence-in-depth against paste events that
   // sometimes bypass maxLength on certain mobile keyboards.
   const onTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.slice(0, TITLE_MAX);
@@ -86,10 +86,10 @@ export function BasicsPanel() {
         stepNumber={1}
         totalSteps={EVENT_CREATE_STEP_COUNT}
         title="Basic details"
-        subtitle="The essentials — what your event is called, what type of event it is, and where it takes place."
+        subtitle="The essentials - what your event is called, what type of event it is, and where it takes place."
       />
 
-      {/* Host callout — read-only context, identifies which org the
+      {/* Host callout - read-only context, identifies which org the
           event is being created under. Hardcoded to the host on the
           state for now; the create-event flow will pull this from the
           authed user's organisation. */}
@@ -163,7 +163,7 @@ export function BasicsPanel() {
         </div>
       </div>
 
-      {/* Location — Google Places autocomplete + static map preview. */}
+      {/* Location - Google Places autocomplete + static map preview. */}
       <div className="mb-8">
         <label className="block text-sm font-semibold text-ink-900 mb-2">
           Event location <span className="text-gold-600">*</span>
@@ -177,7 +177,7 @@ export function BasicsPanel() {
           onPlacePicked={(place) => {
             // Picking a place commits both the formatted text and the
             // coords in one go. We dispatch sequentially because the
-            // SET_FIELD action is per-key — fine in React batching.
+            // SET_FIELD action is per-key - fine in React batching.
             dispatch({
               type: "SET_FIELD",
               key: "location",
@@ -201,7 +201,7 @@ export function BasicsPanel() {
       </div>
 
       {/* Desktop "Continue" CTA. Mobile uses the sticky bottom bar
-          instead — this row is hidden under the sm breakpoint. */}
+          instead - this row is hidden under the sm breakpoint. */}
       <div className="hidden sm:flex items-center justify-end gap-3 pt-6 border-t border-ink-200">
         <button
           type="button"
@@ -219,12 +219,12 @@ export function BasicsPanel() {
  * Loading placeholder for the categories grid.
  *
  * Renders 14 rows (matching the 7 × 2 visual rhythm the live grid
- * produces on sm+ screens — ≤ 21 categories total, so 14 fills the
+ * produces on sm+ screens - ≤ 21 categories total, so 14 fills the
  * box without obviously over-counting). Each row mirrors the
  * .cb-label layout: a 20×20 box on the left, an irregular-width
  * label bar on the right.
  *
- * The varied bar widths come from cycling a small sequence — purely
+ * The varied bar widths come from cycling a small sequence - purely
  * cosmetic, makes the placeholder feel less mechanical than uniform
  * bars. Deterministic (no Math.random) so SSR + client render match.
  */

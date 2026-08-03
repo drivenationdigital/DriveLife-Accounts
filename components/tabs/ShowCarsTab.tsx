@@ -7,7 +7,7 @@ import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { useShowCarApplications } from "@/lib/showCarApplications";
 import { useExportApplications } from "@/lib/exportApplications";
-import { useToast } from "@/context/ToastContext";
+import { useAction } from "@/context/ActionContext";
 import type { ShowCar, Ticket } from "@/context/types";
 
 /**
@@ -23,14 +23,14 @@ import type { ShowCar, Ticket } from "@/context/types";
  *
  * UI structure mirrors the agreed mockup:
  *
- *   - KPI strip across the top — Pending Review, Awaiting Payment,
+ *   - KPI strip across the top - Pending Review, Awaiting Payment,
  *     Confirmed. Rejected doesn't get a KPI because it's not a target
  *     metric.
  *   - "Confirmed Spaces by Category" table showing utilisation per
  *     show car category (only rendered when categoryStats has rows).
  *   - One "Show Car Applications" card containing all four status
  *     groups as nested subsections. Each subsection only renders when
- *     it has rows — the KPI strip already carries the zero counts.
+ *     it has rows - the KPI strip already carries the zero counts.
  *
  * Empty states:
  *
@@ -46,19 +46,18 @@ export function ShowCarsTab() {
   const eid = event.encryptedId;
 
   const exportApps = useExportApplications();
-  const toast = useToast();
+  const runAction = useAction();
   const handleExport = () => {
     if (exportApps.isPending) return;
-    exportApps.mutate(
-      { eid, type: "show_car" },
-      {
-        onSuccess: () => toast.success("Applications exported."),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Export failed."),
-      },
-    );
+    return runAction({
+      loadingLabel: "Preparing your CSV...",
+      successTitle: "Applications exported",
+      successMessage: "The CSV has been downloaded.",
+      errorTitle: "Export failed",
+      run: () => exportApps.mutateAsync({ eid, type: "show_car" }),
+    });
   };
-  // Applications live on a dedicated query — see useShowCarApplications.
+  // Applications live on a dedicated query - see useShowCarApplications.
   // Fall back to [] while loading or on error so the rest of the tab
   // (KPIs, category table, "no applications" empty state) still
   // renders cleanly. Approve / reject are wired inside the detail
@@ -82,7 +81,7 @@ export function ShowCarsTab() {
   const confirmed = showCars.filter((c) => c.status === "confirmed");
   const rejected = showCars.filter((c) => c.status === "rejected");
 
-  // Capacity table comes from the show car tickets directly — each
+  // Capacity table comes from the show car tickets directly - each
   // ticket is a category, capacity = stock, confirmed = sold. Single
   // source of truth, no separate categoryStats array to keep in sync.
   const totalConfirmed = showCarTickets.reduce((n, t) => n + t.sold, 0);
@@ -215,7 +214,7 @@ export function ShowCarsTab() {
               onClick={handleExport}
               disabled={exportApps.isPending}
             >
-              <DownloadIcon /> {exportApps.isPending ? "Exporting…" : "Export"}
+              <DownloadIcon /> Export
             </button>
           )}
         </div>
@@ -280,7 +279,7 @@ function CategoryRow({ ticket }: { ticket: Ticket }) {
  * One status block inside the Show Car Applications card. Renders a
  * dot + title + count pill header, then the application cards grid.
  * Subsequent groups get a top border so they read as siblings rather
- * than stacked cards — `isFirst` controls that.
+ * than stacked cards - `isFirst` controls that.
  */
 function ApplicationGroup({
   title,

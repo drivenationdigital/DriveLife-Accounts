@@ -1,5 +1,5 @@
 /**
- * Club edit — API.
+ * Club edit - API.
  *
  *   GET  /club-edit?cid=ENC   → load the record + category options
  *   POST /club-update         → save (partial-safe: only sent keys write)
@@ -7,7 +7,7 @@
  * The response/payload types live in clubEditTypes so the wizard's
  * context can hydrate and build payloads without any remapping.
  *
- * Note: the query hook is `useClubEditQuery` — `useClubEdit` is the
+ * Note: the query hook is `useClubEditQuery` - `useClubEdit` is the
  * context hook that exposes the in-memory record.
  */
 

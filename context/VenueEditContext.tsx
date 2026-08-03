@@ -25,8 +25,8 @@ import type { VenueEditStepKey } from "@/lib/venueEditSteps";
  * Clubs split this across ClubEditContext (record) and ClubSaveContext
  * (mutation). Venues keep both in one provider: the record is a single
  * flat form with no collection helpers, so the split would be two files
- * of ceremony around a dozen fields. What matters — and what's the same
- * as clubs — is that the chrome (topbar, bottombar, panel footer) all
+ * of ceremony around a dozen fields. What matters - and what's the same
+ * as clubs - is that the chrome (topbar, bottombar, panel footer) all
  * read ONE save mutation, so the status pill and every button agree
  * about whether a save is in flight.
  *
@@ -36,9 +36,9 @@ import type { VenueEditStepKey } from "@/lib/venueEditSteps";
  */
 
 export interface VenueForm {
-  /** Encrypted id — the save payload's `vid`. */
+  /** Encrypted id - the save payload's `vid`. */
   vid: string;
-  /** Raw post id — the image upload endpoint wants this one. */
+  /** Raw post id - the image upload endpoint wants this one. */
   rawId: number;
   title: string;
   location: string;
@@ -116,14 +116,14 @@ interface VenueEditContextValue {
   /**
    * Persist the venue. Returns the step key to jump to when a required
    * field blocked the save, or null when the save was attempted. Never
-   * throws — read `saveError` instead.
+   * throws - read `saveError` instead.
    */
   save: () => Promise<VenueEditStepKey | null>;
   phase: VenueSavePhase;
   isSaving: boolean;
   saveError: string | null;
 
-  // Images — upload starts on pick and is independent of `save`.
+  // Images - upload starts on pick and is independent of `save`.
   pickImage: (group: VenueMediaGroup, file: File, previewUrl: string) => void;
   uploadProgress: Record<string, number>;
   uploadError: Record<string, string | null>;
@@ -221,7 +221,7 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
   const { mutateAsync: saveVenue } = updateVenue;
 
   const save = useCallback(async (): Promise<VenueEditStepKey | null> => {
-    // Required fields block the save wherever the user happens to be —
+    // Required fields block the save wherever the user happens to be -
     // reveal them and hand the caller the step to jump to.
     if (errors.title || errors.location) {
       setTouched((t) => ({ ...t, title: true, location: true }));

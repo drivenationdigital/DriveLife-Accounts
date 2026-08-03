@@ -6,7 +6,7 @@ import { FieldLabel } from "../shared";
 import { defaultClubTerms } from "@/lib/clubEditTypes";
 
 /**
- * Step 5 — club rules/terms members agree to (WYSIWYG).
+ * Step 5 - club rules/terms members agree to (WYSIWYG).
  *
  * New clubs are seeded with default terms at load (see the edit page),
  * personalised with the club name. "Restore default terms" regenerates

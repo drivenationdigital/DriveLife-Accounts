@@ -1,5 +1,5 @@
 /**
- * Notifications — API.
+ * Notifications - API.
  *
  *   GET  /notifications                → list + unread count
  *   GET  /notifications/unread-count   → badge count (cheap poll)

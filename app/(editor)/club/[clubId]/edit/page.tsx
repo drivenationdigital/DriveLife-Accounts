@@ -27,25 +27,24 @@ import {
 import { defaultClubTerms } from "@/lib/clubEditTypes";
 import { useClubEditQuery } from "@/lib/clubEdit";
 import { useDeleteClub } from "@/lib/myClubs";
-import { useConfirm } from "@/context/ConfirmContext";
-import { useToast } from "@/context/ToastContext";
+import { useAction } from "@/context/ActionContext";
 
 /**
  * Edit Club.
  *
  * Layout mirrors the event editor at /events/new:
- *   [TopBar — full width, sticky]
+ *   [TopBar - full width, sticky]
  *   [Sidebar (lg+) | [TabBar (mobile) → main content]]
  *   [BottomBar (mobile, sticky)]
  *
- * Sidebar and TabBar both render — each is gated by its own media-query
+ * Sidebar and TabBar both render - each is gated by its own media-query
  * classes (hidden lg:flex / lg:hidden), so CSS alone decides which is
  * visible and no window-size measuring happens in JS.
  *
  * State lives in ClubEditContext so every step edits one record and
  * nothing is lost moving between steps. The active step is URL-driven
  * (`?step=`) rather than local state, so steps are deep-linkable and
- * browser back/forward works — same as the event editor.
+ * browser back/forward works - same as the event editor.
  */
 export default function EditClubPage({
   params,
@@ -72,7 +71,7 @@ function EditClubEditor({ clubId }: { clubId: string }) {
     if (!data) return;
     // Clubs with no terms yet start from the default, personalised with
     // the club name. Applied before hydrate so it's part of the dirty
-    // baseline — opening the page doesn't show "Unsaved changes".
+    // baseline - opening the page doesn't show "Unsaved changes".
     hydrate(
       {
         ...data.club,
@@ -107,7 +106,7 @@ function EditClubEditor({ clubId }: { clubId: string }) {
  *
  * The event editor has each panel render its own PanelHeader and its own
  * desktop "Continue" row. The club panels are pure field content, so the
- * header and footer are rendered once here off the step config instead —
+ * header and footer are rendered once here off the step config instead -
  * same markup, less duplication across seven files.
  */
 function ActivePanel({ clubId }: { clubId: string }) {
@@ -138,7 +137,7 @@ function ActivePanel({ clubId }: { clubId: string }) {
 
 /**
  * Desktop CTA row. Mobile uses the sticky bottom bar instead, so this is
- * hidden below sm — matching the event panels' footer exactly.
+ * hidden below sm - matching the event panels' footer exactly.
  */
 function PanelFooter({
   stepKey,
@@ -154,33 +153,26 @@ function PanelFooter({
   const { save, isSaving, error } = useClubSave();
 
   // ── Delete ──────────────────────────────────────────────────────
-  const confirm = useConfirm();
-  const toast = useToast();
+  const runAction = useAction();
   const deleteClub = useDeleteClub();
 
   const handleDelete = async () => {
-    const ok = await confirm({
-      title: "Delete this club?",
-      message:
-        "The club will be removed from your clubs. This can be restored from wp-admin if needed.",
-      confirmLabel: "Delete Club",
-      cancelLabel: "Keep Club",
-      danger: true,
-    });
-    if (!ok) return;
-    deleteClub.mutate(
-      { cid: clubId },
-      {
-        onSuccess: () => {
-          toast.success("Club deleted.");
-          router.push("/clubs");
-        },
-        onError: (e: unknown) =>
-          toast.error(
-            e instanceof Error ? e.message : "Couldn't delete the club.",
-          ),
+    const res = await runAction({
+      confirm: {
+        title: "Delete this club?",
+        message:
+          "The club will be removed from your clubs. Contact support if you need it restored.",
+        confirmLabel: "Delete Club",
+        cancelLabel: "Keep Club",
+        danger: true,
       },
-    );
+      loadingLabel: "Deleting club...",
+      successTitle: "Club deleted",
+      successMessage: "It's been removed from your clubs.",
+      errorTitle: "Couldn't delete the club",
+      run: () => deleteClub.mutateAsync({ cid: clubId }),
+    });
+    if (res) router.push("/clubs");
   };
 
   const { prev, next } = adjacentClubSteps(stepKey);
@@ -256,7 +248,7 @@ function PanelFooter({
 /**
  * Full-page skeleton shown while /club-edit is in flight. Mirrors the
  * editor's chrome so the layout doesn't shift when the real content
- * arrives — same shape as the event editor's EditorSkeleton, trimmed to
+ * arrives - same shape as the event editor's EditorSkeleton, trimmed to
  * seven sidebar rows.
  *
  * Uses the `.skeleton-shimmer` class from editor.css, scoped under
@@ -265,7 +257,7 @@ function PanelFooter({
 function ClubEditorSkeleton() {
   return (
     <>
-      {/* Topbar placeholder — matches ClubEditorTopBar's sticky h-14. */}
+      {/* Topbar placeholder - matches ClubEditorTopBar's sticky h-14. */}
       <div className="h-14 border-b border-ink-200 bg-white flex items-center px-4 gap-3">
         <span className="skeleton-shimmer h-6 w-6 rounded-md" />
         <span className="skeleton-shimmer h-4 w-40 rounded" />
@@ -313,7 +305,7 @@ function ClubEditorSkeleton() {
 
 /**
  * Error state for the load endpoint. Keeps the editor chrome out of the
- * way so the user sees a focused message plus a way back — same treatment
+ * way so the user sees a focused message plus a way back - same treatment
  * as the event editor's EditorErrorState.
  */
 function ClubEditorErrorState({ error }: { error: Error }) {

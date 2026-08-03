@@ -1,5 +1,5 @@
 /**
- * Event overview actions — clone / cancel / delete.
+ * Event overview actions - clone / cancel / delete.
  *
  *   POST /event-clone   { eid } → new draft, returns encrypted_id + edit_url
  *   POST /event-cancel  { eid } → status "cancelled"

@@ -6,7 +6,7 @@
  * will move to an API endpoint (likely `/wp-json/dl-accounts/v1/event-categories`).
  *
  * The order here matches the visual order in the mockup, which appears
- * to be a deliberate sort (not alphabetical, not by id) — preserved so
+ * to be a deliberate sort (not alphabetical, not by id) - preserved so
  * we don't break the visual rhythm when porting.
  */
 export type EventCategory = {

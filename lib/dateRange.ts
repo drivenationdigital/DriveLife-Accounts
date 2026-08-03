@@ -3,7 +3,7 @@
  * `end` inclusive. Used by the per-day-times UI to materialise one
  * row per day.
  *
- * Implementation note — the safe way to walk dates in JS is to add
+ * Implementation note - the safe way to walk dates in JS is to add
  * 86400 seconds via `setUTCDate`, NOT to add 1 to a Date object's
  * milliseconds. The latter breaks across DST transitions where a
  * "day" can be 23 or 25 hours. We work in UTC throughout because we
@@ -30,7 +30,7 @@ export function enumerateDays(
   const cur = new Date(`${start}T00:00:00Z`);
   const stop = new Date(`${end}T00:00:00Z`);
 
-  // Hard cap — keeps a typo'd "2026 → 2046" from creating 7300 rows
+  // Hard cap - keeps a typo'd "2026 → 2046" from creating 7300 rows
   // and freezing the UI.
   const MAX_DAYS = 366;
   let safety = 0;

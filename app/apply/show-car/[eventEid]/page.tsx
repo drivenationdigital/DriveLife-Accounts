@@ -31,7 +31,7 @@ import {
  * /event-show-car-apply.
  *
  * After a successful submit the form is replaced by a "thanks"
- * panel — no redirect, since end users may have arrived via QR or
+ * panel - no redirect, since end users may have arrived via QR or
  * direct link and there's no canonical "back" route to send them
  * to. Organisers will email next steps once they review.
  *
@@ -57,11 +57,15 @@ const INITIAL_FORM: FormState = {
   firstName: "",
   lastName: "",
   email: "",
+  phone: "",
   carMake: "",
   carModel: "",
   carYear: "",
   carReg: "",
   carColor: "",
+  attendingWithClub: "no",
+  carClub: "",
+  instagram: "",
   notes: "",
   photoUrl: "",
 };
@@ -94,7 +98,7 @@ export default function ShowCarApplyPage({
   }
   if (error || !data) {
     // Surface the actual error message rather than a blanket "not
-    // found" — 404s, network failures, and validation rejections all
+    // found" - 404s, network failures, and validation rejections all
     // reach this branch and the user (and we, debugging) needs to be
     // able to tell them apart.
     const message = error
@@ -146,7 +150,7 @@ export default function ShowCarApplyPage({
         <p className="text-sm text-ink-700">
           Thanks for applying to display your car at{" "}
           <strong>{data.event_title}</strong>. The organiser will review your
-          application and email you with next steps — typically within a few
+          application and email you with next steps - typically within a few
           days.
         </p>
       </PageShell>
@@ -165,7 +169,7 @@ export default function ShowCarApplyPage({
 
     // Upload photo first (if attached) so we have a CF URL to put
     // in the body. We deliberately don't pre-upload on file select
-    // — keeping it tied to submit means a user who picks a file
+    // - keeping it tied to submit means a user who picks a file
     // then bails doesn't leave an orphan CF image behind. (They
     // still can if upload succeeds but submit fails; that's the
     // small cost of doing this client-side without a "draft"
@@ -261,7 +265,7 @@ export default function ShowCarApplyPage({
                   value={c.encrypted_id}
                   disabled={c.is_full || !isCategoryOpenToday(c)}
                 >
-                  {c.name} — {categoryAvailabilityLabel(c)}
+                  {c.name} - {categoryAvailabilityLabel(c)}
                 </option>
               ))}
             </select>
@@ -290,15 +294,26 @@ export default function ShowCarApplyPage({
               />
             </Field>
           </div>
-          <Field label="Email" required>
-            <input
-              className="input"
-              type="email"
-              required
-              value={form.email}
-              onChange={update("email")}
-            />
-          </Field>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Field label="Email" required>
+              <input
+                className="input"
+                type="email"
+                required
+                value={form.email}
+                onChange={update("email")}
+              />
+            </Field>
+            <Field label="Phone number" required>
+              <input
+                className="input"
+                type="tel"
+                required
+                value={form.phone}
+                onChange={update("phone")}
+              />
+            </Field>
+          </div>
         </Section>
 
         <Section step={3} title="Your car">
@@ -349,13 +364,89 @@ export default function ShowCarApplyPage({
               />
             </Field>
           </div>
+
+          {/* Car club - the name field only appears once "Yes" is
+              picked, and is cleared again on switching back to "No"
+              so a stale club name can't be submitted. */}
+          <Field label="Are you attending with a car club?" required>
+            <div className="flex gap-3">
+              {(["no", "yes"] as const).map((opt) => (
+                <label
+                  key={opt}
+                  className={[
+                    "flex-1 cursor-pointer rounded-lg border-2 px-4 py-2.5 text-center text-sm font-semibold capitalize transition",
+                    form.attendingWithClub === opt
+                      ? "border-gold-500 bg-gold-50 text-gold-700"
+                      : "border-ink-200 bg-white text-ink-600 hover:border-ink-300",
+                  ].join(" ")}
+                >
+                  <input
+                    type="radio"
+                    name="attendingWithClub"
+                    className="sr-only"
+                    value={opt}
+                    checked={form.attendingWithClub === opt}
+                    onChange={() =>
+                      setForm((f) => ({
+                        ...f,
+                        attendingWithClub: opt,
+                        carClub: opt === "yes" ? f.carClub : "",
+                      }))
+                    }
+                  />
+                  {opt}
+                </label>
+              ))}
+            </div>
+          </Field>
+
+          {form.attendingWithClub === "yes" && (
+            <Field label="Car club name" required>
+              <input
+                className="input"
+                type="text"
+                required
+                value={form.carClub}
+                onChange={update("carClub")}
+              />
+            </Field>
+          )}
+
+          <Field label="Instagram username">
+            <div className="relative">
+              <span
+                aria-hidden
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-[15px] text-ink-400"
+              >
+                @
+              </span>
+              <input
+                className="input"
+                style={{ paddingLeft: 30 }}
+                type="text"
+                value={form.instagram}
+                onChange={(e) =>
+                  // Strip a leading @ so the prefix isn't doubled up.
+                  setForm((f) => ({
+                    ...f,
+                    instagram: e.target.value.replace(/^@+/, ""),
+                  }))
+                }
+                placeholder="yourhandle"
+              />
+            </div>
+            <p className="mt-1.5 text-xs text-ink-500">
+              Your Instagram handle, without the @.
+            </p>
+          </Field>
+
           <Field label="Notes (optional)">
             <textarea
               className="input"
               rows={3}
               value={form.notes}
               onChange={update("notes")}
-              placeholder="Anything the organiser should know — build details, special access requirements, etc."
+              placeholder="Anything the organiser should know - build details, special access requirements, etc."
             />
           </Field>
 

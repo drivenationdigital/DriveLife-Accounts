@@ -7,11 +7,11 @@ import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { CheckIcon, XIcon, DownloadIcon } from "@/components/ui/Icons";
 import { useClubApplications } from "@/lib/clubApplications";
 import { useExportApplications } from "@/lib/exportApplications";
-import { useToast } from "@/context/ToastContext";
+import { useAction } from "@/context/ActionContext";
 import type { Club } from "@/context/types";
 
 /**
- * Clubs tab — lists car club applications grouped by status.
+ * Clubs tab - lists car club applications grouped by status.
  *
  * Markup mirrors the dashboard's existing section/club-row classes
  * (section / section-body flush / club-row / club-name / club-sub /
@@ -25,17 +25,16 @@ export function ClubsTab() {
   const { data, isLoading, error } = useClubApplications(eid);
 
   const exportApps = useExportApplications();
-  const toast = useToast();
+  const runAction = useAction();
   const handleExport = () => {
     if (exportApps.isPending) return;
-    exportApps.mutate(
-      { eid, type: "car_club" },
-      {
-        onSuccess: () => toast.success("Applications exported."),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Export failed."),
-      },
-    );
+    return runAction({
+      loadingLabel: "Preparing your CSV...",
+      successTitle: "Applications exported",
+      successMessage: "The CSV has been downloaded.",
+      errorTitle: "Export failed",
+      run: () => exportApps.mutateAsync({ eid, type: "car_club" }),
+    });
   };
   const clubs = data?.clubs ?? [];
   const sales = data?.sales;
@@ -60,13 +59,9 @@ export function ClubsTab() {
   const attendingMembers = sales?.attending ?? 0;
 
   // Total Club Sales = actual tickets sold × price (real purchases),
-  // from the ticket's stock_sold — not a function of confirmed
+  // from the ticket's stock_sold - not a function of confirmed
   // member counts.
   const salesTotal = sales?.total ?? 0;
-  const salesPounds = Math.floor(salesTotal);
-  const salesPence = Math.round((salesTotal - salesPounds) * 100)
-    .toString()
-    .padStart(2, "0");
 
   return (
     <>
@@ -77,10 +72,10 @@ export function ClubsTab() {
           value={
             <>
               <span className="currency">£</span>
-              {salesPounds.toLocaleString("en-GB")}
-              <span style={{ fontSize: 18, opacity: 0.5, fontWeight: 400 }}>
-                .{salesPence}
-              </span>
+              {salesTotal.toLocaleString("en-GB", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </>
           }
         />
@@ -102,7 +97,7 @@ export function ClubsTab() {
             disabled={exportApps.isPending}
           >
             <DownloadIcon />
-            {exportApps.isPending ? "Exporting…" : "Export"}
+            Export
           </button>
         </div>
 

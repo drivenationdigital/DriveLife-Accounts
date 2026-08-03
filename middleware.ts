@@ -3,13 +3,13 @@ import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
 
 /**
  * Routes that should render without a valid token. Everything else redirects
- * to /login. Keep this list tight — this is an admin dashboard, public
+ * to /login. Keep this list tight - this is an admin dashboard, public
  * surface should be minimal.
  */
 const PUBLIC_PATHS = [
   "/login",
   // Embeddable forms are anonymous and framed by third-party sites. The auth
-  // cookie is SameSite=Lax so it never arrives in a cross-site iframe anyway —
+  // cookie is SameSite=Lax so it never arrives in a cross-site iframe anyway -
   // gating these would 302 to /login, which sends frame-ancestors 'none'.
   "/embed",
 ];

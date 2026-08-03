@@ -17,28 +17,28 @@ import { PanelHeader } from "../PanelHeader";
 import { FullScreenDatePicker } from "../FullScreenDatePicker";
 
 /**
- * Step 10 of the wizard — the final review + publish action.
+ * Step 10 of the wizard - the final review + publish action.
  *
  * Sections:
- *   1. Event status — radio grid (draft / publish now / scheduled).
+ *   1. Event status - radio grid (draft / publish now / scheduled).
  *      Picking "scheduled" reveals a date+time row below using the
  *      shared FullScreenDatePicker.
  *
- *   2. Visibility — public / private toggle. Affects whether the
+ *   2. Visibility - public / private toggle. Affects whether the
  *      event is listed in directory pages or only accessible via
  *      direct link.
  *
- *   3. Summary card — recaps the values the user has entered. The
+ *   3. Summary card - recaps the values the user has entered. The
  *      values are read live from state so they update as you tab
  *      back to other steps and edit. The bullet count for "Categories"
  *      and the price summary for "Tickets" are derived.
  *
- *   4. Big "Publish event" button — the actual mutation will hook
+ *   4. Big "Publish event" button - the actual mutation will hook
  *      here when the WP create-event route is wired. For now the
  *      button is decorative.
  *
  * No "Continue" button on the desktop nav since this is the last
- * step — Back only.
+ * step - Back only.
  */
 export function PublishPanel() {
   const { state, dispatch } = useEventCreate();
@@ -50,7 +50,7 @@ export function PublishPanel() {
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Shared save controller — same mutation the topbar/bottombar use, so
+  // Shared save controller - same mutation the topbar/bottombar use, so
   // the topbar "Saved" pill reflects a save triggered from here too.
   const { run, isSaving, error } = useEditorSave();
 
@@ -108,7 +108,7 @@ export function PublishPanel() {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      // Clipboard write blocked (e.g. iOS without HTTPS) — ignore.
+      // Clipboard write blocked (e.g. iOS without HTTPS) - ignore.
     }
   };
 
@@ -150,7 +150,7 @@ export function PublishPanel() {
           />
         </div>
 
-        {/* Schedule date+time fields — only when status is scheduled. */}
+        {/* Schedule date+time fields - only when status is scheduled. */}
         {state.status === "scheduled" && (
           <div className="mt-4 pt-4 border-t border-ink-200">
             <div className="grid grid-cols-2 gap-3">
@@ -235,7 +235,7 @@ export function PublishPanel() {
 
       {/* ---- Summary card ---- */}
       <div className="bg-ink-900 rounded-2xl p-6 text-white mb-8 relative overflow-hidden">
-        {/* Soft glow blob in the corner — purely decorative. */}
+        {/* Soft glow blob in the corner - purely decorative. */}
         <div
           className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-gold-500/20 blur-3xl"
           aria-hidden
@@ -300,7 +300,7 @@ export function PublishPanel() {
               : "Publish event"}
       </button>
 
-      {/* Save error — only rendered on failure. */}
+      {/* Save error - only rendered on failure. */}
       {error && (
         <p className="mt-3 text-sm text-red-600 text-center">
           {error instanceof ApiError
@@ -309,7 +309,7 @@ export function PublishPanel() {
         </p>
       )}
 
-      {/* ---- Desktop nav row — Back only on the last step. ---- */}
+      {/* ---- Desktop nav row - Back only on the last step. ---- */}
       <div className="hidden sm:flex items-center justify-start gap-3 pt-6 mt-6 border-t border-ink-200">
         <button
           type="button"
@@ -337,7 +337,7 @@ export function PublishPanel() {
 }
 
 // ============================================================
-// Subcomponents — local; no need to export.
+// Subcomponents - local; no need to export.
 // ============================================================
 
 function StatusOption({
@@ -353,7 +353,7 @@ function StatusOption({
   iconClass: string;
   label: string;
 }) {
-  // Built as a button rather than the radio pattern from the mockup —
+  // Built as a button rather than the radio pattern from the mockup -
   // simpler accessibility tree, no need for the visually-hidden input
   // trick because we manage selected state explicitly. Adds
   // `aria-pressed` so screen readers know which option is active.
@@ -435,7 +435,7 @@ function SummaryItem({
 // Helpers
 // ============================================================
 
-/** "2026-04-19" → "19 Apr 2026" — short variant for tight summary copy. */
+/** "2026-04-19" → "19 Apr 2026" - short variant for tight summary copy. */
 function formatShort(iso: string): string {
   const parts = iso.split("-");
   if (parts.length !== 3) return iso;

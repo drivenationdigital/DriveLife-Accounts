@@ -7,8 +7,8 @@ import { useState } from "react";
  * Car Clubs and Traders panels.
  *
  * Two pieces:
- *   1. Direct URL — read-only input + Copy button.
- *   2. Embed — preformatted iframe snippet + Copy button.
+ *   1. Direct URL - read-only input + Copy button.
+ *   2. Embed - preformatted iframe snippet + Copy button.
  *
  * The URLs are passed in as props because each panel uses a
  * different application route (`/apply/show-cars`, `/apply/car-clubs`,
@@ -23,9 +23,9 @@ export function ApplicationLinksCard({
   slug,
   iframeTitle,
 }: {
-  /** "show-cars" | "car-clubs" | "traders" — the segment after /apply/. */
+  /** "show-cars" | "car-clubs" | "traders" - the segment after /apply/. */
   applicationKind: string;
-  /** Event slug — used in both the direct URL and the iframe src. */
+  /** Event slug - used in both the direct URL and the iframe src. */
   slug: string;
   /** Title attribute on the embed iframe (also used as the H3 hint
    *  for screen readers). E.g. "Show car applications". */
@@ -49,7 +49,7 @@ export function ApplicationLinksCard({
       setCopiedKey(key);
       window.setTimeout(() => setCopiedKey(null), 1500);
     } catch {
-      // Clipboard write blocked (e.g. iOS without HTTPS) — silently
+      // Clipboard write blocked (e.g. iOS without HTTPS) - silently
       // ignore; the user can still select & copy by hand.
     }
   };

@@ -5,10 +5,8 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import {
   useEventCreate,
-  TRADER_ICONS,
   type TraderCategory,
   type TraderCategoryId,
-  type TraderIcon,
 } from "@/context/EventCreateContext";
 import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import {
@@ -17,6 +15,7 @@ import {
   mapTraderCategoryToBody,
 } from "@/lib/traderMutations";
 import { ApiError } from "@/lib/apiClient";
+import { useAction } from "@/context/ActionContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 
@@ -25,12 +24,12 @@ import { PanelHeader } from "../PanelHeader";
 import { TraderCategoryDrawer } from "../TraderCategoryDrawer";
 
 /**
- * Step 9 — Traders.
+ * Step 9 - Traders.
  *
  * Each trader category carries its own info text, application window,
  * and a payment mode (online ticket vs. pay in person). Master enable
  * toggle gates the section. Categories persist to the server on save/
- * delete (same pattern as Show Cars) — not batched on event save.
+ * delete (same pattern as Show Cars) - not batched on event save.
  */
 export function TradersPanel() {
   const { state, dispatch } = useEventCreate();
@@ -40,6 +39,7 @@ export function TradersPanel() {
 
   const saver = useSaveTraderCategory();
   const remover = useDeleteTraderCategory();
+  const runAction = useAction();
   const eid = state.encryptedId;
 
   const { prev, next } = adjacentSteps("traders");
@@ -96,18 +96,41 @@ export function TradersPanel() {
     }
   };
 
-  const handleRemoveCategory = async (id: TraderCategoryId) => {
+  /** Delete is server-side and permanent, so it runs through the
+   *  shared action flow (confirm → full-screen loader → notification).
+   *  Both the row button and the drawer's "Remove" funnel through
+   *  here, so the confirm can't be skipped from either. */
+  const handleRemoveCategory = async (id: TraderCategoryId, name: string) => {
     if (!eid) return;
-    try {
-      await remover.mutateAsync({ eid, id });
+    const res = await runAction({
+      confirm: {
+        title: "Delete this category?",
+        message: name.trim()
+          ? `"${name.trim()}" will be removed. Applications already submitted for it stay, but nobody can apply to it again. This can't be undone.`
+          : "The category will be removed. Applications already submitted for it stay, but nobody can apply to it again. This can't be undone.",
+        confirmLabel: "Delete category",
+        cancelLabel: "Keep category",
+        danger: true,
+      },
+      loadingLabel: "Deleting category...",
+      successTitle: "Category deleted",
+      errorTitle: "Couldn't delete the category",
+      run: async () => {
+        await remover.mutateAsync({ eid, id });
+        return true;
+      },
+    });
+    if (res) {
       dispatch({ type: "REMOVE_TRADER_CATEGORY", id });
       setDrawerOpen(false);
-    } catch {
-      // Leave the row in place; surface error on the drawer if open.
+    } else {
+      // Cancelled or failed - the notification already covered it, so
+      // clear the mutation error rather than repeat it inline.
+      remover.reset();
     }
   };
 
-  // DnD reorder (local only — server has no display_order for traders)
+  // DnD reorder (local only - server has no display_order for traders)
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [dropIdx, setDropIdx] = useState<number | null>(null);
 
@@ -195,7 +218,7 @@ export function TradersPanel() {
                   Trader types
                 </h3>
                 <p className="text-xs text-ink-500 mt-0.5">
-                  Group traders by type — each category has its own application
+                  Group traders by type - each category has its own application
                   window &amp; info
                 </p>
               </div>
@@ -238,7 +261,7 @@ export function TradersPanel() {
                       <TraderCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
-                        onDelete={() => handleRemoveCategory(c.id)}
+                        onDelete={() => handleRemoveCategory(c.id, c.name)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
                         canMoveUp={idx > 0}
@@ -291,7 +314,7 @@ export function TradersPanel() {
         editing={editing}
         onClose={() => setDrawerOpen(false)}
         onSave={(c) => handleSaveCategory(c, editing !== null)}
-        onRemove={(id) => handleRemoveCategory(id)}
+        onRemove={(id) => handleRemoveCategory(id, editing?.name ?? "")}
       />
 
       {errorText(saver.error ?? remover.error) && (
@@ -321,7 +344,6 @@ function TraderCategoryRow({
   canMoveDown: boolean;
 }) {
   const subtitle = subtitleForCategory(category);
-  const iconClass = iconClassFor(category.icon);
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
       <button
@@ -332,7 +354,7 @@ function TraderCategoryRow({
         <i className="fa-solid fa-grip-vertical" aria-hidden />
       </button>
       <div className="w-10 h-10 rounded-lg bg-gold-50 border border-gold-200 flex items-center justify-center flex-shrink-0">
-        <i className={`${iconClass} text-gold-600 text-sm`} aria-hidden />
+        <i className="fa-solid fa-store text-gold-600 text-sm" aria-hidden />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-ink-900 truncate">
@@ -380,11 +402,6 @@ function TraderCategoryRow({
   );
 }
 
-function iconClassFor(icon: TraderIcon): string {
-  const found = TRADER_ICONS.find((i) => i.id === icon);
-  return found?.faClass ?? "fa-solid fa-store";
-}
-
 function subtitleForCategory(c: TraderCategory): string {
   const bits: string[] = [];
   // Payment mode + fee
@@ -400,7 +417,7 @@ function subtitleForCategory(c: TraderCategory): string {
   if (c.applicationsOpen || c.applicationsClose) {
     const win = [
       c.applicationsOpen ? formatShort(c.applicationsOpen) : "",
-      "–",
+      "-",
       c.applicationsClose ? formatShort(c.applicationsClose) : "",
     ]
       .join(" ")

@@ -5,7 +5,7 @@
  *   - Next.js middleware can read it server-side to gate routes
  *   - The client can attach it to `X-WP-Token` on every API call
  *
- * Not HTTP-only by design — we need client JS access. Keep an eye on XSS.
+ * Not HTTP-only by design - we need client JS access. Keep an eye on XSS.
  */
 
 export const AUTH_COOKIE_NAME = "next_dash_token";

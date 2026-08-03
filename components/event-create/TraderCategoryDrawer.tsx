@@ -3,7 +3,6 @@
 import { useState } from "react";
 
 import {
-  TRADER_ICONS,
   type TraderCategory,
   type TraderCategoryId,
   type TraderIcon,
@@ -20,14 +19,14 @@ import { FullScreenDatePicker } from "./FullScreenDatePicker";
  * Trader category add/edit drawer.
  *
  * Form sections:
- *   1. Name + icon picker (utensils / shirt / wrench / handshake)
+ *   1. Name
  *   2. Payment mode (online ticket vs. pay in person) + fee + spaces
  *   3. Application window (open/close dates)
  *   4. Per-category info textarea
  *
  * Payment is never free. 'online' takes payment at checkout via a
  * hidden ticket; 'in_person' is invoice / bank transfer / pay on the
- * day (organiser confirms manually). The fee field applies to both —
+ * day (organiser confirms manually). The fee field applies to both -
  * in_person just collects it offline. A per-category secret code is
  * auto-generated (gates the online ticket link).
  */
@@ -47,9 +46,9 @@ export function TraderCategoryDrawer({
   onRemove: (id: TraderCategoryId) => void;
 }) {
   const [name, setName] = useState(() => editing?.name ?? "");
-  const [icon, setIcon] = useState<TraderIcon>(
-    () => editing?.icon ?? "utensils",
-  );
+  // Icon is no longer pickable in the UI; existing values are preserved
+  // and new categories fall back to the generic default.
+  const icon: TraderIcon = editing?.icon ?? "utensils";
   const [paymentMode, setPaymentMode] = useState<"online" | "in_person">(
     () => editing?.paymentMode ?? "online",
   );
@@ -169,37 +168,7 @@ export function TraderCategoryDrawer({
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-semibold text-ink-900 mb-2">
-            Icon
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {TRADER_ICONS.map((opt) => {
-              const active = opt.id === icon;
-              const cls = [
-                "h-12 rounded-lg border-2 flex items-center justify-center transition",
-                active
-                  ? "border-gold-500 bg-gold-50 text-gold-700"
-                  : "border-ink-200 bg-white text-ink-500 hover:border-ink-300",
-              ].join(" ");
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setIcon(opt.id)}
-                  aria-pressed={active}
-                  aria-label={opt.label}
-                  className={cls}
-                  title={opt.label}
-                >
-                  <i className={`${opt.faClass} text-base`} aria-hidden />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Payment mode — never free. */}
+        {/* Payment mode - never free. */}
         <div className="pt-3 border-t border-ink-200">
           <label className="block text-sm font-semibold text-ink-900 mb-2">
             How do traders pay?
@@ -261,7 +230,7 @@ export function TraderCategoryDrawer({
               />
               {paymentMode === "in_person" && (
                 <p className="text-xs text-ink-400 mt-1">
-                  Collected offline — shown to traders for reference.
+                  Collected offline - shown to traders for reference.
                 </p>
               )}
             </div>
@@ -307,7 +276,7 @@ export function TraderCategoryDrawer({
             Trader information
           </label>
           <p className="text-xs text-ink-500 mb-3">
-            Perks, arrival times, pitch sizes, power availability — what traders
+            Perks, arrival times, pitch sizes, power availability - what traders
             need to know.
           </p>
           <EditorTextarea

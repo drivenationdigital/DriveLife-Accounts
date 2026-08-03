@@ -8,7 +8,7 @@
  *   │ Subtitle paragraph                │
  *   └──────────────────────────────────┘
  *
- * Kept dumb on purpose — no state, no router. Each panel passes the
+ * Kept dumb on purpose - no state, no router. Each panel passes the
  * step number, title, and subtitle in. This means panels stay easy
  * to test and the header is a pure presentation component.
  */

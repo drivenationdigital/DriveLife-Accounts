@@ -7,7 +7,7 @@ import { DetailModal } from "@/components/modals/DetailModal";
 
 /**
  * Layout for the authenticated dashboard area. Middleware ensures anyone
- * reaching here has a token — but components that need the user can still
+ * reaching here has a token - but components that need the user can still
  * read `useAuth()` from the root AuthProvider.
  */
 export default function DashboardLayout({

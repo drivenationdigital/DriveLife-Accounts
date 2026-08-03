@@ -51,7 +51,7 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
     filter_eventdate: params.filter_eventdate ?? 1,
     page: params.page ?? 1,
     per_page: params.per_page ?? 20,
-    // Empty string treated as no filter — same as omitting it.
+    // Empty string treated as no filter - same as omitting it.
     search: params.search?.trim() || undefined,
   };
 
@@ -107,7 +107,7 @@ export function useEventOrders(
 
 /**
  * Loads a paginated page of show-car applications, optionally filtered by
- * status. Disabled by default — enable once the Show Cars tab is active.
+ * status. Disabled by default - enable once the Show Cars tab is active.
  */
 export function useEventShowCars(
   eid: string | undefined,
@@ -166,7 +166,7 @@ export function useEventCarClubs(
  * Mirrors the legacy WP form's category set (chunks 0+1+2 of
  * `get_categories(... orderby ID asc, exclude 1/9/10)` chunked at 7).
  *
- * Categories rarely change, so we use a generous staleTime — once
+ * Categories rarely change, so we use a generous staleTime - once
  * the page has them they're treated as fresh for 30 minutes. The
  * cache is keyed without parameters because the route returns a
  * single canonical list.
@@ -206,7 +206,7 @@ export type CreateEventResponse = {
  * after the user has chosen a type + entered a title; on success it
  * navigates to the editor with the returned `encrypted_id`.
  *
- * No automatic invalidation here — the My Events list will re-fetch
+ * No automatic invalidation here - the My Events list will re-fetch
  * on its next visit naturally; eagerly invalidating would cause an
  * extra request the user doesn't see during the redirect.
  */
@@ -230,7 +230,7 @@ export function useCreateEvent() {
  * fire a network request with a missing identifier.
  *
  * staleTime is 0 because the editor is the source of truth while
- * the user is editing — we don't want a refocus-refetch to throw
+ * the user is editing - we don't want a refocus-refetch to throw
  * away unsaved local edits. The TanStack default of "stale on
  * mount, fresh while window has focus" would do that. We also turn
  * off refetch-on-window-focus for the same reason.

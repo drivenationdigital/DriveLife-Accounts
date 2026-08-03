@@ -11,13 +11,13 @@ import Link from "@tiptap/extension-link";
  * with a small toolbar for the formatting we expose to organisers:
  * bold / italic / strike / bullet list / numbered list / link.
  *
- * Output is HTML — that's what TipTap produces and what the WP
+ * Output is HTML - that's what TipTap produces and what the WP
  * backend stores in ACF text fields. The `value` prop is treated as
  * the source of truth: when it changes externally (e.g. on a
  * HYDRATE from the load-event flow), the editor's content syncs.
  *
  * Bundle impact is ~80kb gzipped, scoped to the (editor) route
- * group only — the rest of the app doesn't pay for it.
+ * group only - the rest of the app doesn't pay for it.
  */
 export function EditorTextarea({
   id,
@@ -62,14 +62,14 @@ export function EditorTextarea({
       },
     },
     onUpdate({ editor }) {
-      // TipTap returns "<p></p>" for an empty editor — collapse to ""
+      // TipTap returns "<p></p>" for an empty editor - collapse to ""
       // so consumers can treat empty consistently.
       const html = editor.getHTML();
       onChange(html === "<p></p>" ? "" : html);
     },
   });
 
-  // Sync external value changes back into the editor — this is what
+  // Sync external value changes back into the editor - this is what
   // makes HYDRATE work. Compare against current HTML so we don't
   // fight the user's typing or move their caret on every keystroke.
   useEffect(() => {
@@ -90,7 +90,7 @@ export function EditorTextarea({
         <EditorContent editor={editor} />
         {/* Manually-rendered placeholder. TipTap's placeholder
             extension exists but adds weight for our single-paragraph
-            default. This is enough — visible only when the editor's
+            default. This is enough - visible only when the editor's
             empty. */}
         {placeholder && editor?.isEmpty && (
           <p className="absolute top-4 left-4 text-ink-400 pointer-events-none select-none">

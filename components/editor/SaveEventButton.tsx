@@ -12,7 +12,7 @@ import { ApiError } from "@/lib/apiClient";
  * server draft if needed, then updates), and on success navigates to
  * the event view.
  *
- * Adapt to your own toast / bottom-bar — this is the smallest thing
+ * Adapt to your own toast / bottom-bar - this is the smallest thing
  * that exercises the whole path. Drop it into the editor's
  * bottombar/topbar, or lift the hook usage into whatever Save control
  * already exists.
@@ -43,7 +43,7 @@ export function SaveEventButton({
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
       {recurringBlocked && (
         <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
-          Recurring schedules are saved separately — date changes won’t
+          Recurring schedules are saved separately - date changes won’t
           be included.
         </span>
       )}

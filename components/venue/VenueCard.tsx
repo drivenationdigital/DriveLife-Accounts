@@ -49,7 +49,7 @@ export function VenueCard({ venue, onClick }: Props) {
         <h3 className="venue-title">{venue.title}</h3>
         <p className="venue-location">
           <PinIcon />
-          <span>{venue.location || "—"}</span>
+          <span>{venue.location || "-"}</span>
         </p>
       </div>
     </button>

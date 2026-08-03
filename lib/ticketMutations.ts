@@ -2,19 +2,19 @@
  * Per-row ticket mutations for the editor.
  *
  * Three hooks:
- *   useSaveTicketRow()    — create OR update a single ticket / section.
+ *   useSaveTicketRow()    - create OR update a single ticket / section.
  *                            Hook detects new-vs-existing by the id
  *                            shape (local makeLocalId ids look like
  *                            "tkt-deadbeef"; server make_crypt ids
  *                            don't). New rows POST without a tid;
  *                            existing rows POST with tid in the query.
- *   useDeleteTicketRow()  — delete a single ticket / section.
- *   useReorderTicketRows()— writes display_order on every ticket in
+ *   useDeleteTicketRow()  - delete a single ticket / section.
+ *   useReorderTicketRows()- writes display_order on every ticket in
  *                            the given order.
  *
  * On success each invalidates the /event-edit cache so a later
  * re-entry to the editor pulls fresh state. The editor session itself
- * keeps using its local reducer state — the HYDRATE guard in the
+ * keeps using its local reducer state - the HYDRATE guard in the
  * editor page prevents the cache invalidation from clobbering edits
  * mid-session.
  *
@@ -36,7 +36,7 @@ import type {
 // Body / response types
 // ============================================================
 
-/** Flat body shape — `kind` discriminates ticket vs section. The
+/** Flat body shape - `kind` discriminates ticket vs section. The
  *  ticket-only fields are optional; the PHP build_*_args ignores any
  *  key that doesn't apply to the chosen kind. */
 export interface ApiTicketSaveBody {
@@ -56,7 +56,7 @@ export interface ApiTicketSaveBody {
   individualAttendeeDetails?: boolean;
   requestVehiclePhoto?: boolean;
 
-  // section-only — optional code for gating a secret section. The
+  // section-only - optional code for gating a secret section. The
   // editor's TicketSection type doesn't carry this yet; leave it
   // unset and sections will be flagged secret but not coded.
   secretCode?: string;

@@ -11,7 +11,7 @@
  *   panel components.
  * - Initial state matches the mockup so the page renders the same demo
  *   content the original HTML did. Fields default to empty / sensible
- *   values — when we wire the create-event WP route, this is also the
+ *   values - when we wire the create-event WP route, this is also the
  *   shape that maps onto the API payload.
  *
  * Action discipline:
@@ -22,7 +22,7 @@
  *   immutable-update plumbing once instead of every caller doing it.
  *
  * As we port more panels in subsequent turns, new actions will be
- * added here. Keep the discriminated union exhaustive — TS will catch
+ * added here. Keep the discriminated union exhaustive - TS will catch
  * missing branches in the reducer switch.
  */
 
@@ -43,7 +43,7 @@ import {
 export type LatLng = { lat: number; lng: number };
 
 /**
- * An image attached to the event — either already uploaded to the
+ * An image attached to the event - either already uploaded to the
  * server (`remote`) or selected from the user's device but not yet
  * uploaded (`local`).
  *
@@ -52,7 +52,7 @@ export type LatLng = { lat: number; lng: number };
  *
  *   - The mapper produces remotes when loading an existing event.
  *   - The image picker produces locals when the user adds a new
- *     image. Both end up in the same `gallery` array — no second
+ *     image. Both end up in the same `gallery` array - no second
  *     source of truth to keep in sync.
  *   - The save flow gets to switch on `kind` and only upload locals.
  *   - The image preview component renders both kinds the same way:
@@ -62,7 +62,7 @@ export type LatLng = { lat: number; lng: number };
  * Local entries hold both the `previewUrl` (for rendering) and the
  * `file` (for the upload payload). The previewUrl must be revoked
  * via `URL.revokeObjectURL` when the entry is removed, otherwise
- * the browser keeps the blob alive — see the gallery panel for the
+ * the browser keeps the blob alive - see the gallery panel for the
  * cleanup hooks.
  */
 export type EditorImage =
@@ -71,7 +71,7 @@ export type EditorImage =
       url: string;
       /** Cloudflare Images id when the image came from a CF upload.
        *  Optional so legacy ACF-backed images (which only have a url)
-       *  stay valid. Required for the DELETE /event-image flow —
+       *  stay valid. Required for the DELETE /event-image flow -
        *  the remove handlers check for it before calling the server. */
       cloudflareId?: string;
     }
@@ -81,7 +81,7 @@ export type EditorImage =
 // Tickets & Sections
 // ----------------------------------------------------------------
 
-/** Branded ID type — opaque string at runtime, but distinct in TS so
+/** Branded ID type - opaque string at runtime, but distinct in TS so
  * we can't accidentally pass a section id where a ticket id is wanted.
  * The actual values are short randoms generated client-side until the
  * API assigns real ones on save. */
@@ -98,7 +98,7 @@ export type TicketSourceMode = "ce" | "external" | "none";
  * "+ fees" suffix on price displays. */
 export type TicketFeeMode = "pass" | "absorb";
 
-/** A single ticket row. Position in the array IS the position — when
+/** A single ticket row. Position in the array IS the position - when
  * we POST to the API later we'll send `{tickets:[{id, position}]}`
  * derived from index rather than carrying a separate `position`
  * field that could drift. */
@@ -126,7 +126,7 @@ export type Ticket = {
   isSecret: boolean;
   /** When `isSecret` is true, the code buyers enter at checkout to
    *  unlock the ticket. Optional so existing call sites that build a
-   *  Ticket without it keep typechecking — drawers / mappers default
+   *  Ticket without it keep typechecking - drawers / mappers default
    *  to empty when absent. */
   secretCode?: string;
   /** Encrypted post id for the ticket. Set by the eventEditMapper
@@ -167,23 +167,23 @@ export type TicketListItem = Ticket | TicketSection;
 
 export type DiscountId = string & { readonly __brand: "DiscountId" };
 
-/** Discount type — percentage off (e.g. 15%) vs fixed amount (e.g. £5). */
+/** Discount type - percentage off (e.g. 15%) vs fixed amount (e.g. £5). */
 export type DiscountKind = "percentage" | "fixed";
 
 /** A promo / discount code. Many fields mirror the ticket schema:
  *
  *   - `code` is what the buyer enters at checkout. Stored uppercase.
  *   - `kind` + `amount` together describe the discount (15% or £5).
- *   - `usageLimit` / `perCustomerLimit` are nullable — null means
+ *   - `usageLimit` / `perCustomerLimit` are nullable - null means
  *     unlimited (matches the "Leave blank for unlimited" copy).
  *   - `usageCount` is server-derived; on the client we keep it for
  *     the demo data so the list rows can render "Used X / Y". A
  *     freshly created discount defaults to 0.
- *   - `applicableTicketIds` — empty array = applies to all tickets,
+ *   - `applicableTicketIds` - empty array = applies to all tickets,
  *     non-empty = only those ticket ids. We store empty for "all"
  *     rather than every-ticket-id so adding a new ticket later doesn't
  *     silently exclude it.
- *   - `availableFrom` / `availableUntil` window — nullable; null on
+ *   - `availableFrom` / `availableUntil` window - nullable; null on
  *     either end means "no bound on that side". The "Expired" badge
  *     in the list is derived from `availableUntil` being in the past.
  */
@@ -207,7 +207,7 @@ export type Discount = {
 
 /** ISO weekday short codes used by the day-of-week chips on the
  * recurring-events form. Stored in state as an array (order doesn't
- * matter — the UI sorts by Mon..Sun for display). */
+ * matter - the UI sorts by Mon..Sun for display). */
 export type DayOfWeek = "Mon" | "Tue" | "Wed" | "Thu" | "Fri" | "Sat" | "Sun";
 
 export const DAYS_OF_WEEK: DayOfWeek[] = [
@@ -221,7 +221,7 @@ export const DAYS_OF_WEEK: DayOfWeek[] = [
 ];
 
 /**
- * Lowercase weekday names — used for the recurring-event "every X"
+ * Lowercase weekday names - used for the recurring-event "every X"
  * dropdown. Matches the values stored in WP's `recurring_week` field
  * verbatim so we can round-trip without translation.
  */
@@ -246,9 +246,9 @@ export const WEEKDAYS_LOWER: { value: WeekdayLower; label: string }[] = [
 
 /**
  * "Nth weekday of the month" slugs for the monthly recurring mode.
- * Format: `{ ordinal }_{ weekday }` — e.g. "first_monday",
+ * Format: `{ ordinal }_{ weekday }` - e.g. "first_monday",
  * "last_friday". 35 total. Matches WP's `recurring_month` legacy
- * value (the slug, not the human label — see notes in the field
+ * value (the slug, not the human label - see notes in the field
  * mapper for the slug-vs-label gotcha).
  */
 export type MonthlyOrdinal = "first" | "second" | "third" | "fourth" | "last";
@@ -285,7 +285,7 @@ export const MONTHLY_OCCURRENCES: {
 })();
 
 // ----------------------------------------------------------------
-// Application categories — Show Cars, Traders
+// Application categories - Show Cars, Traders
 // ----------------------------------------------------------------
 //
 // Show-car categories and trader categories share most of their
@@ -298,7 +298,7 @@ export const MONTHLY_OCCURRENCES: {
 //     categories all use the trophy icon.
 //
 // Rather than fight a discriminated union over two near-shapes, they
-// stay as separate types — easier to reason about per-panel.
+// stay as separate types - easier to reason about per-panel.
 
 export type ShowCarCategoryId = string & {
   readonly __brand: "ShowCarCategoryId";
@@ -330,7 +330,7 @@ export type ShowCarCategory = {
   secretCode: string;
 };
 
-/** Curated icon set for trader categories — matches the mockup. */
+/** Curated icon set for trader categories - matches the mockup. */
 export type TraderIcon = "utensils" | "shirt" | "wrench" | "handshake";
 
 export const TRADER_ICONS: {
@@ -352,7 +352,7 @@ export type TraderCategory = {
   applicationsClose: string | null;
   /** Per-category info text (the WYSIWYG textarea content). */
   info: string;
-  /** Payment mode — never free. 'online' takes payment at checkout
+  /** Payment mode - never free. 'online' takes payment at checkout
    *  via a hidden ticket; 'in_person' is invoice / bank transfer /
    *  pay-on-the-day (organiser marks confirmed once cleared). Both
    *  use the pending→approved→confirmed→rejected flow. */
@@ -414,11 +414,11 @@ export type EventCreateState = {
    * When `uniqueTimesPerDay` is on, each calendar day in the range
    * gets its own start/end times. Stored as an array keyed by date
    * so the UI can render per-day rows. The array is kept in sync
-   * with the date range — new days are appended with current default
+   * with the date range - new days are appended with current default
    * times, removed days drop, existing days preserve their times so
    * toggling the mode off and back on doesn't lose user input.
    *
-   * When `uniqueTimesPerDay` is off, this array is ignored on save —
+   * When `uniqueTimesPerDay` is off, this array is ignored on save -
    * the single `startTime`/`endTime` scalars are the source of truth.
    * We don't clear the array on toggle-off, so flipping back on
    * restores the per-day values.
@@ -438,7 +438,7 @@ export type EventCreateState = {
   /**
    * For `monthly` mode: which "Nth weekday of the month" the event
    * repeats on. Stored as a slug like "first_monday" / "last_friday"
-   * — same shape as WP's `recurring_month` field.
+   * - same shape as WP's `recurring_month` field.
    *
    * 35 combinations: { first | second | third | fourth | last } ×
    * { sunday | monday | … | saturday }. Helpers below build the list.
@@ -477,7 +477,7 @@ export type EventCreateState = {
   tiktokUrl: string;
 
   // ---- Cover image + gallery ----
-  // Each image is either a "remote" URL (already uploaded — typical
+  // Each image is either a "remote" URL (already uploaded - typical
   // for events loaded from the API) or a "local" File that's been
   // selected from the device but not yet uploaded. The save flow
   // walks the gallery, uploads any locals, and replaces them with
@@ -487,29 +487,39 @@ export type EventCreateState = {
 
   // ---- Tickets ----
   // The mode drives which sub-form is visible. Each mode has its own
-  // satellite fields — they all coexist in state so toggling between
+  // satellite fields - they all coexist in state so toggling between
   // modes doesn't wipe entries.
   ticketSource: TicketSourceMode;
 
-  // CE mode (managed ticketing) — full list + fee/attendees toggles.
+  // CE mode (managed ticketing) - full list + fee/attendees toggles.
   ticketList: TicketListItem[];
   ticketFeeMode: TicketFeeMode;
   showAttendees: boolean;
 
-  // External mode — URL the buyer's "Buy tickets" button points at,
+  // External mode - URL the buyer's "Buy tickets" button points at,
   // plus optional info text shown alongside.
   externalTicketUrl: string;
   externalTicketInfo: string;
 
-  // None / Free mode — entry info + whether visitors must register.
+  // None / Free mode - entry info + whether visitors must register.
   freeEntryInfo: string;
   requireRegistration: boolean;
+
+  // Applies to every ticketing mode: the logo printed on the ticket,
+  // the blurb shown alongside the ticket selection, the T&Cs / refund
+  // policy the buyer agrees to, and whether tickets are also sold on
+  // the gate (with the details of that arrangement).
+  ticketLogo: EditorImage | null;
+  ticketInfo: string;
+  ticketTerms: string;
+  ticketsOnGate: boolean;
+  ticketsOnGateInfo: string;
 
   // ---- Discounts ----
   discounts: Discount[];
 
   // ---- Show Cars ----
-  // Master toggle gates the section. Capacity limit is paired —
+  // Master toggle gates the section. Capacity limit is paired -
   // toggle on reveals the maxShowCars input. Categories list is
   // reorderable. Info text is the per-event blurb shown on the
   // application landing page.
@@ -535,7 +545,7 @@ export type EventCreateState = {
   carClubsInfo: string;
 
   // ---- Traders ----
-  // No event-level application window — each trader category has its
+  // No event-level application window - each trader category has its
   // own. Info text per category lives on TraderCategory.
   tradersEnabled: boolean;
   traderCategories: TraderCategory[];
@@ -552,7 +562,10 @@ export type EventCreateState = {
 };
 
 // ============================================================
-// Initial state — matches the demo content in event-editor.php
+// Initial state - a blank event. Nothing here is demo content:
+// every text field starts empty so "Add new event" opens a clean
+// form, and only structural defaults (times, timezone, mode
+// switches) are pre-set.
 // ============================================================
 
 const INITIAL_STATE: EventCreateState = {
@@ -561,50 +574,38 @@ const INITIAL_STATE: EventCreateState = {
   hostType: "me",
   hostId: null,
   hostName: "Me",
-  title: "Weekends in the Yard – Sunday Service @ The Hill",
-  categoryIds: [23, 3, 6, 4, 5, 46, 40, 20], // pre-checked in mockup
-  location: "Caffeine & Machine: The Hill, Ettington, Stratford-upon-Avon",
-  locationCoords: { lat: 52.1498, lng: -1.6299 },
+  title: "",
+  categoryIds: [],
+  location: "",
+  locationCoords: null,
 
-  // Mockup pre-fills the demo dates as 19 April 2026 (single mode);
-  // recurring fields default to the mockup's range.
   dateType: "single",
-  startDate: "2026-04-19",
-  endDate: "2026-04-19",
+  startDate: null,
+  endDate: null,
   startTime: "09:00",
-  endTime: "22:00",
+  endTime: "17:00",
   hideTimes: false,
   uniqueTimesPerDay: false,
   perDayTimes: [],
   recurringFrequency: "weekly",
   recurringWeek: "sunday",
   recurringMonth: "first_sunday",
-  recurringFirstDate: "2026-04-19",
-  recurringUntilDate: "2026-10-25",
+  recurringFirstDate: null,
+  recurringUntilDate: null,
   recurringRepeatUntilCancelled: false,
   recurringCustomDates: [],
   timezone: "Europe/London",
 
-  description:
-    "Weekends in the Yard is where Caffeine&Machine comes vibrantly, brilliantly alive. Roll in, switch off, hang out. A slow, easy blend of good coffee, good company, and great machines.\n\nRemember: Don't Be A Dick. No matter your tribe or what you arrive in, you're always welcome.",
-  websiteUrl: "https://caffeineandmachine.com/whats-on-the-hill/",
-  publicEmail: "contact@caffeineandmachine.com",
+  description: "",
+  websiteUrl: "",
+  publicEmail: "",
   publicPhone: "",
-  facebookUrl: "https://www.facebook.com/caffeineandmachine/",
-  instagramUrl: "https://www.instagram.com/caffeineandmachine/",
+  facebookUrl: "",
+  instagramUrl: "",
   tiktokUrl: "",
 
-  coverImage: {
-    kind: "remote",
-    url: "https://images.unsplash.com/photo-1544636331-e26879cd4d9b?w=1200&auto=format&fit=crop&q=60",
-  },
-  gallery: [
-    "https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=400&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?w=400&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1511919884226-fd3cad34687c?w=400&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&auto=format&fit=crop&q=60",
-    "https://images.unsplash.com/photo-1494976388531-d1058494cdd8?w=400&auto=format&fit=crop&q=60",
-  ].map((url) => ({ kind: "remote" as const, url })),
+  coverImage: null,
+  gallery: [],
 
   ticketSource: "ce",
   ticketList: [],
@@ -614,25 +615,29 @@ const INITIAL_STATE: EventCreateState = {
   externalTicketInfo: "",
   freeEntryInfo: "",
   requireRegistration: false,
+  ticketLogo: null,
+  ticketInfo: "",
+  ticketTerms: "",
+  ticketsOnGate: false,
+  ticketsOnGateInfo: "",
 
   discounts: [],
   showCarsEnabled: true,
-  showCarsLimitEnabled: true,
-  showCarsMax: 50,
+  showCarsLimitEnabled: false,
+  showCarsMax: NaN,
   showCarCategories: [],
   showCarsInfo: "",
 
   carClubsEnabled: true,
-  carClubsApplicationsOpen: "2026-02-01",
-  carClubsApplicationsClose: "2026-04-01",
+  carClubsApplicationsOpen: null,
+  carClubsApplicationsClose: null,
   carClubsApplicationsOpenTime: "09:00",
   carClubsApplicationsCloseTime: "23:59",
-  carClubsLimitEnabled: true,
-  carClubsMax: 100,
+  carClubsLimitEnabled: false,
+  carClubsMax: NaN,
   carClubsRequireTicket: false,
   carClubsTicketCost: NaN,
-  carClubsInfo:
-    "Clubs can book a dedicated stand for groups of 10+. Arrival from 7:30am for club stands. Minimum of 6 cars required.",
+  carClubsInfo: "",
 
   tradersEnabled: true,
   traderCategories: [],
@@ -648,7 +653,7 @@ const INITIAL_STATE: EventCreateState = {
 // ============================================================
 
 /** Keys whose values are scalar (string / number / boolean / null /
- * LatLng-or-null). Listed explicitly rather than computed — TS conditional
+ * LatLng-or-null). Listed explicitly rather than computed - TS conditional
  * types over union state keys can be brittle, and an explicit list is
  * easier to read and maintain. */
 type ScalarStateKey =
@@ -688,6 +693,11 @@ type ScalarStateKey =
   | "externalTicketInfo"
   | "freeEntryInfo"
   | "requireRegistration"
+  | "ticketLogo"
+  | "ticketInfo"
+  | "ticketTerms"
+  | "ticketsOnGate"
+  | "ticketsOnGateInfo"
   | "showCarsEnabled"
   | "showCarsLimitEnabled"
   | "showCarsMax"
@@ -709,7 +719,7 @@ type ScalarStateKey =
   | "visibility";
 
 /**
- * SET_FIELD action — distributed over each scalar key so `value` is
+ * SET_FIELD action - distributed over each scalar key so `value` is
  * narrowed to that key's field type. This means
  *   dispatch({ type: 'SET_FIELD', key: 'title', value: 123 })
  * is a type error, but
@@ -727,7 +737,7 @@ type SetFieldAction = {
 export type EventCreateAction =
   | SetFieldAction
   | { type: "TOGGLE_CATEGORY"; id: number }
-  // Custom recurring dates — flat list of one-off (date, startTime,
+  // Custom recurring dates - flat list of one-off (date, startTime,
   // endTime) rows. Add/Update/Remove follow the same pattern as the
   // ticket/discount lists.
   | {
@@ -759,7 +769,7 @@ export type EventCreateAction =
     }
   // Ticket-list mutations. Add/Update accept full Ticket/Section
   // objects so the panel/drawer can compose IDs, defaults, etc.,
-  // before dispatching. Reorder accepts the full new array — same
+  // before dispatching. Reorder accepts the full new array - same
   // pattern as SET_GALLERY.
   | { type: "ADD_TICKET"; ticket: Ticket }
   | { type: "UPDATE_TICKET"; ticket: Ticket }
@@ -784,7 +794,7 @@ export type EventCreateAction =
   | { type: "REMOVE_TRADER_CATEGORY"; id: TraderCategoryId }
   | { type: "REORDER_TRADER_CATEGORIES"; items: TraderCategory[] }
   // HYDRATE: atomically replace many fields at once. Used by the
-  // editor page's load-event flow — the API mapper produces a
+  // editor page's load-event flow - the API mapper produces a
   // partial of the full state, and HYDRATE merges it in. This is
   // safer than dispatching N SET_FIELDs in sequence (which would
   // cause N renders) and keeps the loaded values invisible to the
@@ -973,7 +983,7 @@ function reducer(
       return INITIAL_STATE;
 
     default: {
-      // Exhaustiveness check — if a new action variant is added but no
+      // Exhaustiveness check - if a new action variant is added but no
       // case is added here, TS will error on this line.
       const _never: never = action;
       return state;

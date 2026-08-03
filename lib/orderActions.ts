@@ -1,11 +1,11 @@
 /**
- * Order row actions — resend / cancel / update customer.
+ * Order row actions - resend / cancel / update customer.
  *
  *   POST /order/resend           { oid }
  *   POST /order/cancel           { oid }
  *   POST /order/update-customer  { oid, customer }
  *
- * "Download tickets" is not here — it's a direct link to the carevents
+ * "Download tickets" is not here - it's a direct link to the carevents
  * PDF endpoint; see orderTicketsUrl().
  */
 
@@ -37,7 +37,7 @@ export function useResendOrder() {
   });
 }
 
-/** Cancel the order (soft — via cc_cancel_order). */
+/** Cancel the order (soft - via cc_cancel_order). */
 export function useCancelOrder() {
   const qc = useQueryClient();
   return useMutation<OkResponse, Error, { oid: string }>({
@@ -110,7 +110,7 @@ export function useUpdateLineItemMeta() {
 
 /**
  * Public carevents URL that renders/downloads an order's tickets as a
- * PDF. Matches the legacy "/controller/download?order=<enc>" link.
+ * PDF: "/t/<encrypted order id>".
  * Uses NEXT_PUBLIC_CAREVENTS_URL when set, else the live carevents/uk
  * base (so it never falls back to a relative Next.js path, which 404s).
  */
@@ -118,7 +118,5 @@ export function orderTicketsUrl(encryptedOrderId: string): string {
   const base = (
     process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com"
   ).replace(/\/$/, "");
-  return `${base}/controller/download?order=${encodeURIComponent(
-    encryptedOrderId,
-  )}`;
+  return `${base}/t/${encodeURIComponent(encryptedOrderId)}`;
 }

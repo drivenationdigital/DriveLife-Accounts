@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 
 /**
- * Settings & Integrations — dashboard settings page (UI only).
+ * Settings & Integrations - dashboard settings page (UI only).
  * Sections: top nav cards, Payment Settings (Stripe), Website Widgets
- * (embed — starting point, full feature TBD), Help & Support.
+ * (embed - starting point, full feature TBD), Help & Support.
  */
 
 const NAV_CARDS = [
@@ -78,7 +78,7 @@ export default function SettingsPage() {
       <Section title="Website Widgets">
         <p className="mb-4 text-sm text-ink-500">
           Embed your club, venue, or event application pages on your own website
-          — visitors can apply without leaving your site. Copy the snippet below
+          - visitors can apply without leaving your site. Copy the snippet below
           to get started.
         </p>
         <EmbedBox />
@@ -147,7 +147,7 @@ function EmbedBox() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Clipboard unavailable — no-op; the code is still selectable.
+      // Clipboard unavailable - no-op; the code is still selectable.
     }
   };
 

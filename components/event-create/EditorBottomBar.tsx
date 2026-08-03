@@ -13,7 +13,7 @@ import {
 /**
  * Mobile-only sticky bottom CTA bar (sm: hidden on tablet+).
  *
- * Two actions — Back (smaller, secondary) and Continue (larger,
+ * Two actions - Back (smaller, secondary) and Continue (larger,
  * primary). Continue is a flex-[2] vs Back's flex-1 so it visually
  * dominates without crowding the back affordance.
  *
@@ -22,7 +22,7 @@ import {
  *
  * On the first step Back is disabled (no prev). On the last step
  * Continue becomes Publish (label change), but for now the button
- * disables — Publish will get its own logic when we wire mutations.
+ * disables - Publish will get its own logic when we wire mutations.
  */
 export function EditorBottomBar() {
   const router = useRouter();
@@ -44,7 +44,7 @@ export function EditorBottomBar() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // On the last step there's no "next" — the primary button becomes the
+  // On the last step there's no "next" - the primary button becomes the
   // save/publish action instead of dead-ending as a disabled Continue.
   const onSave = async () => {
     if (isSaving) return;

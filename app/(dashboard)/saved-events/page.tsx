@@ -16,7 +16,7 @@ export default function SavedEventsPage() {
     if (event.can_manage) {
       router.push(`/events/${event.encrypted_id}`);
     } else if (event.link) {
-      // Public permalink — open in a new tab (leaves the dashboard).
+      // Public permalink - open in a new tab (leaves the dashboard).
       window.open(event.link, "_blank", "noopener,noreferrer");
     }
   };

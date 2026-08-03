@@ -11,20 +11,20 @@ import {
 } from "@/lib/eventCreateSteps";
 
 /**
- * Desktop sidebar — visible at lg+ only.
+ * Desktop sidebar - visible at lg+ only.
  *
  * Step navigation is URL-driven (`?step=basics`) so individual steps
  * are deep-linkable, share-able, and browser back/forward navigates
  * between them. Clicking a step pushes the new search param without
  * scrolling (Next.js router handles this).
  *
- * The "complete" indicator state is not yet wired up — placeholder is
+ * The "complete" indicator state is not yet wired up - placeholder is
  * `false` everywhere. Once we have validation per step, we'll derive
  * completeness from the form state. The CSS already supports it
  * (`.side-tab.is-complete` swaps the number for a checkmark).
  *
  * Progress footer shows visited-step count. For now it just shows
- * `1 / 10` since we don't track visits yet — to be extended.
+ * `1 / 10` since we don't track visits yet - to be extended.
  */
 export function EditorSidebar() {
   const router = useRouter();
@@ -41,7 +41,7 @@ export function EditorSidebar() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
-  // Progress display — for now, just the active step's number. Will be
+  // Progress display - for now, just the active step's number. Will be
   // replaced by completed-step count once validation lands.
   const activeStepNumber =
     EVENT_CREATE_STEPS.find((s) => s.key === activeStep)?.number ?? 1;
@@ -49,7 +49,7 @@ export function EditorSidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white">
-      {/* Event title block — desktop only because the topbar already
+      {/* Event title block - desktop only because the topbar already
           shows the title on smaller breakpoints. */}
       <div className="px-6 pt-6 pb-5 border-b border-ink-200">
         <p className="text-[11px] uppercase tracking-widest text-gold-600 font-semibold mb-1.5">
@@ -64,7 +64,7 @@ export function EditorSidebar() {
         </p>
       </div>
 
-      {/* Step navigation — vertical list. */}
+      {/* Step navigation - vertical list. */}
       <nav
         className="flex-1 overflow-y-auto px-3 py-4"
         aria-label="Event editor sections"
@@ -72,7 +72,7 @@ export function EditorSidebar() {
         <ul className="space-y-0.5">
           {EVENT_CREATE_STEPS.map((step) => {
             const isActive = step.key === activeStep;
-            // Completeness placeholder — always false until validation wired up.
+            // Completeness placeholder - always false until validation wired up.
             const isComplete = false;
             const classes = [
               "side-tab",

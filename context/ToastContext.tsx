@@ -10,7 +10,7 @@ import {
 } from "react";
 
 /**
- * Minimal toast system — success/error/info messages that auto-dismiss.
+ * Minimal toast system - success/error/info messages that auto-dismiss.
  *
  * Mount <ToastProvider> once (alongside your ConfirmProvider, inside the
  * dashboard layout), then call useToast():

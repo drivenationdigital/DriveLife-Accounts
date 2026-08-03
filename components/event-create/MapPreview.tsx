@@ -16,7 +16,7 @@ import type { LatLng } from "@/context/EventCreateContext";
  *
  * HiDPI:
  *   - We request `scale=2` so the map looks crisp on retina displays.
- *     The HTML width is the natural width — the browser downsamples
+ *     The HTML width is the natural width - the browser downsamples
  *     automatically on standard-density screens.
  *
  * Fallback:
@@ -50,7 +50,7 @@ export function MapPreview({
       {showImage ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element --
-              Static Maps is a remote image — Next/Image would proxy
+              Static Maps is a remote image - Next/Image would proxy
               every request through our server, which doesn't help
               here. A plain <img> is cheaper. */}
           <img
@@ -92,12 +92,12 @@ export function MapPreview({
 /** Build a Google Static Maps URL.
  *
  * Notes on parameters:
- *   - `size=600x250` — close to the 16:5 aspect of our preview box,
+ *   - `size=600x250` - close to the 16:5 aspect of our preview box,
  *     scaled by `scale=2` for HiDPI.
- *   - `maptype=roadmap` — default styling. Leave the styled-map JSON
+ *   - `maptype=roadmap` - default styling. Leave the styled-map JSON
  *     for a later pass; the default is fine and free of pricing
  *     surprises.
- *   - `markers=color:0xb89855|<lat>,<lng>` — gold-500 marker.
+ *   - `markers=color:0xb89855|<lat>,<lng>` - gold-500 marker.
  */
 function buildStaticMapUrl(coords: LatLng, key: string): string {
   const params = new URLSearchParams({

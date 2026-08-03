@@ -125,7 +125,7 @@ function EventsContent() {
     router.push(`/events/${ev.encrypted_id}`);
   };
 
-  // First-time loading (no data yet) — show skeleton matching the chosen view.
+  // First-time loading (no data yet) - show skeleton matching the chosen view.
   // Subsequent loads use placeholderData (previous data dimmed) instead.
   const showSkeleton = isLoading && !data;
 

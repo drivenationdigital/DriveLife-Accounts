@@ -5,7 +5,7 @@
  * crypto.randomUUID is available in all modern browsers; we slice
  * the front of it for compactness in URLs and dev tools (collisions
  * within a single browsing session are vanishingly unlikely with 8
- * hex chars — ~16M space — for the modest record counts we expect).
+ * hex chars - ~16M space - for the modest record counts we expect).
  *
  * Falls back to Math.random in environments without crypto.
  */

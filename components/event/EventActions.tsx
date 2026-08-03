@@ -7,7 +7,7 @@ import {
   useCancelEvent,
   useDeleteEvent,
 } from "@/lib/eventActions";
-import { useConfirm } from "@/context/ConfirmContext";
+import { useAction } from "@/context/ActionContext";
 
 /**
  * Event overview action toolbar: Edit Event / View / three-dot menu.
@@ -36,7 +36,7 @@ export function EventActions({
   onAddManualOrder?: () => void;
 }) {
   const router = useRouter();
-  const confirm = useConfirm();
+  const runAction = useAction();
 
   const clone = useCloneEvent();
   const cancel = useCancelEvent();
@@ -71,50 +71,61 @@ export function EventActions({
 
   const handleDuplicate = async () => {
     setMenuOpen(false);
-    try {
-      const res = await clone.mutateAsync({ eid });
-      router.push(res.edit_url);
-    } catch {
-      /* surfaced by the mutation state if you want to show it */
-    }
+    const res = await runAction({
+      confirm: {
+        title: "Duplicate this event?",
+        message:
+          "A copy will be created as a draft, with the same details, tickets and settings. You'll be taken straight to it.",
+        confirmLabel: "Duplicate",
+        cancelLabel: "Cancel",
+      },
+      loadingLabel: "Duplicating event...",
+      successTitle: "Event duplicated",
+      successMessage: "The copy has been created as a draft.",
+      errorTitle: "Couldn't duplicate the event",
+      run: () => clone.mutateAsync({ eid }),
+    });
+    if (res) router.push(res.edit_url);
   };
 
   const handleCancel = async () => {
     setMenuOpen(false);
-    const ok = await confirm({
-      title: "Cancel this event?",
-      message:
-        "The event will be marked as cancelled. You can restore it from wp-admin if needed.",
-      confirmLabel: "Cancel Event",
-      cancelLabel: "Keep Event",
-      danger: true,
+    const res = await runAction({
+      confirm: {
+        title: "Cancel this event?",
+        message:
+          "The event will be marked as cancelled and will no longer accept bookings.",
+        confirmLabel: "Cancel Event",
+        cancelLabel: "Keep Event",
+        danger: true,
+      },
+      loadingLabel: "Cancelling event...",
+      successTitle: "Event cancelled",
+      successMessage: "It no longer accepts bookings.",
+      errorTitle: "Couldn't cancel the event",
+      run: () => cancel.mutateAsync({ eid }),
     });
-    if (!ok) return;
-    try {
-      await cancel.mutateAsync({ eid });
-      router.push("/events");
-    } catch {
-      /* noop */
-    }
+    if (res) router.push("/events");
   };
 
   const handleDelete = async () => {
     setMenuOpen(false);
-    const ok = await confirm({
-      title: "Delete this event?",
-      message:
-        "The event will be marked as deleted and removed from your events. This can be undone from wp-admin.",
-      confirmLabel: "Delete Event",
-      cancelLabel: "Keep Event",
-      danger: true,
+    const res = await runAction({
+      confirm: {
+        title: "Delete this event?",
+        message:
+          "The event will be removed from your events. Contact support if you need it restored.",
+        confirmLabel: "Delete Event",
+        cancelLabel: "Keep Event",
+        danger: true,
+      },
+      loadingLabel: "Deleting event...",
+      successTitle: "Event deleted",
+      successMessage: "It's been removed from your events.",
+      errorTitle: "Couldn't delete the event",
+      run: () => del.mutateAsync({ eid }),
     });
-    if (!ok) return;
-    try {
-      await del.mutateAsync({ eid });
-      router.push("/events");
-    } catch {
-      /* noop */
-    }
+    if (res) router.push("/events");
   };
 
   return (

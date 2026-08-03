@@ -17,16 +17,16 @@ import { FullScreenDatePicker } from "../FullScreenDatePicker";
 import { PanelHeader } from "../PanelHeader";
 
 /**
- * Step 8 — Car Clubs.
+ * Step 8 - Car Clubs.
  *
  * Differs from Show Cars in two ways:
  *   - Single application window for the whole panel (no per-category
- *     windows — clubs aren't categorised in the mockup).
+ *     windows - clubs aren't categorised in the mockup).
  *   - No category list at all. Just a few config blocks.
  *
  * Sections:
  *   1. Master enable toggle.
- *   2. Application window — open/close dates + times.
+ *   2. Application window - open/close dates + times.
  *   3. Limit total club vehicles toggle + max input.
  *   4. Require ticket after acceptance toggle + cost input.
  *   5. Info textarea.
@@ -267,7 +267,7 @@ export function CarClubsPanel() {
               Car club information
             </label>
             <p className="text-xs text-ink-500 mb-3">
-              Stand sizes, perks, arrival times, group discount codes —
+              Stand sizes, perks, arrival times, group discount codes -
               anything club organisers need.
             </p>
             <EditorTextarea

@@ -11,7 +11,7 @@ import {
 } from "@/lib/clubEditSteps";
 
 /**
- * Desktop sidebar — visible at lg+ only. Same structure and the same
+ * Desktop sidebar - visible at lg+ only. Same structure and the same
  * `.side-tab` styling as the event editor's EditorSidebar.
  *
  * Step navigation is URL-driven (`?step=profile`) so individual steps are
@@ -42,7 +42,7 @@ export function ClubEditorSidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white">
-      {/* Club title block — desktop only, because the topbar already
+      {/* Club title block - desktop only, because the topbar already
           shows the title on smaller breakpoints. */}
       <div className="px-6 pt-6 pb-5 border-b border-ink-200">
         <p className="text-[11px] uppercase tracking-widest text-gold-600 font-semibold mb-1.5">
@@ -62,7 +62,7 @@ export function ClubEditorSidebar() {
         </p>
       </div>
 
-      {/* Step navigation — vertical list. */}
+      {/* Step navigation - vertical list. */}
       <nav
         className="flex-1 overflow-y-auto px-3 py-4"
         aria-label="Club editor sections"

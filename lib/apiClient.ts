@@ -1,4 +1,5 @@
 import { readTokenClient, clearTokenClient } from "./authCookies";
+import { decodeEntitiesDeep } from "./decodeEntities";
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
@@ -25,7 +26,7 @@ export class ApiError extends Error {
 }
 
 /**
- * When a request comes back 401, the token is stale/invalid — clear it and
+ * When a request comes back 401, the token is stale/invalid - clear it and
  * bounce to /login. Exposed as a callable so the auth context can override
  * it (e.g. to prevent redirects during the login POST itself).
  */
@@ -51,7 +52,7 @@ export function setUnauthorizedHandler(fn: UnauthorizedHandler) {
 /**
  * Wraps `fetch` and translates its raw TypeError("Failed to fetch") into
  * an ApiError with status 0 and a message that actually says what went
- * wrong. fetch() throws TypeError when the response never reaches JS —
+ * wrong. fetch() throws TypeError when the response never reaches JS -
  * the typical causes are network failure, DNS, mixed content, or (most
  * commonly here) a CORS-blocked response that the browser refused to
  * expose. In all those cases the server's body, if it sent one, is
@@ -69,7 +70,7 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
       console.error("[apiClient] fetch failed for", url, err);
     }
     throw new ApiError(
-      "Couldn't reach the server. This usually means a network problem or a CORS-blocked response — check the browser console and Network tab for details.",
+      "Couldn't reach the server. This usually means a network problem or a CORS-blocked response - check the browser console and Network tab for details.",
       0,
       null,
     );
@@ -81,7 +82,10 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
  *  to a status-based message. */
 async function safeParseJson(res: Response): Promise<unknown> {
   try {
-    return await res.json();
+    // WP escapes free text (titles, names, descriptions) on the way
+    // out, so "Mark's Event" arrives as "Mark&#8217;s Event". Decode
+    // once here rather than in every mapper and component.
+    return decodeEntitiesDeep(await res.json());
   } catch {
     return null;
   }
@@ -92,7 +96,7 @@ async function safeParseJson(res: Response): Promise<unknown> {
  * WP_Error from a route callback comes back as:
  *   { code, message, data: { status } }
  * Some legacy handlers nest the message under `data.message` instead,
- * and a bare `error` string also turns up in older endpoints — we
+ * and a bare `error` string also turns up in older endpoints - we
  * check all three before falling back to a status-only message.
  */
 function extractErrorMessage(parsed: unknown, status: number): string {

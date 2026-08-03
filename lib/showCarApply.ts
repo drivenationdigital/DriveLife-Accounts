@@ -1,5 +1,5 @@
 /**
- * Public show-car application — types, query, and mutation hooks
+ * Public show-car application - types, query, and mutation hooks
  * for the apply page.
  *
  * The page is end-user facing: anyone with the link can submit. No
@@ -16,7 +16,7 @@ import { apiGet, apiPost } from "./apiClient";
 // ============================================================
 
 export interface ShowCarPublicCategory {
-  /** Encrypted ticket id — the public face of the show car ticket
+  /** Encrypted ticket id - the public face of the show car ticket
    *  row. Used as the dropdown value and round-tripped to the apply
    *  endpoint. */
   encrypted_id: string;
@@ -32,7 +32,7 @@ export interface ShowCarPublicCategory {
    *  pending + approved + paid applications. */
   spaces_remaining: number | null;
   is_full: boolean;
-  /** "YYYY-MM-DD" — null if the organiser hasn't bounded the window
+  /** "YYYY-MM-DD" - null if the organiser hasn't bounded the window
    *  on that side. */
   applications_open: string | null;
   applications_close: string | null;
@@ -51,14 +51,23 @@ export interface ShowCarApplicationBody {
   firstName: string;
   lastName: string;
   email: string;
+  /** Contact number. Required on the form, matching the CE apply page. */
+  phone: string;
   carMake: string;
   carModel: string;
   carYear: string;
   carReg: string;
   carColor: string;
+  /** "yes" when attending with a club, else "no". Drives carClub below. */
+  attendingWithClub: "yes" | "no";
+  /** Club name - only meaningful when attendingWithClub is "yes";
+   *  cleared on submit otherwise so a stale value can't be sent. */
+  carClub: string;
+  /** Instagram handle without the leading "@". Optional. */
+  instagram: string;
   notes: string;
   /** Optional Cloudflare imagedelivery URL from `uploadShowCarPhoto`.
-   *  Empty string when no photo was attached — the PHP endpoint
+   *  Empty string when no photo was attached - the PHP endpoint
    *  treats empty / missing as "no photo" and stores NULL. */
   photoUrl: string;
 }
@@ -106,7 +115,7 @@ export async function uploadShowCarPhoto(
 ): Promise<string> {
   const { eventEid, file, signal } = args;
 
-  // Step 1 — mint a one-time CF direct-upload URL.
+  // Step 1 - mint a one-time CF direct-upload URL.
   const mint = await apiPost<PhotoMintResponse, { eventEid: string }>(
     "/show-car-photo-upload-url",
     { eventEid },
@@ -114,8 +123,8 @@ export async function uploadShowCarPhoto(
 
   if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  // Step 2 — POST the file directly to Cloudflare. No auth headers
-  // here — CF rejects extra headers on direct-creator uploads.
+  // Step 2 - POST the file directly to Cloudflare. No auth headers
+  // here - CF rejects extra headers on direct-creator uploads.
   const form = new FormData();
   form.append("file", file);
 
@@ -168,7 +177,7 @@ export function useShowCarPublic(eventEid: string) {
       ),
     enabled: !!eventEid,
     // Capacity counts can drift fast during a busy application period
-    // — keep the data fresh but don't hammer the endpoint.
+    // - keep the data fresh but don't hammer the endpoint.
     staleTime: 30_000,
   });
 }
@@ -197,7 +206,7 @@ export function useSubmitShowCarApplication() {
 /**
  * Returns true when the category is open today (within its
  * applications_open / applications_close window). The server also
- * validates this on submit — this just dims the dropdown option so
+ * validates this on submit - this just dims the dropdown option so
  * the user can see what's available without trying to submit.
  */
 export function isCategoryOpenToday(c: ShowCarPublicCategory): boolean {

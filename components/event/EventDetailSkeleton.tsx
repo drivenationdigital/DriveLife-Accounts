@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Coarse skeleton for the event detail page — hero block, tab strip,
+ * Coarse skeleton for the event detail page - hero block, tab strip,
  * generic content block. Deliberately doesn't mimic individual KPI
  * cards / tables / lists so it doesn't drift when the content changes.
  *

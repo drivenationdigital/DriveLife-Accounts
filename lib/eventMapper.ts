@@ -48,7 +48,7 @@ function formatTimeRange(
   startTime: string | null | undefined,
   endTime: string | null | undefined,
 ): string {
-  if (startTime && endTime) return `${startTime} — ${endTime}`;
+  if (startTime && endTime) return `${startTime} - ${endTime}`;
   if (startTime) return startTime;
   if (endTime) return endTime;
   return "";
@@ -96,7 +96,7 @@ function formatAppliedLabel(iso: string | null): string {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Field mappers — core event, tickets, orders, discounts
+// Field mappers - core event, tickets, orders, discounts
 // ─────────────────────────────────────────────────────────────────────────
 
 function mapEventDetail(core: ApiEventCore): EventDetail {
@@ -121,7 +121,7 @@ function mapEventDetail(core: ApiEventCore): EventDetail {
             : "published",
     date: formatDateHuman(start),
     timeRange: formatTimeRange(startTime, endTime),
-    location: locationParts.join(", ") || "—",
+    location: locationParts.join(", ") || "-",
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
     encryptedId: core.encrypted_id,
@@ -135,7 +135,7 @@ function mapTicket(t: ApiTicketType): Ticket {
     sold: t.stock_sold,
     // `stock` IS the total capacity in this schema (not remaining),
     // so display sold/stock directly. The old `stock_sold + stock`
-    // formula double-counted — it assumed stock meant "remaining",
+    // formula double-counted - it assumed stock meant "remaining",
     // giving e.g. 1 sold + 10 stock = 11 instead of 10. `capacity`
     // (when the API sends it) still wins as an explicit override.
     capacity: t.capacity ?? t.stock,
@@ -167,7 +167,7 @@ function mapOrderStatus(
   order: Pick<MappableOrder, "payment_method" | "total_amount" | "status">,
 ): OrderStatus {
   // 1. Real status always wins. A cancelled or refunded order stays
-  //    cancelled/refunded regardless of its amount — otherwise a £0
+  //    cancelled/refunded regardless of its amount - otherwise a £0
   //    cancelled order would be mislabelled "free" and look actionable.
   const raw = (order.status ?? "").toLowerCase();
   if (raw === "cancelled") return "cancelled";
@@ -241,6 +241,13 @@ export function mapShowCar(r: ApiShowCarRecord): ShowCar {
   const year = yearMatch ? yearMatch[1] : "";
   const modelName = yearMatch ? yearMatch[2] : model;
 
+  // The club block is optional on older payloads (the /event `recent`
+  // buckets). Absent → not attending with a club, no handle.
+  const clubAttending = r.club?.attending === true;
+  // Handles are stored without the "@" but be defensive - the apply
+  // form only strips leading ones on the client.
+  const clubInstagram = (r.club?.instagram ?? "").trim().replace(/^@+/, "");
+
   return {
     id: String(r.id),
     model: modelCombined || "Unknown vehicle",
@@ -248,17 +255,20 @@ export function mapShowCar(r: ApiShowCarRecord): ShowCar {
     make,
     modelName,
     reg,
+    color: r.car.color ?? "",
     ownerFirstName: r.applicant.first_name ?? "",
     ownerLastName: r.applicant.last_name ?? "",
     ownerEmail: r.applicant.email ?? "",
     ownerPhone: r.applicant.phone ?? "",
-    instagram: "",
-    tiktok: "",
-    club: "",
+    clubAttending,
+    // Server clears the name when they aren't attending with a club,
+    // but don't rely on it - a stale name would read as a false yes.
+    club: clubAttending ? (r.club?.name ?? "") : "",
+    clubInstagram,
     description: r.notes ?? "",
     photoClass: pickPhotoClass(r.id),
     photoUrl: r.car.photo_url ?? null,
-    // Category comes straight from the server now — it's the ticket
+    // Category comes straight from the server now - it's the ticket
     // name the organiser set, not a heuristic guess. Empty string
     // fallback for the edge case where the ticket was deleted after
     // the application was submitted.
@@ -295,7 +305,7 @@ function collectRecentShowCars(section: {
 const CLUB_STATUS_MAP: Record<ApplicationStatusApi, ApplicationStatus> = {
   applied: "pending",
   approved: "approved",
-  confirmed: "approved", // UI doesn't distinguish — surface as approved
+  confirmed: "approved", // UI doesn't distinguish - surface as approved
   rejected: "rejected",
 };
 
@@ -350,7 +360,7 @@ const EMPTY_COUNTS = {
 
 function extractFeatures(resp: EventResponse): EventFeatures {
   // counts is optional on ApiShowCarsSection (the editor's
-  // /event-edit doesn't ship application counts — only the dashboard
+  // /event-edit doesn't ship application counts - only the dashboard
   // /event endpoint does). When absent, fall back to EMPTY_COUNTS so
   // the FeatureSection type stays concrete.
   const showCars: FeatureSection = resp.show_cars.enabled
@@ -380,7 +390,7 @@ function extractFeatures(resp: EventResponse): EventFeatures {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Top-level mapper — EventResponse → EventData
+// Top-level mapper - EventResponse → EventData
 // ─────────────────────────────────────────────────────────────────────────
 
 export function mapEventResponse(resp: EventResponse): EventData {
@@ -399,7 +409,7 @@ export function mapEventResponse(resp: EventResponse): EventData {
     kpis: {
       totalOrders: sales.kpis.order_count,
       // Fall back to 0 so older API responses (without these fields) don't
-      // break — once the WP side is deployed this will always be populated.
+      // break - once the WP side is deployed this will always be populated.
       ordersThisWeek: sales.kpis.orders_this_week ?? 0,
       ticketsSold: sales.kpis.ticket_count,
       ticketsSoldRecent: sales.kpis.tickets_sold_recent ?? 0,
@@ -409,12 +419,12 @@ export function mapEventResponse(resp: EventResponse): EventData {
     tickets: sales.tickets.map(mapTicket),
     // Show car tickets are filtered server-side into a separate array
     // so the regular tickets list / breakdown stays clean. Same shape
-    // as tickets — same mapper. Absent on older /event responses, so
+    // as tickets - same mapper. Absent on older /event responses, so
     // default to [] to keep the contract stable.
     showCarTickets: (sales.show_car_tickets ?? []).map(mapTicket),
     orders: sales.orders.map(mapOrder),
     // The initial /event response returns ~5 recent orders for the Overview
-    // card — not a full page. Leave pagination null until the Orders tab
+    // card - not a full page. Leave pagination null until the Orders tab
     // fires /event/orders and calls applyOrdersPage().
     ordersPagination: null,
     discounts: sales.discounts.map(mapDiscount),
@@ -434,7 +444,7 @@ export function mapEventResponse(resp: EventResponse): EventData {
 
 /**
  * Replace the orders list with a specific paginated page. Unlike the old
- * `mergeAdditionalOrders`, this doesn't preserve earlier results — each
+ * `mergeAdditionalOrders`, this doesn't preserve earlier results - each
  * page is a standalone view.
  */
 export function applyOrdersPage(

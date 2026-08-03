@@ -1,5 +1,5 @@
 /* ============================================================
- * Tailwind CSS v4 — selective import (no preflight)
+ * Tailwind CSS v4 - selective import (no preflight)
  * ============================================================
  *
  * v4 splits its bundle into three pieces that we import individually:
@@ -7,13 +7,13 @@
  *                              spacing scale, etc.)
  *   - tailwindcss/preflight  → opinionated reset (zeroes h1 margins,
  *                              ul list-style, button styles, …)
- *                              SKIPPED — the existing CarEvents design
+ *                              SKIPPED - the existing CarEvents design
  *                              system below assumes browser defaults.
  *   - tailwindcss/utilities  → all the utility classes (bg-*, text-*,
  *                              flex, lg:hidden, etc.)
  *
  * The `@layer` declaration line establishes layer order so utilities
- * still win the cascade over any unlayered design-system rules — this
+ * still win the cascade over any unlayered design-system rules - this
  * is the v4 equivalent of v3's `corePlugins.preflight = false`.
  *
  * `@source` directives use explicit ts/tsx globs rather than bare
@@ -36,12 +36,12 @@
  * ============================================================
  *
  * v4 reads CSS variables under `@theme` and turns them into utility
- * classes automatically — `--color-gold-500` becomes `bg-gold-500`,
+ * classes automatically - `--color-gold-500` becomes `bg-gold-500`,
  * `text-gold-500`, `border-gold-500`, etc. Same for `--font-*`.
  *
  * The `gold-*` and `ink-*` palettes match the design tokens used in
  * the event-create mockup (Caffeine & Machine warm gold + neutral
- * grayscale). The default Tailwind palette is preserved alongside —
+ * grayscale). The default Tailwind palette is preserved alongside -
  * `bg-emerald-500`, `bg-white`, etc. all still work. */
 @theme {
   --color-gold-50: #fdfaf3;
@@ -64,7 +64,7 @@
   --color-ink-700: #292929;
   --color-ink-900: #0f0f0f;
 
-  /* font-display — the fallback chain ends in Barlow Condensed, which
+  /* font-display - the fallback chain ends in Barlow Condensed, which
    * the root layout actually loads via Google Fonts. So users without
    * the proprietary Right Grotesk / Archivo Narrow installed locally
    * still get a narrow display style for headings. */
@@ -112,7 +112,7 @@
   --shadow-lg:
     0 4px 14px rgba(22, 21, 19, 0.08), 0 2px 4px rgba(22, 21, 19, 0.04);
 }
-/* Base reset — placed inside `@layer base` so Tailwind utility classes
+/* Base reset - placed inside `@layer base` so Tailwind utility classes
  * (which live in `@layer utilities`) can win over it. Without the layer
  * wrapper, these rules are unlayered, and unlayered rules always beat
  * any layered rule regardless of specificity. That meant `.px-4` and
@@ -123,7 +123,7 @@
  *   theme, base, components, utilities
  * so `base` is below `utilities` in the cascade and gets overridden by
  * any utility class. Dashboard pages that don't use utility classes are
- * unaffected — there's nothing competing with the reset there. */
+ * unaffected - there's nothing competing with the reset there. */
 @layer base {
   * {
     box-sizing: border-box;
@@ -1385,6 +1385,36 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.showcar-phone {
+  font-size: 11.5px;
+  color: var(--muted);
+  font-family: "Geist Mono", monospace;
+  letter-spacing: -0.01em;
+  margin-top: 1px;
+}
+.showcar-club {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-2);
+  min-width: 0;
+}
+.showcar-club > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.showcar-club svg {
+  flex-shrink: 0;
+  color: var(--muted-2);
+}
+.showcar-club-ig {
+  color: var(--muted);
+  font-weight: 400;
+}
 .showcar-date {
   font-size: 11px;
   color: var(--muted-2);
@@ -2203,7 +2233,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   My Events page — card grid + table view + supporting components
+   My Events page - card grid + table view + supporting components
    Scoped under .events-page so it doesn't conflict with existing styles.
    ───────────────────────────────────────────────────────────────────── */
 
@@ -2459,7 +2489,7 @@
   min-width: 0;
 }
 
-/* Pills (new variants — additive, non-conflicting with the existing
+/* Pills (new variants - additive, non-conflicting with the existing
    .pill.paid/.pending/.refunded which we use elsewhere) */
 .pill-solid {
   display: inline-flex;
@@ -2732,7 +2762,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   Loading skeletons — for the My Events page.
+   Loading skeletons - for the My Events page.
    Used while the first page of data is loading. Subsequent page changes
    show the previous data dimmed via TanStack's placeholderData instead.
    ───────────────────────────────────────────────────────────────────── */
@@ -2774,7 +2804,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────
-   Generic skeleton primitives — usable anywhere in the app.
+   Generic skeleton primitives - usable anywhere in the app.
    The `.events-page .skeleton-shimmer` selector above was page-scoped;
    this one is global. Same animation, same look.
    ───────────────────────────────────────────────────────────────────── */
@@ -2799,7 +2829,7 @@
   }
 }
 
-/* Event view (detail page) skeleton — coarse hero + tab strip + content
+/* Event view (detail page) skeleton - coarse hero + tab strip + content
    block. Doesn't try to mimic individual KPI cards / tables, so it
    doesn't drift when the content changes. */
 
@@ -3373,7 +3403,7 @@
   background: transparent;
 }
 
-/* Needs Attention — all-caught-up empty state */
+/* Needs Attention - all-caught-up empty state */
 .attention-empty {
   display: flex;
   flex-direction: column;
@@ -3408,7 +3438,7 @@
   line-height: 1.5;
 }
 
-/* Tickets Breakdown — slim scrollbar */
+/* Tickets Breakdown - slim scrollbar */
 .ticket-breakdown-scroll {
   scrollbar-width: thin;
   scrollbar-color: #d6d3ca transparent;
@@ -3832,7 +3862,7 @@
 /* ── Embedded (iframe) pages ─────────────────────────────────────────────
  * Framed routes are auto-sized: useEmbedAutoResize measures .embed-shell
  * and the host sets the iframe height to match. Anything sized in viewport
- * units therefore feeds back into itself — the frame grows, 100vh grows
+ * units therefore feeds back into itself - the frame grows, 100vh grows
  * with it, we report taller, repeat until the page is thousands of pixels
  * long. Inside an embed, height must come from content only.
  *

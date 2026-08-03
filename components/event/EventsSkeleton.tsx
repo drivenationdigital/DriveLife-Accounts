@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Loading skeletons that match the actual rendered shapes — grid cards
- * and table rows — so the layout doesn't jump when real data arrives.
+ * Loading skeletons that match the actual rendered shapes - grid cards
+ * and table rows - so the layout doesn't jump when real data arrives.
  *
  * Shimmer styles live alongside the components in globals.css under
  * `.events-page .skeleton-*`.

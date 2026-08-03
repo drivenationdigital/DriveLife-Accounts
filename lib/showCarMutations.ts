@@ -1,20 +1,20 @@
 /**
  * Per-row show car category mutations.
  *
- *   useSaveShowCarCategory()   — create OR update a category.
+ *   useSaveShowCarCategory()   - create OR update a category.
  *                                Hook detects new-vs-existing by the
  *                                id pattern (local "scc-…" ids → POST
  *                                without sccid; server post ids → POST
  *                                with sccid).
- *   useDeleteShowCarCategory() — delete a category (and its underlying
+ *   useDeleteShowCarCategory() - delete a category (and its underlying
  *                                ticket).
  *
- * No reorder hook — show car categories don't carry a display_order
+ * No reorder hook - show car categories don't carry a display_order
  * column server-side, so the panel's REORDER_SHOW_CAR_CATEGORIES
  * dispatch is local-only.
  *
  * Both hooks invalidate ["event-edit", eid] on success. Hydration of
- * existing show car rows isn't wired yet — that needs the GET
+ * existing show car rows isn't wired yet - that needs the GET
  * /event-edit response to start filtering is_show_car_ticket=1 rows
  * out of the regular ticket list and surfacing them as a separate
  * show_car_categories array. Until then refresh-then-edit on an
@@ -45,7 +45,7 @@ export interface ApiShowCarSaveBody {
   ticketCost: number | null;
   /** Per-category secret code. Server stamps this onto the
    *  underlying ticket so the public ticket URL is unique to this
-   *  category. Empty string is allowed — server auto-generates one
+   *  category. Empty string is allowed - server auto-generates one
    *  when missing so categories never end up without a code. */
   secretCode: string;
 }

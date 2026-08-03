@@ -11,6 +11,7 @@ import {
   useApproveTraderApplication,
   useRejectTraderApplication,
 } from "@/lib/traderApplications";
+import { useAction } from "@/context/ActionContext";
 import { useToast } from "@/context/ToastContext";
 
 type AppCardProps =
@@ -19,9 +20,10 @@ type AppCardProps =
 
 export function AppCard(props: AppCardProps) {
   const { openDetail } = useUI();
+  const runAction = useAction();
   const toast = useToast();
 
-  // Approve / reject mutations — the pair is picked by kind below.
+  // Approve / reject mutations - the pair is picked by kind below.
   const clubApprove = useApproveClubApplication();
   const clubReject = useRejectClubApplication();
   const traderApprove = useApproveTraderApplication();
@@ -43,27 +45,47 @@ export function AppCard(props: AppCardProps) {
     fn();
   };
 
-  const handleApprove = () => {
-    approver.mutate(
-      { applicationId: Number(props.entity.id) },
-      {
-        onSuccess: () => toast.success("Application approved."),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't approve."),
-      },
-    );
-  };
+  const kindLabel = props.kind === "club" ? "car club" : "trader";
 
-  const handleReject = () => {
-    rejecter.mutate(
-      { applicationId: Number(props.entity.id) },
-      {
-        onSuccess: () => toast.success("Application rejected."),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't reject."),
+  const handleApprove = () =>
+    runAction({
+      confirm: {
+        title: "Approve this application?",
+        message: `The ${kindLabel} will be notified that they've been accepted for this event.`,
+        confirmLabel: "Approve",
+        cancelLabel: "Not yet",
       },
-    );
-  };
+      loadingLabel: "Approving application...",
+      successTitle: "Application approved",
+      successMessage: `The ${kindLabel} has been notified.`,
+      errorTitle: "Couldn't approve the application",
+      // Awaited inside an async wrapper: `approver` is a union of the
+      // club and trader mutations, whose response shapes differ, and
+      // the caller doesn't read the response either way.
+      run: async () => {
+        await approver.mutateAsync({ applicationId: Number(props.entity.id) });
+        return true;
+      },
+    });
+
+  const handleReject = () =>
+    runAction({
+      confirm: {
+        title: "Reject this application?",
+        message: `The ${kindLabel} will be notified that they haven't been accepted for this event.`,
+        confirmLabel: "Reject",
+        cancelLabel: "Keep pending",
+        danger: true,
+      },
+      loadingLabel: "Rejecting application...",
+      successTitle: "Application rejected",
+      successMessage: `The ${kindLabel} has been notified.`,
+      errorTitle: "Couldn't reject the application",
+      run: async () => {
+        await rejecter.mutateAsync({ applicationId: Number(props.entity.id) });
+        return true;
+      },
+    });
 
   const isPending = props.entity.status === "pending";
 
@@ -172,7 +194,7 @@ export function AppCard(props: AppCardProps) {
             >
               <CarEventsEyeIcon /> Details
             </button>
-            {/* Delete has no backend endpoint yet — surface that
+            {/* Delete has no backend endpoint yet - surface that
                 honestly instead of a confirm dialog that silently does
                 nothing. Wire to a useDelete*Application mutation once the
                 endpoint exists. */}

@@ -55,16 +55,22 @@ export interface ShowCar {
   make: string;
   modelName: string;
   reg: string;
+  /** Free-text colour from the apply form. Empty when not supplied. */
+  color: string;
   ownerFirstName: string;
   ownerLastName: string;
   ownerEmail: string;
   ownerPhone: string;
-  instagram: string;
-  tiktok: string;
+  /** Did the applicant say they're coming with a car club? */
+  clubAttending: boolean;
+  /** Club name - empty string when `clubAttending` is false. */
   club: string;
+  /** Instagram handle without the leading "@". Collected on every
+   *  application, club or not. Empty when not supplied. */
+  clubInstagram: string;
   description: string;
   photoClass: CarPhotoClass;
-  /** The category as set by the organiser on the ticket type — a
+  /** The category as set by the organiser on the ticket type - a
    *  free-form string ("Modified", "Concours", etc.) rather than the
    *  fixed enum it used to be. The pre-existing per-category CSS
    *  classes (`showcar-category.classic`, etc.) won't match anymore;
@@ -136,7 +142,7 @@ export interface CategoryStat {
 }
 
 /** Pagination metadata for the orders tab. `null` means we only have the
- * first N recent orders from the main /event load — not a paginated page. */
+ * first N recent orders from the main /event load - not a paginated page. */
 export interface OrdersPagination {
   page: number;
   perPage: number;
@@ -148,7 +154,7 @@ export interface OrdersPagination {
 export interface FeatureSection {
   enabled: boolean;
   counts: {
-    /** Legacy bucket — no longer populated; use `pending`. */
+    /** Legacy bucket - no longer populated; use `pending`. */
     applied: number;
     /** Awaiting review. This is the real "needs attention" number. */
     pending: number;

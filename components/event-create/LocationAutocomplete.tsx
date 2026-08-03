@@ -30,7 +30,7 @@ import { loadGoogleMaps } from "@/lib/googleMapsLoader";
  *      so a slow earlier query never overwrites a faster newer one.
  *
  *   5. Graceful failure. If the API key is missing or the script
- *      fails to load, the input still works as a plain text field —
+ *      fails to load, the input still works as a plain text field -
  *      the user just doesn't get suggestions. We show a small notice
  *      when this happens so the dev knows what to fix.
  *
@@ -42,7 +42,7 @@ import { loadGoogleMaps } from "@/lib/googleMapsLoader";
  *     if it wants the formatted address rather than what was typed.
  */
 
-// Minimal surface type — we cast narrowly in code to avoid pulling in
+// Minimal surface type - we cast narrowly in code to avoid pulling in
 // @types/google.maps for the small surface we use.
 type AutocompletePrediction = {
   description: string;
@@ -107,7 +107,7 @@ export function LocationAutocomplete({
 }) {
   const id = useId();
   const containerRef = useRef<HTMLDivElement>(null);
-  // Hidden div we hand to PlacesService — it uses this to attribute
+  // Hidden div we hand to PlacesService - it uses this to attribute
   // results ("Powered by Google"). Required by the API; we just keep
   // it offscreen.
   const attributionRef = useRef<HTMLDivElement>(null);
@@ -170,10 +170,10 @@ export function LocationAutocomplete({
         input,
         sessionToken: sessionTokenRef.current,
         // No types restriction so users can pick venues, addresses,
-        // postcodes, etc. — same flexibility as the original mockup.
+        // postcodes, etc. - same flexibility as the original mockup.
       },
       (results, status) => {
-        // Stale result — discard.
+        // Stale result - discard.
         if (myId !== requestIdRef.current) return;
         if (status !== g.places.PlacesServiceStatus.OK || !results) {
           setPredictions([]);
@@ -202,7 +202,7 @@ export function LocationAutocomplete({
     setPredictions([]);
 
     if (!ready || !attributionRef.current) {
-      // Fall back to using just the description text — better than nothing.
+      // Fall back to using just the description text - better than nothing.
       onValueChange(prediction.description);
       return;
     }
@@ -341,10 +341,10 @@ export function LocationAutocomplete({
         aria-hidden
       />
 
-      {/* Quiet error notice — only shown when the script failed to load. */}
+      {/* Quiet error notice - only shown when the script failed to load. */}
       {loadError && (
         <p className="mt-2 text-xs text-ink-400">
-          Search unavailable — type the address manually.
+          Search unavailable - type the address manually.
         </p>
       )}
     </div>

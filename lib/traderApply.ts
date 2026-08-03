@@ -1,5 +1,5 @@
 /**
- * Public trader application — types + hooks.
+ * Public trader application - types + hooks.
  *
  * Backs /apply/trader/[eventEid]. Mirrors lib/showCarApply.ts: a
  * category dropdown + business/contact fields, posting to

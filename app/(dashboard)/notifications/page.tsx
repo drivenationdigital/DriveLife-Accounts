@@ -14,7 +14,7 @@ import { iconFor, stripHtml, formatWhen } from "@/lib/notificationIcons";
  *
  * Lists every notification newest-first; unread ones are highlighted.
  * Opening the screen auto-marks everything read (once), so the bell
- * badge clears — but the just-read items stay visually flagged for this
+ * badge clears - but the just-read items stay visually flagged for this
  * view via a snapshot taken before the mark, so the user can still see
  * what was new.
  *

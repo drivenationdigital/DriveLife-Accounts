@@ -39,7 +39,7 @@ export function MyEventsSummary() {
           alignItems: "start",
         }}
       >
-        {/* Create card always first — matches the live dashboard. */}
+        {/* Create card always first - matches the live dashboard. */}
         <Link
           href="/events/create"
           className="mes-card mes-create"

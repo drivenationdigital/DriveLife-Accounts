@@ -2,7 +2,7 @@
  * Orders CSV export.
  *
  *   POST /event/orders-export { eid, search? }
- *     → { filename, csv } — ALL orders for the event (search-filtered
+ *     → { filename, csv } - ALL orders for the event (search-filtered
  *       if a term is given), which we turn into a file download client-
  *       side. The endpoint returns the CSV as a string to avoid WP's
  *       REST serializer mangling a raw file response.

@@ -57,7 +57,7 @@ function renderForm(type: EmbedType, identifier: string) {
     case "trader":
       return <TraderApplyPage params={params} />;
     default:
-      // Exhaustiveness guard — a new EmbedType without a case fails here.
+      // Exhaustiveness guard - a new EmbedType without a case fails here.
       return assertNever(type);
   }
 }

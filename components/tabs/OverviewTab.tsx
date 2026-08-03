@@ -9,19 +9,21 @@ import { TicketRow } from "@/components/cards/TicketRow";
 import { ShowCarCard } from "@/components/cards/ShowCarCard";
 import { AppCard } from "@/components/cards/AppCard";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
+import { clickableRow } from "@/components/ui/clickableRow";
+import { useRouter } from "next/navigation";
 
 export function OverviewTab() {
   const {
     kpis,
     tickets,
     orders,
-    discounts,
     showCars,
     clubs,
     traders,
     features,
   } = useEventData();
   const { setActiveTab } = useUI();
+  const router = useRouter();
 
   const recentOrders = orders.slice(0, 5);
   const pendingShowCars = showCars.filter((s) => s.status === "pending");
@@ -31,7 +33,7 @@ export function OverviewTab() {
   // Needs Attention counts come from the API feature counts (the
   // showCars/club/traders arrays aren't loaded on the overview, so
   // filtering them would always read 0). counts.pending is the real
-  // awaiting-review number — counts.applied is a legacy bucket.
+  // awaiting-review number - counts.applied is a legacy bucket.
   const showCarPending = features.show_cars.enabled
     ? features.show_cars.counts.pending
     : 0;
@@ -78,10 +80,10 @@ export function OverviewTab() {
           value={
             <>
               <span className="currency">£</span>
-              {kpis.netSales.toLocaleString("en-GB")}
-              <span style={{ fontSize: 18, fontWeight: 400, opacity: 0.5 }}>
-                .00
-              </span>
+              {kpis.netSales.toLocaleString("en-GB", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </>
           }
           sub={
@@ -307,7 +309,13 @@ export function OverviewTab() {
             </thead>
             <tbody>
               {recentOrders.map((o) => (
-                <tr key={o.id}>
+                <tr
+                  key={o.id}
+                  {...clickableRow(
+                    () => router.push(`/orders/${o.encryptedId}`),
+                    { label: `Open order #${o.id}` },
+                  )}
+                >
                   <td>
                     <span className="mono order-id">#{o.id}</span>
                   </td>
@@ -335,55 +343,6 @@ export function OverviewTab() {
           </table>
         </div>
       </div>
-
-      {/* Discounts */}
-      {discounts.length > 0 && (
-        <div className="section">
-          <div className="section-header">
-            <div>
-              <div className="section-title">Discounts</div>
-              <div className="section-subtitle">
-                {discounts.length} code{discounts.length === 1 ? "" : "s"}{" "}
-                configured
-              </div>
-            </div>
-          </div>
-          <div className="section-body flush">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Usage</th>
-                </tr>
-              </thead>
-              <tbody>
-                {discounts.map((d) => (
-                  <tr key={d.id}>
-                    <td>
-                      <span className="mono order-id">{d.code}</span>
-                    </td>
-                    <td className="amount">{d.displayAmount}</td>
-                    <td>
-                      <span className={`pill ${discountPill(d.activeState)}`}>
-                        {d.statusLabel}
-                      </span>
-                    </td>
-                    <td className="mono">
-                      {d.usage}
-                      <span style={{ color: "var(--muted)" }}>
-                        {" "}
-                        / {d.maxUsage ?? "∞"}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
       {/* Pending show cars */}
       {features.show_cars.enabled && pendingShowCars.length > 0 && (
@@ -489,15 +448,4 @@ export function OverviewTab() {
         )}
     </>
   );
-}
-
-function discountPill(state: "active" | "upcoming" | "ended"): string {
-  switch (state) {
-    case "active":
-      return "paid";
-    case "upcoming":
-      return "pending";
-    case "ended":
-      return "refunded";
-  }
 }

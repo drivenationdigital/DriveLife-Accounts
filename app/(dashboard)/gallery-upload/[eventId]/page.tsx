@@ -9,7 +9,7 @@ import {
 } from "@/lib/galleryUpload";
 
 const ACCEPT = "image/jpeg,image/png,image/webp,image/heic";
-const MAX_CONCURRENT = 4; // parallel uploads — kind to the browser + CF
+const MAX_CONCURRENT = 4; // parallel uploads - kind to the browser + CF
 
 export default function GalleryUploadPage() {
   const params = useParams<{ eventId: string }>();

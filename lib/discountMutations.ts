@@ -1,14 +1,14 @@
 /**
  * Per-row discount mutations for the editor.
  *
- *   useSaveDiscount()   — create OR update a discount. New rows post
+ *   useSaveDiscount()   - create OR update a discount. New rows post
  *                          without a `did`; existing rows include it.
  *                          Discriminates by the id pattern (local
  *                          synthetic ids like "dis-abcd1234" vs server
  *                          ids).
- *   useDeleteDiscount() — delete a discount.
+ *   useDeleteDiscount() - delete a discount.
  *
- * No reorder hook — coupons don't carry a display_order column on the
+ * No reorder hook - coupons don't carry a display_order column on the
  * WP side, so the editor's REORDER_DISCOUNTS dispatch is local-only.
  *
  * Both hooks invalidate the /event-edit cache on success so a later
@@ -27,7 +27,7 @@ export interface ApiDiscountSaveBody {
   code: string;
   kind: "percentage" | "fixed";
   amount: number;
-  /** String form of TicketId — the PHP side comma-joins these into
+  /** String form of TicketId - the PHP side comma-joins these into
    *  the `allowed_products` column. Empty array means "applies to
    *  every ticket on the event". */
   applicableTicketIds: string[];

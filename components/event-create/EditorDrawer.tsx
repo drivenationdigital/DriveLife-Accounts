@@ -21,7 +21,7 @@ import { createPortal } from "react-dom";
  *     `editor-drawer-open` class added to <body>.
  *   - Header / footer slots are passed in so each drawer can supply
  *     its own title + action buttons. The body is just `children`.
- *   - Footer is sticky at the bottom of the panel — the body
+ *   - Footer is sticky at the bottom of the panel - the body
  *     scrolls beneath. This means long forms (like the Ticket form)
  *     keep Save/Cancel always visible.
  */
@@ -39,7 +39,7 @@ export function EditorDrawer({
   eyebrow: string;
   /** The drawer's main heading. */
   title: string;
-  /** Sticky footer content — usually action buttons. */
+  /** Sticky footer content - usually action buttons. */
   footer: React.ReactNode;
   children: React.ReactNode;
 }) {

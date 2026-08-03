@@ -35,7 +35,7 @@ export function EventCard({ event, onClick }: Props) {
       aria-label={event.title}
     >
       <div className="ev-cover">
-        {/* Always render a cover image — fall back to the brand default if
+        {/* Always render a cover image - fall back to the brand default if
             the event has none, and again if the URL 404s at runtime. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -65,7 +65,7 @@ export function EventCard({ event, onClick }: Props) {
         <div className="ev-meta">
           <div className="ev-meta-item">
             <CalendarIcon />
-            <span>{dateLabel || "—"}</span>
+            <span>{dateLabel || "-"}</span>
           </div>
           {timeLabel && (
             <div className="ev-meta-item">
@@ -121,7 +121,7 @@ function formatTimeLabel(event: EventRecord): string {
   const startTime = event.first_date?.start_time;
   const endTime = event.last_date?.end_time ?? event.first_date?.end_time;
   if (startTime && endTime && startTime !== endTime) {
-    return `${startTime} — ${endTime}`;
+    return `${startTime} - ${endTime}`;
   }
   return startTime ?? endTime ?? "";
 }
@@ -151,11 +151,11 @@ function formatRange(startIso: string, endIso: string): string {
     if (sameMonth) {
       const month = start.toLocaleDateString("en-GB", { month: "long" });
       const year = start.getFullYear();
-      return `${startWeekday}–${endWeekday}, ${start.getDate()}–${end.getDate()} ${month} ${year}`;
+      return `${startWeekday}-${endWeekday}, ${start.getDate()}-${end.getDate()} ${month} ${year}`;
     }
-    return `${formatSingleDate(startIso)} — ${formatSingleDate(endIso)}`;
+    return `${formatSingleDate(startIso)} - ${formatSingleDate(endIso)}`;
   } catch {
-    return `${startIso} — ${endIso}`;
+    return `${startIso} - ${endIso}`;
   }
 }
 

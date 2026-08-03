@@ -15,12 +15,10 @@ import { formatEditorDate } from "@/lib/formatEditorDate";
  *
  * Selection model:
  *   - `value` is the current committed value from the parent.
- *   - Internally the picker holds a `draft` selection (separate state)
- *     so the user can browse months and tap dates without committing.
- *     Pressing "Apply" calls `onChange(draft)` then closes; "Cancel" or
- *     the X closes without committing. This matches the original
- *     mockup's behaviour and avoids surprising the user when they tap
- *     a date and bounce around months.
+ *   - Tapping a date commits it straight away (`onChange`) and closes
+ *     the picker, so there's no extra Apply step. "Today" and "Clear"
+ *     behave the same way; "Cancel", the X, ESC and the backdrop close
+ *     without changing anything.
  *
  * Calendar logic:
  *   - Week starts Monday (UK convention used throughout the app).
@@ -55,7 +53,7 @@ export function FullScreenDatePicker({
   onChange: (next: string | null) => void;
   /** Called on Cancel / X / ESC / backdrop click. */
   onClose: () => void;
-  /** Header title — small distinguishing copy when multiple pickers
+  /** Header title - small distinguishing copy when multiple pickers
    *  are wired (e.g. "Start date" vs "End date"). */
   title?: string;
 }) {
@@ -107,16 +105,15 @@ export function FullScreenDatePicker({
   const goPrev = () => setView(addMonths(view, -1));
   const goNext = () => setView(addMonths(view, 1));
 
-  const setToday = () => {
-    setDraft(todayIso);
-    setView(deriveInitialMonth(todayIso));
-  };
-  const clear = () => setDraft(null);
-
-  const apply = () => {
-    onChange(draft);
+  // Picking commits immediately and dismisses - no separate Apply step.
+  const commit = (next: string | null) => {
+    setDraft(next);
+    onChange(next);
     onClose();
   };
+
+  const setToday = () => commit(todayIso);
+  const clear = () => commit(null);
 
   // The overlay backdrop closes on backdrop click but not on inner
   // clicks. We stop propagation on the panel so taps inside don't
@@ -173,7 +170,7 @@ export function FullScreenDatePicker({
             </button>
           </div>
 
-          {/* Weekday headers — Mon-first */}
+          {/* Weekday headers - Mon-first */}
           <div className="fsdp-weekdays">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
               <div key={d} className="fsdp-weekday">
@@ -198,15 +195,7 @@ export function FullScreenDatePicker({
                   key={cell.iso}
                   type="button"
                   className={classes}
-                  onClick={() => {
-                    // Tapping a leading/trailing-month day jumps the
-                    // view to that month so the user sees the selection
-                    // in context after picking.
-                    if (cell.muted) {
-                      setView({ year: cell.year, month0: cell.month0 });
-                    }
-                    setDraft(cell.iso);
-                  }}
+                  onClick={() => commit(cell.iso)}
                   aria-label={cell.label}
                   aria-pressed={cell.iso === draft}
                 >
@@ -216,7 +205,7 @@ export function FullScreenDatePicker({
             })}
           </div>
 
-          {/* Selected preview — small text for confirmation. */}
+          {/* Selected preview - small text for confirmation. */}
           <p className="text-xs text-ink-500 mt-4 text-center">
             {draft ? formatEditorDate(draft) : "No date selected"}
           </p>
@@ -237,13 +226,6 @@ export function FullScreenDatePicker({
           >
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={apply}
-            className="px-5 py-2 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition"
-          >
-            Apply
-          </button>
         </footer>
       </div>
     </div>,
@@ -252,7 +234,7 @@ export function FullScreenDatePicker({
 }
 
 // ============================================================
-// Calendar maths — pure helpers, no React, easy to unit-test if
+// Calendar maths - pure helpers, no React, easy to unit-test if
 // we ever pull them out.
 // ============================================================
 
@@ -266,7 +248,7 @@ type Cell = {
   label: string;
 };
 
-/** Today as `yyyy-mm-dd` in UTC — avoids timezone drift across the app. */
+/** Today as `yyyy-mm-dd` in UTC - avoids timezone drift across the app. */
 function isoToday(): string {
   const now = new Date();
   const y = now.getUTCFullYear();
@@ -302,7 +284,7 @@ function buildMonthGrid(year: number, month0: number): Cell[] {
   const firstOfMonth = new Date(Date.UTC(year, month0, 1));
   // getUTCDay: 0=Sun, 1=Mon, ..., 6=Sat. We want Mon=0..Sun=6.
   const dowMonFirst = (firstOfMonth.getUTCDay() + 6) % 7;
-  // Number of days in this month — day 0 of next month is the last day of this month.
+  // Number of days in this month - day 0 of next month is the last day of this month.
   const lastDayOfMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
   // Number of days in the previous month, for leading filler.
   const lastDayOfPrev = new Date(Date.UTC(year, month0, 0)).getUTCDate();
@@ -321,7 +303,7 @@ function buildMonthGrid(year: number, month0: number): Cell[] {
     cells.push(makeCell(year, month0, day, false));
   }
 
-  // Trailing muted days from next month — fill to 42 cells.
+  // Trailing muted days from next month - fill to 42 cells.
   let trailingDay = 1;
   while (cells.length < 42) {
     const next = addMonths({ year, month0 }, 1);

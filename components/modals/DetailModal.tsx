@@ -7,6 +7,7 @@ import type { ShowCar, Club, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
 import { useApproveClubApplication, useRejectClubApplication } from "@/lib/clubApplications";
 import { useApproveTraderApplication, useConfirmTraderApplication, useRejectTraderApplication } from "@/lib/traderApplications";
+import { useAction } from "@/context/ActionContext";
 
 function statusLabel(status: string) {
   return status
@@ -50,11 +51,11 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
         <div className="detail-grid">
           <div className="detail-field">
             <div className="detail-label">First name</div>
-            <div className="detail-value">{car.ownerFirstName || "—"}</div>
+            <div className="detail-value">{car.ownerFirstName || "-"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Last name</div>
-            <div className="detail-value">{car.ownerLastName || "—"}</div>
+            <div className="detail-value">{car.ownerLastName || "-"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Email</div>
@@ -64,15 +65,15 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
           </div>
           <div className="detail-field">
             <div className="detail-label">Phone</div>
-            <div className="detail-value mono">{car.ownerPhone}</div>
-          </div>
-          <div className="detail-field">
-            <div className="detail-label">Instagram</div>
-            <div className="detail-value">{car.instagram}</div>
-          </div>
-          <div className="detail-field">
-            <div className="detail-label">TikTok</div>
-            <div className="detail-value">{car.tiktok}</div>
+            <div className="detail-value mono">
+              {car.ownerPhone ? (
+                <a href={`tel:${car.ownerPhone.replace(/\s+/g, "")}`}>
+                  {car.ownerPhone}
+                </a>
+              ) : (
+                "-"
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -81,36 +82,75 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
         <div className="detail-grid">
           <div className="detail-field">
             <div className="detail-label">Category applied</div>
-            <div className="detail-value">{car.category || "—"}</div>
+            <div className="detail-value">{car.category || "-"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Year</div>
-            <div className="detail-value mono">{car.year}</div>
+            <div className={`detail-value mono${car.year ? "" : " muted"}`}>
+              {car.year || "-"}
+            </div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Make</div>
-            <div className="detail-value">{car.make}</div>
+            <div className="detail-value">{car.make || "-"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Model</div>
-            <div className="detail-value">{car.modelName}</div>
+            <div className="detail-value">{car.modelName || "-"}</div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Registration</div>
-            <div className="detail-value mono">{car.reg}</div>
+            <div className={`detail-value mono${car.reg ? "" : " muted"}`}>
+              {car.reg || "-"}
+            </div>
           </div>
           <div className="detail-field">
-            <div className="detail-label">Car club member</div>
-            <div className={`detail-value${car.club === "No" ? " muted" : ""}`}>
-              {car.club}
+            <div className="detail-label">Colour</div>
+            <div className={`detail-value${car.color ? "" : " muted"}`}>
+              {car.color || "-"}
             </div>
           </div>
         </div>
       </div>
       <div className="detail-section">
-        <div className="detail-section-title">Additional Information</div>
-        <div className="detail-description">{car.description}</div>
+        <div className="detail-section-title">Car Club</div>
+        <div className="detail-grid">
+          <div className="detail-field">
+            <div className="detail-label">Attending with a club</div>
+            <div className={`detail-value${car.clubAttending ? "" : " muted"}`}>
+              {car.clubAttending ? "Yes" : "No"}
+            </div>
+          </div>
+          <div className="detail-field">
+            <div className="detail-label">Club name</div>
+            <div className={`detail-value${car.club ? "" : " muted"}`}>
+              {car.club || "-"}
+            </div>
+          </div>
+          <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+            <div className="detail-label">Instagram</div>
+            <div className={`detail-value${car.clubInstagram ? "" : " muted"}`}>
+              {car.clubInstagram ? (
+                <a
+                  href={`https://instagram.com/${car.clubInstagram}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  @{car.clubInstagram}
+                </a>
+              ) : (
+                "-"
+              )}
+            </div>
+          </div>
+        </div>
       </div>
+      {car.description && (
+        <div className="detail-section">
+          <div className="detail-section-title">Additional Information</div>
+          <div className="detail-description">{car.description}</div>
+        </div>
+      )}
     </>
   );
 }
@@ -118,7 +158,7 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
 export function DetailModal() {
   const { detail, closeDetail } = useUI();
 
-  // Mutations — instantiated unconditionally (hooks rule). The active
+  // Mutations - instantiated unconditionally (hooks rule). The active
   // pair is picked by detail.type below. Trader still falls through
   // to the legacy stub.
   const showCarApprove = useApproveShowCarApplication();
@@ -128,6 +168,7 @@ export function DetailModal() {
   const traderApprove = useApproveTraderApplication();
   const traderReject = useRejectTraderApplication();
   const traderConfirm = useConfirmTraderApplication();
+  const runAction = useAction();
 
   if (!detail) return null;
 
@@ -161,39 +202,8 @@ export function DetailModal() {
   const isConfirming = isTrader && traderConfirm.isPending;
   const isMutating = isApproving || isRejecting || isConfirming;
 
-  // Success copy differs by type + outcome.
-  const successMessage = (() => {
-    if (!isActionable) return null;
-    if (isTrader && traderConfirm.isSuccess) {
-      return "Trader confirmed.";
-    }
-    if (approver.isSuccess) {
-      if (isClub) {
-        // Clubs have one outcome now: confirmed. Every approved club
-        // is emailed the unique member link to share.
-        return "Club confirmed. They've been emailed a unique link to share with their members.";
-      }
-      if (isTrader) {
-        return "Trader approved. They've been emailed payment details.";
-      }
-      const status = approver.data.status; // "approved" | "paid"
-      return status === "paid"
-        ? "Application approved and auto-confirmed."
-        : "Application approved. The applicant has been emailed a ticket link.";
-    }
-    if (rejecter.isSuccess) {
-      if (isClub) return "Club application rejected.";
-      if (isTrader) return "Trader application rejected.";
-      return "Application rejected.";
-    }
-    return null;
-  })();
-
-  const mutationError = isActionable
-    ? (approver.error ??
-      rejecter.error ??
-      (isTrader ? traderConfirm.error : null))
-    : null;
+  /** What this record is, in copy: "club" / "trader" / "application". */
+  const noun = isClub ? "club" : isTrader ? "trader" : "application";
 
   const handleClose = () => {
     // Reset whichever pair might be dirty so reopening starts clean.
@@ -207,104 +217,106 @@ export function DetailModal() {
     closeDetail();
   };
 
-  const handleApprove = () => {
-    if (isActionable) {
-      approver.mutate({ applicationId: Number(detail.data.id) });
-    } else {
-      console.log("Detail action: approve", detail);
+  const applicationId = Number(detail.data.id);
+
+  const handleApprove = async () => {
+    if (!isActionable) {
       closeDetail();
+      return;
     }
+    const res = await runAction({
+      confirm: {
+        title: `Approve this ${noun}?`,
+        message: isClub
+          ? "The club will be emailed a unique link to share with their members."
+          : isTrader
+            ? "The trader will be emailed payment details."
+            : "The applicant will be emailed a link to book their space.",
+        confirmLabel: "Approve",
+        cancelLabel: "Not yet",
+      },
+      loadingLabel: "Approving application...",
+      successTitle: isClub
+        ? "Club confirmed"
+        : isTrader
+          ? "Trader approved"
+          : "Application approved",
+      successMessage: isClub
+        ? "They've been emailed a unique link to share with their members."
+        : isTrader
+          ? "They've been emailed payment details."
+          : "The applicant has been emailed a ticket link.",
+      errorTitle: "Couldn't approve the application",
+      run: async () => {
+        await approver.mutateAsync({ applicationId });
+        return true;
+      },
+    });
+    if (res) handleClose();
   };
 
-  const handleReject = () => {
-    if (isActionable) {
-      rejecter.mutate({ applicationId: Number(detail.data.id) });
-    } else {
-      console.log("Detail action: reject", detail);
+  const handleReject = async () => {
+    if (!isActionable) {
       closeDetail();
+      return;
     }
+    const res = await runAction({
+      confirm: {
+        title: `Reject this ${noun}?`,
+        message: "They'll be notified that they haven't been accepted.",
+        confirmLabel: "Reject",
+        cancelLabel: "Keep pending",
+        danger: true,
+      },
+      loadingLabel: "Rejecting application...",
+      successTitle: "Application rejected",
+      successMessage: "They've been notified.",
+      errorTitle: "Couldn't reject the application",
+      run: async () => {
+        await rejecter.mutateAsync({ applicationId });
+        return true;
+      },
+    });
+    if (res) handleClose();
   };
 
-  const handleConfirm = () => {
-    if (canConfirm) {
-      traderConfirm.mutate({ applicationId: Number(detail.data.id) });
-    }
+  const handleConfirm = async () => {
+    if (!canConfirm) return;
+    const res = await runAction({
+      confirm: {
+        title: "Mark this trader as confirmed?",
+        message:
+          "Use this once their payment has cleared. Their space will be treated as booked.",
+        confirmLabel: "Mark as confirmed",
+        cancelLabel: "Cancel",
+      },
+      loadingLabel: "Confirming trader...",
+      successTitle: "Trader confirmed",
+      successMessage: "Their space is now booked.",
+      errorTitle: "Couldn't confirm the trader",
+      run: () => traderConfirm.mutateAsync({ applicationId }),
+    });
+    if (res) handleClose();
   };
 
-  // Footer renders one of three states: success banner, action
-  // buttons (for pending applications), or hidden.
+  // Footer renders the actions for this record, or nothing. Progress
+  // and outcome are handled by the shared action flow (full-screen
+  // loader, then a centred notification), so there's no inline
+  // spinner or success/error banner to render here.
   const renderFooter = () => {
-    if (successMessage) {
+    // Approved trader -> "Mark as confirmed" instead of the pending
+    // approve/reject pair.
+    if (canConfirm) {
       return (
         <div className="detail-footer">
-          <div
-            style={{
-              flex: 1,
-              padding: "10px 14px",
-              borderRadius: 8,
-              background: "color-mix(in srgb, var(--success) 12%, transparent)",
-              color: "var(--success)",
-              fontSize: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-            }}
-            role="status"
-          >
-            <CheckIcon />
-            <span>{successMessage}</span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={handleClose}
-          >
-            Close
-          </button>
-        </div>
-      );
-    }
-
-    // Approved trader → show the "Mark as confirmed" action instead
-    // of the pending approve/reject pair.
-    if (canConfirm) {
-      return (
-        <div
-          className="detail-footer"
-          style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
-        >
-          {mutationError && (
-            <div
-              style={{
-                fontSize: 13,
-                color: "var(--danger, #c62828)",
-                padding: "6px 4px",
-              }}
-              role="alert"
-            >
-              {mutationError.message || "Something went wrong. Try again."}
-            </div>
-          )}
           <button
             type="button"
             className="btn btn-approve"
             onClick={handleConfirm}
             disabled={isMutating}
+            style={{ flex: 1 }}
           >
-            {isConfirming ? (
-              <>
-                <i
-                  className="fa-solid fa-spinner fa-spin"
-                  aria-hidden
-                  style={{ marginRight: 6 }}
-                />
-                Confirming…
-              </>
-            ) : (
-              <>
-                <CheckIcon /> Mark as confirmed
-              </>
-            )}
+            <CheckIcon /> Mark as confirmed
           </button>
         </div>
       );
@@ -313,66 +325,23 @@ export function DetailModal() {
     if (!isPending) return null;
 
     return (
-      <div
-        className="detail-footer"
-        style={{ flexDirection: "column", alignItems: "stretch", gap: 8 }}
-      >
-        {mutationError && (
-          <div
-            style={{
-              fontSize: 13,
-              color: "var(--danger, #c62828)",
-              padding: "6px 4px",
-            }}
-            role="alert"
-          >
-            {mutationError.message || "Something went wrong. Try again."}
-          </div>
-        )}
-        <div style={{ display: "flex", gap: 8 }}>
-          <button
-            type="button"
-            className="btn btn-reject"
-            onClick={handleReject}
-            disabled={isMutating}
-          >
-            {isRejecting ? (
-              <>
-                <i
-                  className="fa-solid fa-spinner fa-spin"
-                  aria-hidden
-                  style={{ marginRight: 6 }}
-                />
-                Rejecting…
-              </>
-            ) : (
-              <>
-                <XIcon /> Reject
-              </>
-            )}
-          </button>
-          <button
-            type="button"
-            className="btn btn-approve"
-            onClick={handleApprove}
-            disabled={isMutating}
-          >
-            {isApproving ? (
-              <>
-                <i
-                  className="fa-solid fa-spinner fa-spin"
-                  aria-hidden
-                  style={{ marginRight: 6 }}
-                />
-                Approving…
-              </>
-            ) : (
-              <>
-                <CheckIcon /> Accept
-              </>
-            )}
-          </button>
-        </div>
+      <div className="detail-footer" style={{ display: "flex", gap: 8 }}>
+        <button
+          type="button"
+          className="btn btn-reject"
+          onClick={handleReject}
+          disabled={isMutating}
+        >
+          <XIcon /> Reject
+        </button>
+        <button
+          type="button"
+          className="btn btn-approve"
+          onClick={handleApprove}
+          disabled={isMutating}
+        >
+          <CheckIcon /> Accept
+        </button>
       </div>
     );
   };
@@ -497,13 +466,13 @@ function TraderDetail({ trader }: { trader: Trader }) {
           <div className="detail-field">
             <div className="detail-label">First name</div>
             <div className="detail-value">
-              {trader.contactName.split(" ")[0] || "—"}
+              {trader.contactName.split(" ")[0] || "-"}
             </div>
           </div>
           <div className="detail-field">
             <div className="detail-label">Last name</div>
             <div className="detail-value">
-              {trader.contactName.split(" ").slice(1).join(" ") || "—"}
+              {trader.contactName.split(" ").slice(1).join(" ") || "-"}
             </div>
           </div>
           <div className="detail-field">

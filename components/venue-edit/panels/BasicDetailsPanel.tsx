@@ -8,7 +8,7 @@ import { FieldLabel } from "../shared";
 const TITLE_MAX = 60;
 
 /**
- * Step 1 — title and location.
+ * Step 1 - title and location.
  *
  * Field rhythm matches the event editor's BasicsPanel: mb-8 between
  * blocks, a live character counter under the title, and a static map
@@ -54,7 +54,7 @@ export function BasicDetailsPanel() {
         </div>
       </div>
 
-      {/* Location — Google Places autocomplete + static map preview. */}
+      {/* Location - Google Places autocomplete + static map preview. */}
       <div className="mb-8">
         <FieldLabel required>Venue location</FieldLabel>
         <LocationAutocomplete

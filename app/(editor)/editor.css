@@ -6,18 +6,18 @@
  * underlines and number badges, and the panel fade-in.
  *
  * All rules are name-scoped (`.input`, `.cb-label`, `.side-tab`, etc.)
- * — the editor pages live in the (editor) route group and import this
+ * - the editor pages live in the (editor) route group and import this
  * file via the layout, so no global pollution. */
 
 /* ------------------------------------------------------------------
- * Display font — match the original mockup's typographic feel.
+ * Display font - match the original mockup's typographic feel.
  *
  * Tailwind v4 generates `.font-display` from the `--font-display`
  * theme token, but only sets `font-family`. The original mockup
  * also applied weight 700, condensed stretch (so the narrow font
  * variant is selected when available), tighter tracking, and all-
  * caps. We layer those on here, scoped under `.event-editor` so the
- * rule doesn't leak into the existing dashboard pages — they may
+ * rule doesn't leak into the existing dashboard pages - they may
  * use `.font-display` too and don't want their headings forced into
  * uppercase. */
 .event-editor .font-display {
@@ -28,7 +28,7 @@
 }
 
 /* ------------------------------------------------------------------
- * Utility — hide scrollbars for the horizontal mobile tab bar.
+ * Utility - hide scrollbars for the horizontal mobile tab bar.
  * Touch-action / overscroll keep horizontal scroll snappy on mobile
  * without rubber-banding the page. */
 .no-scrollbar::-webkit-scrollbar {
@@ -64,7 +64,7 @@
 }
 
 /* ------------------------------------------------------------------
- * Form fields. Explicit CSS rather than @apply — keeps these portable
+ * Form fields. Explicit CSS rather than @apply - keeps these portable
  * if we ever swap CSS pipelines. */
 .input,
 .textarea,
@@ -108,7 +108,7 @@
 }
 
 /* Invalid field. The focus rule is repeated so a focused error field
- * keeps the red treatment instead of reverting to the gold ring — the
+ * keeps the red treatment instead of reverting to the gold ring - the
  * base :focus rule above would otherwise win on source order. */
 .input.has-error,
 .textarea.has-error,
@@ -122,7 +122,7 @@
   box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.14);
 }
 
-/* iOS Safari fix — native time/date controls have an internal min-width
+/* iOS Safari fix - native time/date controls have an internal min-width
  * inside their shadow DOM that can overflow a 100%-width container.
  * Neutralising -webkit-appearance removes that inner chrome while keeping
  * the native picker UX intact. font-size:16px prevents the iOS auto-zoom
@@ -146,7 +146,7 @@ input[type="date"]::-webkit-date-and-time-value {
 }
 
 /* ------------------------------------------------------------------
- * Mobile horizontal tab bar — `.tab` is the button, `.tab-num` is the
+ * Mobile horizontal tab bar - `.tab` is the button, `.tab-num` is the
  * little numbered badge. Active tab gets a gold underline drawn via
  * ::after so it slides cleanly. */
 .tab {
@@ -235,7 +235,7 @@ input[type="date"]::-webkit-date-and-time-value {
 }
 
 /* ------------------------------------------------------------------
- * Custom checkbox — the native input is visually hidden, the .cb-box
+ * Custom checkbox - the native input is visually hidden, the .cb-box
  * span is the visible affordance. We use input:checked + .cb-box to
  * paint the gold fill + drawn-with-borders tick mark. */
 .cb-label {
@@ -291,7 +291,7 @@ input[type="date"]::-webkit-date-and-time-value {
 }
 
 /* ------------------------------------------------------------------
- * Date field trigger — a button styled to look like an input, opens
+ * Date field trigger - a button styled to look like an input, opens
  * the fullscreen datepicker. */
 .date-field {
   display: flex;
@@ -839,7 +839,7 @@ body.editor-drawer-open {
 }
 
 /* ------------------------------------------------------------------
- * Skeleton shimmer — used by panels that need a loading placeholder
+ * Skeleton shimmer - used by panels that need a loading placeholder
  * (e.g. BasicsPanel's category grid while /event-categories is in
  * flight).
  *

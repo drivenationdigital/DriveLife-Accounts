@@ -58,7 +58,7 @@ export interface RejectResponse {
 /**
  * Approve mutation.
  *
- * Doesn't need an eid passed in — the success handler invalidates the
+ * Doesn't need an eid passed in - the success handler invalidates the
  * applications query by *prefix*, which catches whatever eid is
  * currently cached. This keeps the mutation usable from anywhere
  * (e.g. the global DetailModal) without dragging EventContext into

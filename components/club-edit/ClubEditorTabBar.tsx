@@ -10,11 +10,11 @@ import {
 } from "@/lib/clubEditSteps";
 
 /**
- * Mobile / tablet horizontal tab bar — visible below lg. Sticky directly
+ * Mobile / tablet horizontal tab bar - visible below lg. Sticky directly
  * beneath the topbar (top-14 on phones / top-16 on tablets matches the
  * topbar's height breakpoint).
  *
- * Auto-scrolls the active tab into view when it changes — without this,
+ * Auto-scrolls the active tab into view when it changes - without this,
  * advancing past tab 4 or 5 leaves the active tab off-screen after a
  * "Continue" tap.
  */

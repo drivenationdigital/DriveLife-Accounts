@@ -1,5 +1,5 @@
 /**
- * Individual order detail — fetch + types.
+ * Individual order detail - fetch + types.
  *
  * Wraps GET /order?oid=ENC. The legacy PHP returned rendered HTML; this
  * returns structured fields the order page composes natively.
@@ -19,7 +19,7 @@ export interface OrderDetailMeta {
 
 export interface OrderDetailItem {
   line_id: string;
-  /** "{orderId}-{lineId}" — the ticket number shown in the header. */
+  /** "{orderId}-{lineId}" - the ticket number shown in the header. */
   ticket_number: string;
   product_title: string;
   event_id: number;

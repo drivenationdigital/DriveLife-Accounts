@@ -41,9 +41,9 @@ export function TicketDrawer({
   onClose: () => void;
   onSave: (ticket: Ticket) => void;
   onRemove: (id: TicketId) => void;
-  /** Server save in flight — disable inputs/buttons, label changes. */
+  /** Server save in flight - disable inputs/buttons, label changes. */
   isSaving?: boolean;
-  /** Server delete in flight — disable buttons, label changes. */
+  /** Server delete in flight - disable buttons, label changes. */
   isDeleting?: boolean;
   /** Server-side failure to surface inline above the footer. */
   errorMessage?: string | null;
@@ -76,12 +76,10 @@ export function TicketDrawer({
   const [requireCarDetails, setRequireCarDetails] = useState(
     () => editing?.requireCarDetails ?? false,
   );
-  const [requireCarClubName, setRequireCarClubName] = useState(
-    () => editing?.requireCarClubName ?? false,
-  );
-  const [individualAttendeeDetails, setIndividualAttendeeDetails] = useState(
-    () => editing?.individualAttendeeDetails ?? false,
-  );
+  // No longer exposed in the UI, but preserved on save so an existing
+  // ticket that already has the flag set keeps it.
+  const requireCarClubName = editing?.requireCarClubName ?? false;
+  const individualAttendeeDetails = editing?.individualAttendeeDetails ?? false;
   const [requestVehiclePhoto, setRequestVehiclePhoto] = useState(
     () => editing?.requestVehiclePhoto ?? false,
   );
@@ -107,7 +105,7 @@ export function TicketDrawer({
 
     // Belt-and-braces: if the user managed to save with secret on but
     // an empty code (e.g. cleared the input then hit save), generate
-    // one so the server never sees an inconsistent payload — a secret
+    // one so the server never sees an inconsistent payload - a secret
     // ticket with no code can't be unlocked.
     let finalCode = secretCode.trim();
     if (isSecret && !finalCode) {
@@ -134,7 +132,7 @@ export function TicketDrawer({
       encryptedTicketID: editing?.encryptedTicketID, // preserve existing code if present; new tickets default to null which the server treats as non-secret
     };
     onSave(ticket);
-    // No onClose() here — the caller drives the drawer's open state
+    // No onClose() here - the caller drives the drawer's open state
     // around the async save, so the drawer stays open on error and
     // closes only when the panel sees a successful mutation.
   };
@@ -317,17 +315,6 @@ export function TicketDrawer({
               onChange={setRequireCarDetails}
             />
             <RequirementToggle
-              title="Require car club name"
-              checked={requireCarClubName}
-              onChange={setRequireCarClubName}
-            />
-            <RequirementToggle
-              title="Individual attendee details"
-              description="Collect info per ticketholder"
-              checked={individualAttendeeDetails}
-              onChange={setIndividualAttendeeDetails}
-            />
-            <RequirementToggle
               title="Request vehicle photo"
               checked={requestVehiclePhoto}
               onChange={setRequestVehiclePhoto}
@@ -406,7 +393,7 @@ function RequirementToggle({
  * Inline secret-code input shown when the "Secret ticket" toggle is
  * on. Uppercases as the user types so the value matches what
  * generateSecretCode produces and what buyers see in print. Used by
- * both the ticket and section drawer flows — kept here rather than
+ * both the ticket and section drawer flows - kept here rather than
  * in a separate file because it's small and tightly coupled to the
  * drawer styling.
  */

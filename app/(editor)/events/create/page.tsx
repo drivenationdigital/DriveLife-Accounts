@@ -12,7 +12,7 @@ import { HostedByDropdown } from "@/components/event-create/HostedByDropdown";
  * Create-event entry screen.
  *
  * A single step: name the event and choose who it's hosted by. The old
- * "Choose Event Type" step is gone — the host (me / a club / a venue),
+ * "Choose Event Type" step is gone - the host (me / a club / a venue),
  * picked from the dropdown, now carries that meaning, and the legacy
  * event_type is derived from it at submit.
  *
@@ -121,7 +121,7 @@ export default function CreateEventPage() {
             />
           </div>
 
-          {/* Hosted-by dropdown — hides itself when "Me" is the only
+          {/* Hosted-by dropdown - hides itself when "Me" is the only
               option (a user with no clubs/venues never sees it). */}
           <HostedByDropdown />
 

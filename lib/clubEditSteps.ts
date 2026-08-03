@@ -3,7 +3,7 @@
  * every piece of chrome (sidebar, mobile tab bar, mobile bottom bar) and
  * by the panel router in the edit page.
  *
- * Mirrors `lib/eventCreateSteps.ts` deliberately — the two editors share
+ * Mirrors `lib/eventCreateSteps.ts` deliberately - the two editors share
  * the same chrome and the same `editor.css`, so keeping the step shape
  * identical means the components stay near-copies of each other rather
  * than diverging over time.
@@ -41,7 +41,7 @@ export const CLUB_EDIT_STEPS: ClubEditStep[] = [
     sublabel: "Title, categories, location",
     title: "Basic details",
     subtitle:
-      "The essentials — what your club is called, what it's about, and where it's based.",
+      "The essentials - what your club is called, what it's about, and where it's based.",
   },
   {
     key: "profile",

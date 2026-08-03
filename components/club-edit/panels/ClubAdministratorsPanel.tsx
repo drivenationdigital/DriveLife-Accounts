@@ -7,7 +7,7 @@ import { useInviteClubAdmin } from "@/lib/clubAdmins";
 import { FieldLabel, inputCls } from "../shared";
 
 /**
- * Step 6 — club administrators.
+ * Step 6 - club administrators.
  *
  * Admins are added by INVITATION, not directly: inviting emails the
  * person an accept link, and they become an administrator only once
@@ -124,14 +124,14 @@ export function ClubAdministratorsPanel({
         </div>
       )}
 
-      {/* Current administrators (read-only — managed via invites) */}
+      {/* Current administrators (read-only - managed via invites) */}
       <div>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-500">
           Current administrators
         </h3>
         {club.administrators.length === 0 ? (
           <div className="rounded-xl border border-dashed border-ink-200 bg-white px-6 py-8 text-center text-sm text-ink-500">
-            No administrators yet — you're the only one who can manage this
+            No administrators yet - you're the only one who can manage this
             club.
           </div>
         ) : (

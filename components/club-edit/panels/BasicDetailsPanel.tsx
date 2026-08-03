@@ -8,7 +8,7 @@ import type { ClubLocationType } from "@/lib/clubEditTypes";
 const TITLE_MAX = 60;
 
 /**
- * Step 1 — title, categories, location type (+ address when regional).
+ * Step 1 - title, categories, location type (+ address when regional).
  *
  * Field rhythm matches the event editor's BasicsPanel: mb-8 between
  * blocks, a live character counter under the title, and the categories

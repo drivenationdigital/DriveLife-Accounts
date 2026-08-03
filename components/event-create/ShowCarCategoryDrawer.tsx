@@ -17,7 +17,7 @@ import { SecretCodeField } from "./TicketDrawer";
 /**
  * Show-car category add/edit drawer.
  *
- * State seeding pattern: `useState(() => editing?.x ?? default)` —
+ * State seeding pattern: `useState(() => editing?.x ?? default)` -
  * parent (ShowCarsPanel) re-keys this component on each open so the
  * initial values are fresh per open. No useEffect re-syncing.
  *
@@ -71,12 +71,12 @@ export function ShowCarCategoryDrawer({
       ? String(editing.ticketCost)
       : "",
   );
-  // Per-category secret code. Auto-generated for new categories so
-  // the organiser never ends up with a category that has no code
-  // (every approved application needs one to build its ticket link).
-  // Existing categories hydrate their stored code; the user can
-  // regenerate via the field's "New" button.
-  const [secretCode, setSecretCode] = useState(
+  // Per-category secret code. Still needed - it builds the ticket
+  // link approved applicants receive - but it's an implementation
+  // detail the organiser never has to think about, so it's no longer
+  // shown. Generated once for new categories; existing categories
+  // keep whatever they were saved with.
+  const [secretCode] = useState(
     () => editing?.secretCode ?? generateSecretCode(),
   );
 
@@ -105,7 +105,7 @@ export function ShowCarCategoryDrawer({
         requireTicket && ticketCost ? Math.max(0, parseFloat(ticketCost)) : NaN,
       secretCode: finalCode,
     });
-    // No onClose() here — the caller drives the drawer's open state
+    // No onClose() here - the caller drives the drawer's open state
     // around the async save, so the drawer stays open on error and
     // closes only when the panel sees a successful mutation.
   };
@@ -194,7 +194,7 @@ export function ShowCarCategoryDrawer({
           <input
             type="text"
             className="input"
-            placeholder="e.g. Concours — Classic & Heritage"
+            placeholder="e.g. Concours - Classic & Heritage"
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
@@ -288,26 +288,6 @@ export function ShowCarCategoryDrawer({
           )}
         </div>
 
-        {/* Per-category secret code. Gates the public ticket link
-            for this category — approved applicants get a
-            personalised link built from this code. Always required
-            (even for free categories, where the link confirms the
-            application without a payment step). */}
-        <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
-          <p className="text-sm font-semibold text-ink-900 mb-1">
-            Category secret code
-          </p>
-          <p className="text-xs text-ink-500 mb-3">
-            Used to build the ticket link approved applicants receive for this
-            category. Auto-generated — regenerate or set your own if you want a more memorable code, but never leave it blank. 
-          </p>
-          <SecretCodeField
-            value={secretCode}
-            onChange={setSecretCode}
-            onRegenerate={() => setSecretCode(generateSecretCode())}
-            idPrefix="show-car-category"
-          />
-        </div>
       </EditorDrawer>
 
       <FullScreenDatePicker

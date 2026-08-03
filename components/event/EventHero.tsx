@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useEventData } from "@/context/EventContext";
 import {
   Dropdown,
@@ -29,22 +28,19 @@ import {
   useCancelEvent,
   useDeleteEvent,
 } from "@/lib/eventActions";
-import { useConfirm } from "@/context/ConfirmContext";
+import { useAction } from "@/context/ActionContext";
 
 export function EventHero() {
   const { event } = useEventData();
   const router = useRouter();
-  const confirm = useConfirm();
+  // Confirm + full-screen loader + result notification all come from
+  // the shared action flow, so these behave exactly like the same
+  // actions elsewhere in the app.
+  const runAction = useAction();
 
   const clone = useCloneEvent();
   const cancel = useCancelEvent();
   const del = useDeleteEvent();
-
-  const [actionError, setActionError] = useState<string | null>(null);
-  // Full-page overlay label. Set when an action starts and deliberately
-  // left set through the router.push, so the spinner covers the gap
-  // until the next page mounts (rather than flashing a blank screen).
-  const [busyLabel, setBusyLabel] = useState<string | null>(null);
 
   const eventUrl = `https://${event.url}`;
 
@@ -59,78 +55,64 @@ export function EventHero() {
   };
 
   const handleDuplicate = async () => {
-    setActionError(null);
-    const ok = await confirm({
-      title: "Duplicate this event?",
-      message:
-        "A copy will be created as a new draft with all the same details, and you'll be taken to edit it.",
-      confirmLabel: "Duplicate Event",
-      cancelLabel: "Cancel",
+    const res = await runAction({
+      confirm: {
+        title: "Duplicate this event?",
+        message:
+          "A copy will be created as a new draft with all the same details, and you'll be taken to edit it.",
+        confirmLabel: "Duplicate Event",
+        cancelLabel: "Cancel",
+      },
+      loadingLabel: "Duplicating event...",
+      successTitle: "Event duplicated",
+      successMessage: "The copy has been created as a draft.",
+      errorTitle: "Couldn't duplicate the event",
+      run: () => clone.mutateAsync({ eid: event.encryptedId }),
     });
-    if (!ok) return;
-    setBusyLabel("Duplicating event…");
-    try {
-      const res = await clone.mutateAsync({ eid: event.encryptedId });
-      // New draft → straight into its editor. Leave the overlay up
-      // through navigation so there's no blank frame.
-      router.push("/events/new?eid=" + res.encrypted_id);
-    } catch (err) {
-      setBusyLabel(null);
-      setActionError(
-        err instanceof Error ? err.message : "Couldn't duplicate the event.",
-      );
-    }
+    // New draft -> straight into its editor.
+    if (res) router.push("/events/new?eid=" + res.encrypted_id);
   };
 
   const handleCancel = async () => {
-    setActionError(null);
-    const ok = await confirm({
-      title: "Cancel this event?",
-      message:
-        "The event will be marked as cancelled. You can restore it from wp-admin if needed.",
-      confirmLabel: "Cancel Event",
-      cancelLabel: "Keep Event",
-      danger: true,
+    const res = await runAction({
+      confirm: {
+        title: "Cancel this event?",
+        message:
+          "The event will be marked as cancelled and will no longer accept bookings.",
+        confirmLabel: "Cancel Event",
+        cancelLabel: "Keep Event",
+        danger: true,
+      },
+      loadingLabel: "Cancelling event...",
+      successTitle: "Event cancelled",
+      successMessage: "It no longer accepts bookings.",
+      errorTitle: "Couldn't cancel the event",
+      run: () => cancel.mutateAsync({ eid: event.encryptedId }),
     });
-    if (!ok) return;
-    setBusyLabel("Cancelling event…");
-    try {
-      await cancel.mutateAsync({ eid: event.encryptedId });
-      router.push("/events");
-    } catch (err) {
-      setBusyLabel(null);
-      setActionError(
-        err instanceof Error ? err.message : "Couldn't cancel the event.",
-      );
-    }
+    if (res) router.push("/events");
   };
 
   const handleDelete = async () => {
-    setActionError(null);
-    const ok = await confirm({
-      title: "Delete this event?",
-      message:
-        "The event will be marked as deleted and removed from your events. This can be undone from wp-admin.",
-      confirmLabel: "Delete Event",
-      cancelLabel: "Keep Event",
-      danger: true,
+    const res = await runAction({
+      confirm: {
+        title: "Delete this event?",
+        message:
+          "The event will be removed from your events. Contact support if you need it restored.",
+        confirmLabel: "Delete Event",
+        cancelLabel: "Keep Event",
+        danger: true,
+      },
+      loadingLabel: "Deleting event...",
+      successTitle: "Event deleted",
+      successMessage: "It's been removed from your events.",
+      errorTitle: "Couldn't delete the event",
+      run: () => del.mutateAsync({ eid: event.encryptedId }),
     });
-    if (!ok) return;
-    setBusyLabel("Deleting event…");
-    try {
-      await del.mutateAsync({ eid: event.encryptedId });
-      router.push("/events");
-    } catch (err) {
-      setBusyLabel(null);
-      setActionError(
-        err instanceof Error ? err.message : "Couldn't delete the event.",
-      );
-    }
+    if (res) router.push("/events");
   };
 
   return (
     <>
-      {busyLabel && <FullPageSpinner label={busyLabel} />}
       <section className="event-hero">
         <div className="event-hero-grid">
           <div>
@@ -178,19 +160,6 @@ export function EventHero() {
               </button>
             </div>
 
-            {actionError && (
-              <p
-                role="alert"
-                style={{
-                  marginTop: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "var(--danger, #c0492f)",
-                }}
-              >
-                {actionError}
-              </p>
-            )}
           </div>
 
           <div className="event-actions">
@@ -253,51 +222,3 @@ export function EventHero() {
   );
 }
 
-/**
- * Full-page overlay spinner. Covers the screen while an event action
- * runs and through the subsequent navigation, so there's no blank,
- * unresponsive frame. Inline-styled + self-contained keyframes.
- */
-function FullPageSpinner({ label }: { label: string }) {
-  return (
-    <div
-      role="alertdialog"
-      aria-busy="true"
-      aria-label={label}
-      style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 2000,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 16,
-        background: "rgba(255,255,255,0.8)",
-        backdropFilter: "blur(2px)",
-      }}
-    >
-      <style>{`@keyframes ehSpin { to { transform: rotate(360deg); } }`}</style>
-      <div
-        style={{
-          width: 44,
-          height: 44,
-          borderRadius: "9999px",
-          border: "4px solid rgba(189,116,32,0.2)",
-          borderTopColor: "var(--gold-deep, #bd7420)",
-          animation: "ehSpin 0.8s linear infinite",
-        }}
-      />
-      <p
-        style={{
-          margin: 0,
-          fontSize: 14,
-          fontWeight: 600,
-          color: "var(--ink, #1f1d18)",
-        }}
-      >
-        {label}
-      </p>
-    </div>
-  );
-}

@@ -1,5 +1,5 @@
 /**
- * Saved Events (favourites) — paginated fetch for the dashboard tab.
+ * Saved Events (favourites) - paginated fetch for the dashboard tab.
  *
  * Server splits upcoming vs past and paginates each scope separately
  * (GET /saved-events?scope=upcoming&page=1). Returns EventRecord[] so

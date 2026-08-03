@@ -28,7 +28,7 @@ import { ApiError } from "@/lib/apiClient";
 
 /**
  * Active panel router. Lives inside a Suspense boundary because it
- * reads useSearchParams() — Next 14 requires Suspense around any
+ * reads useSearchParams() - Next 14 requires Suspense around any
  * component that uses search params during static rendering.
  *
  * Future panels are registered here as they're built. Unknown / not-yet-
@@ -93,11 +93,11 @@ function ActivePanel() {
  * Top-level page for /events/new.
  *
  * Layout:
- *   [TopBar — full width, sticky]
+ *   [TopBar - full width, sticky]
  *   [Sidebar (lg+) | [TabBar (mobile) → main content]]
  *   [BottomBar (mobile, sticky)]
  *
- * Both Sidebar and TabBar render — they're each gated by their own
+ * Both Sidebar and TabBar render - they're each gated by their own
  * media-query classes (hidden lg:flex / lg:hidden) so only one is
  * visible at a time. Doing it this way means we don't need to read
  * window size in JS at all; CSS is the source of truth for layout.
@@ -115,7 +115,7 @@ function PageInner() {
   const eid = searchParams.get("eid");
 
   // Drives the load. The hook stays idle when eid is null/empty
-  // (brand-new event from the create wizard — context is already
+  // (brand-new event from the create wizard - context is already
   // populated by the wizard, no fetch needed).
   const query = useEventForEdit(eid);
   const { dispatch } = useEventCreate();
@@ -137,7 +137,7 @@ function PageInner() {
     hydratedFor.current = eid;
   }, [query.data, eid, dispatch]);
 
-  // Loading state — only when we have an eid AND haven't yet
+  // Loading state - only when we have an eid AND haven't yet
   // hydrated. The data becoming available + the effect running
   // happens in the same tick, so we also gate on the ref to avoid
   // a one-frame flash of skeleton after the response arrives.
@@ -172,7 +172,7 @@ function PageInner() {
 /**
  * Full-page skeleton shown while /event-edit is in flight. Mirrors
  * the editor's chrome so the layout doesn't shift when the real
- * content arrives — sidebar rail on the left, main column on the
+ * content arrives - sidebar rail on the left, main column on the
  * right, fake panel header + a few field-shaped placeholders.
  *
  * Uses the same `.skeleton-shimmer` class the categories grid uses,
@@ -181,7 +181,7 @@ function PageInner() {
 function EditorSkeleton() {
   return (
     <>
-      {/* Topbar placeholder — match the real EditorTopBar's height
+      {/* Topbar placeholder - match the real EditorTopBar's height
           (sticky h-14) so vertical position doesn't jump. */}
       <div className="h-14 border-b border-ink-200 bg-white flex items-center px-4 gap-3">
         <span className="skeleton-shimmer h-6 w-6 rounded-md" />
@@ -190,7 +190,7 @@ function EditorSkeleton() {
       </div>
 
       <div className="lg:flex">
-        {/* Sidebar — visible only at lg+, same width as the real one. */}
+        {/* Sidebar - visible only at lg+, same width as the real one. */}
         <aside className="hidden lg:block lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white p-4">
           {Array.from({ length: 10 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 py-3">
@@ -232,7 +232,7 @@ function EditorSkeleton() {
 }
 
 /**
- * Error state — shown for 401/403/404 from the load endpoint, plus
+ * Error state - shown for 401/403/404 from the load endpoint, plus
  * any other failure. Keeps the editor chrome out of the way so the
  * user sees a focused message + a way back to the dashboard.
  *

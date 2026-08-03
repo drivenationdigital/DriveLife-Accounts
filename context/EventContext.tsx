@@ -19,7 +19,7 @@ export function EventProvider({
   initialData?: EventData;
 }) {
   // When `initialData` is provided (e.g. from the event detail page that
-  // fetches via TanStack), treat it as the source of truth — re-renders of
+  // fetches via TanStack), treat it as the source of truth - re-renders of
   // the parent will flow through. Otherwise fall back to internal state
   // seeded with the mock fixture for routes that haven't been wired up yet.
   const [fallback, setFallback] = useState<EventData>(mockEventData);

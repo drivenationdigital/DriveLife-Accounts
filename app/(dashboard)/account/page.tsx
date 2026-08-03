@@ -10,7 +10,7 @@ import {
 } from "@/lib/account";
 
 /**
- * My Account — editable profile for the signed-in user.
+ * My Account - editable profile for the signed-in user.
  *
  * Loads the full profile from /account (name, town, email, notification
  * preferences), which is richer than AuthUser. "Your details" and
@@ -32,7 +32,7 @@ export default function AccountPage() {
   // ── Details form ────────────────────────────────────────────────
   // Seed the editable form from the loaded account. Rather than syncing
   // via an effect (which double-renders), we reset state *during render*
-  // when the loaded values change — the "adjust state on prop change"
+  // when the loaded values change - the "adjust state on prop change"
   // pattern from the React docs. `hydratedFrom` tracks what we last
   // seeded from, so we only reset when the server data actually changes
   // (initial load, or after a save returns fresh values), never on every

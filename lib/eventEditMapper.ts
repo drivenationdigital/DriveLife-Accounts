@@ -13,7 +13,7 @@
  *
  *   - The legacy WP form occasionally stores the same logical
  *     value in different spots depending on when the record was
- *     created (e.g. `recurring_month` — slug vs label). Centralising
+ *     created (e.g. `recurring_month` - slug vs label). Centralising
  *     the cleanup here keeps the smell out of the panels.
  *
  *   - The editor's branded-id types (`TicketId`, `DiscountId`, …)
@@ -53,7 +53,7 @@ import type {
 
 /**
  * The fields produced by the mapper. This is a partial of the full
- * editor state — the mapper only owns fields that the API knows
+ * editor state - the mapper only owns fields that the API knows
  * about. Show-cars / car-clubs / traders / event-type (general/
  * dev_club/venue_dover) aren't in the API yet, so they stay at
  * their initial-state defaults until those endpoints land.
@@ -99,6 +99,11 @@ export type HydratedEventState = Pick<
   | "externalTicketInfo"
   | "freeEntryInfo"
   | "requireRegistration"
+  | "ticketLogo"
+  | "ticketInfo"
+  | "ticketTerms"
+  | "ticketsOnGate"
+  | "ticketsOnGateInfo"
   | "discounts"
   | "status"
   | "scheduledDate"
@@ -145,7 +150,7 @@ export function mapEventEditResponse(
     tiktokUrl: response.description.tiktok_url,
 
     // ---- Media --------------------------------------------------------
-    // The API returns image rows as { id, url } pairs — `id` is the
+    // The API returns image rows as { id, url } pairs - `id` is the
     // Cloudflare image id (or null for legacy ACF images that have a
     // URL but no removable backing). We carry it through as
     // cloudflareId so removal in the editor can hit DELETE /event-image
@@ -174,6 +179,19 @@ export function mapEventEditResponse(
     externalTicketUrl: response.tickets.external_tickets_url,
     externalTicketInfo: response.tickets.external_entry_details,
     freeEntryInfo: response.tickets.entry_details,
+    ticketLogo: response.media.ticket_logo
+      ? {
+          kind: "remote",
+          url: response.media.ticket_logo.url,
+          ...(response.media.ticket_logo.id
+            ? { cloudflareId: response.media.ticket_logo.id }
+            : {}),
+        }
+      : null,
+    ticketInfo: response.tickets.event_tickets_information,
+    ticketTerms: response.tickets.ticket_terms_and_conditions,
+    ticketsOnGate: response.tickets.on_the_gate,
+    ticketsOnGateInfo: response.tickets.on_gate_details,
     ticketList: mapTicketList(response.tickets.tickets),
 
     // ---- Discounts ----------------------------------------------------
@@ -185,7 +203,7 @@ export function mapEventEditResponse(
     // the section is off, or { enabled: true, config: {...} } when on.
     // We map each branch onto the flat state fields the panel uses.
     //
-    // Categories themselves aren't hydrated here yet — they live as
+    // Categories themselves aren't hydrated here yet - they live as
     // tickets with is_show_car_ticket=1, and /event-edit doesn't
     // currently filter those out of the regular ticket list. Adding
     // that needs a small PHP change; until then showCarCategories
@@ -313,7 +331,7 @@ function mapShowCars(
     showCarsLimitEnabled: hasMax,
     showCarsMax: hasMax ? (c.max as number) : NaN,
     showCarsInfo: c.info ?? "",
-    // Categories — empty array if the field is absent. We carry the
+    // Categories - empty array if the field is absent. We carry the
     // raw post id (not encrypted) as `id` so it matches what the save
     // endpoint returns and the panel's id-swap-on-create logic stays
     // consistent.
@@ -332,7 +350,7 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
     spacesAvailable:
       typeof api.spaces_available === "number" ? api.spaces_available : NaN,
     requireTicket: api.require_ticket,
-    // ticket_cost only matters when requireTicket is true — leave NaN
+    // ticket_cost only matters when requireTicket is true - leave NaN
     // otherwise so the drawer's "ticket cost" input doesn't show 0.
     ticketCost:
       api.require_ticket && Number.isFinite(api.ticket_cost)
@@ -345,7 +363,7 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
 /**
  * Map the API's traders block onto the editor's flat fields. Trader
  * categories come from ce_event_trader_categories (their own table),
- * not from tickets — so unlike show cars they hydrate from a dedicated
+ * not from tickets - so unlike show cars they hydrate from a dedicated
  * `categories` array regardless of the ticket list.
  */
 function mapTraders(api: ApiEventEditResponse["traders"] | undefined | null): {
@@ -413,7 +431,7 @@ function mapTicketSource(value: number): "ce" | "external" | "none" {
  * ticket) into the editor's flat `TicketListItem` union.
  *
  * Sections only need a name + secret flag. Tickets carry the full
- * shape — we coerce all the string-encoded numerics into real
+ * shape - we coerce all the string-encoded numerics into real
  * numbers, with NaN representing "unset".
  */
 function mapTicketRow(row: ApiEventTicket): TicketListItem {
@@ -422,7 +440,7 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
       kind: "section",
       id: row.ticket_id as unknown as SectionId,
       name: row.name,
-      // Sections carry their own secret_code_ticket flag — that's
+      // Sections carry their own secret_code_ticket flag - that's
       // what powers the "Secret ticket section" UI checkbox.
       isSecret: row.secret_code_ticket,
       // Pre-fill the code so the drawer shows what was stored rather
@@ -477,7 +495,7 @@ function mapTicketList(rows: ApiEventTicket[]): TicketListItem[] {
  * datepicker treats the field as unset.
  *
  * The editor doesn't yet show the time portion of ticket sale
- * windows — only the date. Times default to 00:00 on save.
+ * windows - only the date. Times default to 00:00 on save.
  */
 function extractIsoDate(raw: string | null): string | null {
   if (!raw) return null;
@@ -505,7 +523,7 @@ function parseLimitOrUnlimited(raw: string | null | undefined): number {
  * type. The major coercions:
  *
  *   - allowed_products is a comma-separated string. Empty string
- *     means "applies to all tickets" — same convention as the
+ *     means "applies to all tickets" - same convention as the
  *     editor's empty array. Any populated list is split + cast.
  *   - discount_type maps from "percentage"/"fixed" to the editor's
  *     DiscountKind union directly. Unknown values default to
@@ -531,7 +549,7 @@ function mapDiscount(row: ApiEventDiscount): Discount {
     usageLimit: parseLimitNullable(row.max_usage_per_coupon),
     perCustomerLimit: parseLimitNullable(row.max_usage_per_user),
     // The custom table doesn't track per-discount usage counts on
-    // the editor surface — bookings are summed elsewhere. Default
+    // the editor surface - bookings are summed elsewhere. Default
     // to 0 for new editor sessions; once we have a usage-summary
     // endpoint, populate from there.
     usageCount: 0,
@@ -565,7 +583,7 @@ function parseLimitNullable(raw: string | null | undefined): number | null {
  * EventCreateState only models the simpler subset. For events that
  * use modes beyond this subset (custom-recurring with N rows of
  * per-day times; monthly with first/second/etc) we map what we can
- * — the date span — and leave the unsupported details out.
+ * - the date span - and leave the unsupported details out.
  */
 function mapDates(
   api: ApiEventEditResponse["dates"],
@@ -618,7 +636,7 @@ function mapDates(
 
   // Build perDayTimes from the API's date_rows. The legacy WP form
   // always emits one row per day (even for events that share a single
-  // start/end time across the range — they're just identical). For
+  // start/end time across the range - they're just identical). For
   // events with `is_multi_timeslot: true` each row's start_time and
   // end_time are the per-day values; for the others, they're all the
   // same and the editor's per-day UI is hidden anyway.
@@ -634,15 +652,15 @@ function mapDates(
     endTime: row.end_time && row.end_time !== "00:00" ? row.end_time : "16:00",
   }));
 
-  // Recurring week/month — the WP form stores these on the event as
+  // Recurring week/month - the WP form stores these on the event as
   // top-level ACF fields. The API surfaces them inside the `recurring`
   // object only when `is_recurring=true`. Fall back to safe defaults
-  // when missing — `sunday` and `first_sunday` match the legacy
+  // when missing - `sunday` and `first_sunday` match the legacy
   // template's defaults.
   const recurringWeek = mapWeekdayLower(api.recurring?.week);
   const recurringMonth = mapMonthlyOccurrence(api.recurring?.month);
 
-  // Custom recurring dates — only for `type=custom` events. The API
+  // Custom recurring dates - only for `type=custom` events. The API
   // currently exposes the date range via `date_rows` (same shape as
   // perDayTimes). Each row becomes one custom-date entry. We give
   // each a synthetic id so React keys are stable across reorders;
@@ -769,7 +787,7 @@ function mapPublish(
     case "publish":
     default:
       // 'publish', plus any other transient state ('pending', etc.)
-      // — treat as published. The public/private distinction we
+      // - treat as published. The public/private distinction we
       // care about lives in the ACF visibility field, not the post
       // status.
       status = "published";

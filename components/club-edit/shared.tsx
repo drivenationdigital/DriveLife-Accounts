@@ -8,7 +8,7 @@ import { useRef, type ReactNode } from "react";
  * Fields use the editor's own `.input` / `.select` / `.textarea` classes
  * from app/(editor)/editor.css rather than a local Tailwind string, so
  * the club editor's inputs are literally the same controls as the event
- * editor's — same radius, padding, focus ring, and placeholder colour.
+ * editor's - same radius, padding, focus ring, and placeholder colour.
  * Both pages live under the (editor) route group, which is where that
  * stylesheet is imported.
  */
@@ -46,7 +46,7 @@ export function Divider() {
 
 /**
  * Image picker row (logo / cover). Hidden file input + ref so the
- * thumbnail and the button both open the picker — the pattern that
+ * thumbnail and the button both open the picker - the pattern that
  * actually works, rather than a bare button.
  */
 export function ImageUploadRow({

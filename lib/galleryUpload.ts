@@ -1,5 +1,5 @@
 /**
- * Event community gallery — bulk upload (photographer web uploader).
+ * Event community gallery - bulk upload (photographer web uploader).
  *
  * Three-step direct-to-Cloudflare flow (browser → CF, never through
  * our PHP for the image bytes):
@@ -38,7 +38,7 @@ function authHeaders(): Record<string, string> {
 }
 /**
  * The gallery route param is a raw numeric event id (matching the
- * Flutter client's int.parse) — NOT the encrypted id the dashboard
+ * Flutter client's int.parse) - NOT the encrypted id the dashboard
  * uses elsewhere. Coerce to a number so the WP handler receives an
  * int; fall back to the raw string if it somehow isn't numeric.
  */
@@ -102,7 +102,7 @@ async function uploadToCloudflare(
 ): Promise<void> {
   const form = new FormData();
   form.append("file", file, file.name);
-  // No auth header — the CF direct-upload URL is pre-signed.
+  // No auth header - the CF direct-upload URL is pre-signed.
   const res = await fetch(uploadUrl, { method: "POST", body: form });
   if (!res.ok) {
     throw new Error(`Cloudflare upload failed (${res.status})`);

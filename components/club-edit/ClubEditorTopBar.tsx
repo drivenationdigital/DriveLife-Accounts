@@ -7,7 +7,7 @@ import { useClubSave, type ClubSavePhase } from "@/context/ClubSaveContext";
 
 /**
  * Sticky topbar for the club editor. Mirrors EditorTopBar in the event
- * editor — same height, same back link, same right-aligned primary CTA —
+ * editor - same height, same back link, same right-aligned primary CTA -
  * so moving between the two editors doesn't feel like two apps.
  *
  * Mobile/tablet: shows the club title in the header (the desktop sidebar,
@@ -16,7 +16,7 @@ import { useClubSave, type ClubSavePhase } from "@/context/ClubSaveContext";
  * Desktop (lg+): the title lives in the sidebar; the header keeps a
  * flexible spacer so the actions stay pinned right.
  *
- * There's no Preview button (unlike the event editor) — clubs have no
+ * There's no Preview button (unlike the event editor) - clubs have no
  * public view route yet. When one lands it slots in left of Update Club.
  */
 export function ClubEditorTopBar() {
@@ -34,7 +34,7 @@ export function ClubEditorTopBar() {
           <span className="hidden sm:inline text-sm font-medium">Clubs</span>
         </Link>
 
-        {/* Divider — only on tablets, where the back link and the title
+        {/* Divider - only on tablets, where the back link and the title
             are both showing. Hidden at lg+ once the title moves into the
             sidebar. */}
         <div
@@ -53,7 +53,7 @@ export function ClubEditorTopBar() {
           </h1>
         </div>
 
-        {/* Spacer for desktop — pushes actions to the right edge. */}
+        {/* Spacer for desktop - pushes actions to the right edge. */}
         <div className="hidden lg:block flex-1" />
 
         <SaveStatusPill phase={phase} isDirty={isDirty} />
@@ -83,7 +83,7 @@ export function ClubEditorTopBar() {
 
 /**
  * Live save indicator. Same four phases as the event editor's pill, plus
- * a dirty state — idle-but-dirty reads "Unsaved changes" rather than the
+ * a dirty state - idle-but-dirty reads "Unsaved changes" rather than the
  * event editor's "Not saved yet", because a club being edited always
  * exists already.
  */

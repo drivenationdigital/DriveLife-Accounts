@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import {
@@ -21,10 +21,17 @@ import {
   mapSectionToBody,
 } from "@/lib/ticketMutations";
 import { ApiError } from "@/lib/apiClient";
+import { useAction } from "@/context/ActionContext";
+import {
+  useUploadEventImage,
+  useRemoveEventImage,
+} from "@/lib/imageMutations";
+import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
 
 import { PanelHeader } from "../PanelHeader";
 import { TicketDrawer } from "../TicketDrawer";
 import { SectionDrawer } from "../SectionDrawer";
+import { EditorTextarea } from "../EditorTextarea";
 
 /**
  * Step 5 of the wizard.
@@ -35,13 +42,13 @@ import { SectionDrawer } from "../SectionDrawer";
  *   - "external"  → URL field + additional-info textarea. No list.
  *   - "none"      → entry-info textarea + register-required checkbox.
  *
- * Each mode keeps its own fields in state — switching modes does
+ * Each mode keeps its own fields in state - switching modes does
  * not wipe anything, so users can experiment without losing entries.
  *
  * Within "ce" mode, the list contains both Tickets and Sections in
  * a single flat array, ordered by index. Drag-to-reorder uses the
  * same HTML5 DnD pattern as Gallery. Click-to-reorder via
- * up/down chevrons is provided as a keyboard / mobile fallback —
+ * up/down chevrons is provided as a keyboard / mobile fallback -
  * surfaced inline next to the edit/delete actions on hover (or
  * always-visible via focus).
  */
@@ -63,7 +70,7 @@ export function TicketsPanel() {
   // ---- Drawer state ----
   // editingTicket / editingSection: null means the drawer is closed.
   // To open a fresh "Add" form we set them to a sentinel object the
-  // drawer recognises as "new" — easier than juggling a separate
+  // drawer recognises as "new" - easier than juggling a separate
   // "open" boolean for each.
   const [ticketDrawerOpen, setTicketDrawerOpen] = useState(false);
   const [editingTicket, setEditingTicket] = useState<Ticket | null>(null);
@@ -124,7 +131,7 @@ export function TicketsPanel() {
     }
     onDragEnd();
   };
-  // Keyboard / mobile fallback — bump an item up or down by one slot.
+  // Keyboard / mobile fallback - bump an item up or down by one slot.
   const moveItem = (idx: number, delta: -1 | 1) => {
     const target = idx + delta;
     if (target < 0 || target >= state.ticketList.length) return;
@@ -145,7 +152,7 @@ export function TicketsPanel() {
   // Per-row save / delete / reorder mutations.
   //
   // Two save-mutation instances (one per drawer) so each drawer
-  // gets its own isPending / error state — they can't bleed into
+  // gets its own isPending / error state - they can't bleed into
   // each other.
   //
   // The delete mutation is shared by the inline list buttons and
@@ -156,6 +163,7 @@ export function TicketsPanel() {
   const sectionSaver = useSaveTicketRow();
   const ticketRemover = useDeleteTicketRow();
   const reorderer = useReorderTicketRows();
+  const runAction = useAction();
 
   /** True once a server eid exists. Per-row saves require it; without
    *  it the user must publish the event basics first so a draft post
@@ -170,7 +178,7 @@ export function TicketsPanel() {
         : err.message || "Save failed."
       : null;
 
-  /** Save a ticket — closes the drawer only on success. */
+  /** Save a ticket - closes the drawer only on success. */
   const handleSaveTicket = async (t: Ticket, isUpdate: boolean) => {
     if (!eid) return;
     try {
@@ -181,7 +189,7 @@ export function TicketsPanel() {
       });
       // Swap the local synthetic id for the server's raw post id.
       // /event-edit returns plain ids (not encrypted), so the editor
-      // state needs to match — saving here as encrypted_id would mean
+      // state needs to match - saving here as encrypted_id would mean
       // a later refresh produces a different id and the row wouldn't
       // match the one in state.
       const persisted: Ticket = { ...t, id: String(res.ticket_id) as TicketId };
@@ -197,7 +205,7 @@ export function TicketsPanel() {
     }
   };
 
-  /** Save a section — same flow as handleSaveTicket. */
+  /** Save a section - same flow as handleSaveTicket. */
   const handleSaveSection = async (s: TicketSection, isUpdate: boolean) => {
     if (!eid) return;
     try {
@@ -221,32 +229,74 @@ export function TicketsPanel() {
     }
   };
 
-  /** Remove a ticket — optimistic UI only AFTER server confirms, since
-   *  rollback for a deletion would be jarring. */
-  const handleRemoveTicket = async (id: TicketId) => {
+  /** Remove a ticket - deletion is server-side and permanent, so it
+   *  goes through the shared action flow (confirm → full-screen
+   *  loader → notification). The local row is dropped only AFTER the
+   *  server confirms, since rollback for a deletion would be jarring.
+   *
+   *  Both entry points (the inline row button and the drawer's
+   *  "Remove ticket") funnel through here, so the confirm can't be
+   *  skipped from either. */
+  const handleRemoveTicket = async (id: TicketId, name: string) => {
     if (!eid) return;
-    try {
-      await ticketRemover.mutateAsync({ eid, id });
+    const res = await runAction({
+      confirm: {
+        title: "Delete this ticket?",
+        message: name.trim()
+          ? `"${name.trim()}" will be removed from this event. Existing orders keep their tickets, but nobody can buy it again. This can't be undone.`
+          : "The ticket will be removed from this event. Existing orders keep their tickets, but nobody can buy it again. This can't be undone.",
+        confirmLabel: "Delete ticket",
+        cancelLabel: "Keep ticket",
+        danger: true,
+      },
+      loadingLabel: "Deleting ticket...",
+      successTitle: "Ticket deleted",
+      errorTitle: "Couldn't delete the ticket",
+      run: async () => {
+        await ticketRemover.mutateAsync({ eid, id });
+        return true;
+      },
+    });
+    if (res) {
       dispatch({ type: "REMOVE_TICKET", id });
       setTicketDrawerOpen(false);
-    } catch {
-      // Leave the row in place; surface error on the drawer if open.
+    } else {
+      // Cancelled or failed - the notification already told them why.
+      // Clear the mutation error so the drawer doesn't repeat it inline.
+      ticketRemover.reset();
     }
   };
 
-  const handleRemoveSection = async (id: SectionId) => {
+  const handleRemoveSection = async (id: SectionId, name: string) => {
     if (!eid) return;
-    try {
-      await ticketRemover.mutateAsync({ eid, id });
+    const res = await runAction({
+      confirm: {
+        title: "Delete this section?",
+        message: name.trim()
+          ? `"${name.trim()}" will be removed. The tickets under it stay on the event. This can't be undone.`
+          : "The section will be removed. The tickets under it stay on the event. This can't be undone.",
+        confirmLabel: "Delete section",
+        cancelLabel: "Keep section",
+        danger: true,
+      },
+      loadingLabel: "Deleting section...",
+      successTitle: "Section deleted",
+      errorTitle: "Couldn't delete the section",
+      run: async () => {
+        await ticketRemover.mutateAsync({ eid, id });
+        return true;
+      },
+    });
+    if (res) {
       dispatch({ type: "REMOVE_SECTION", id });
       setSectionDrawerOpen(false);
-    } catch {
-      // Same as ticket — leave in place.
+    } else {
+      ticketRemover.reset();
     }
   };
 
   /** Persist the current ticketList ordering. Fired by the reorder
-   *  helpers AFTER they've already dispatched locally — so the visual
+   *  helpers AFTER they've already dispatched locally - so the visual
    *  order updates immediately and the server catches up in the
    *  background. A reorder failure logs but doesn't roll back; the
    *  next save / refresh will reconcile. */
@@ -266,7 +316,7 @@ export function TicketsPanel() {
         stepNumber={5}
         totalSteps={EVENT_CREATE_STEP_COUNT}
         title="Tickets & entry"
-        subtitle="Choose how attendees get in — sell via CarEvents.com, link to an external site, or run a free event."
+        subtitle="Choose how attendees get in - sell via CarEvents.com, link to an external site, or run a free event."
       />
 
       {/* ---- Mode picker ---- */}
@@ -276,7 +326,7 @@ export function TicketsPanel() {
           onClick={() => setMode("ce")}
           icon="fa-solid fa-ticket"
           title="CarEvents Ticketing"
-          description="Sell tickets through us — fully integrated."
+          description="Sell tickets through us - fully integrated."
         />
         <ModeCard
           checked={isExternal}
@@ -449,7 +499,7 @@ export function TicketsPanel() {
                           ticket={item}
                           showFees={state.ticketFeeMode === "pass"}
                           onEdit={() => openEditTicket(item)}
-                          onDelete={() => handleRemoveTicket(item.id)}
+                          onDelete={() => handleRemoveTicket(item.id, item.name)}
                           onMoveUp={() => moveItem(idx, -1)}
                           onMoveDown={() => moveItem(idx, 1)}
                           canMoveUp={idx > 0}
@@ -459,7 +509,9 @@ export function TicketsPanel() {
                         <SectionRow
                           section={item}
                           onEdit={() => openEditSection(item)}
-                          onDelete={() => handleRemoveSection(item.id)}
+                          onDelete={() =>
+                            handleRemoveSection(item.id, item.name)
+                          }
                           onMoveUp={() => moveItem(idx, -1)}
                           onMoveDown={() => moveItem(idx, 1)}
                           canMoveUp={idx > 0}
@@ -519,34 +571,94 @@ export function TicketsPanel() {
               </button>
             </div>
           </div>
-
-          {/* Show attendees */}
-          <label className="flex items-center justify-between gap-3 p-4 bg-white border border-ink-200 rounded-xl cursor-pointer mb-4">
-            <div>
-              <p className="text-sm font-medium text-ink-900">
-                Show attendees on the event page
-              </p>
-              <p className="text-xs text-ink-500">
-                Public list of people who&apos;ve booked
-              </p>
-            </div>
-            <span className="switch">
-              <input
-                type="checkbox"
-                checked={state.showAttendees}
-                onChange={(e) =>
-                  dispatch({
-                    type: "SET_FIELD",
-                    key: "showAttendees",
-                    value: e.target.checked,
-                  })
-                }
-              />
-              <span className="slider" />
-            </span>
-          </label>
         </>
       )}
+
+      {/* ---- Ticket presentation + policy ----
+          Applies to every ticketing mode, so it sits outside the
+          `ce`-only block above. */}
+      <TicketLogoField />
+
+      <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
+        <label className="block text-sm font-semibold text-ink-900 mb-2">
+          Additional ticket information
+        </label>
+        <p className="text-xs text-ink-500 mb-3">
+          Shown alongside the tickets on your event page and repeated on the
+          ticket itself. Arrival times, what&apos;s included, parking, anything
+          buyers should read before booking.
+        </p>
+        <EditorTextarea
+          value={state.ticketInfo}
+          onChange={(value) =>
+            dispatch({ type: "SET_FIELD", key: "ticketInfo", value })
+          }
+          placeholder="Gates open at 9am. Entry includes parking for one vehicle. Under 12s go free."
+        />
+      </div>
+
+      <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
+        <label className="block text-sm font-semibold text-ink-900 mb-2">
+          Terms &amp; conditions / refund policy
+        </label>
+        <p className="text-xs text-ink-500 mb-3">
+          Buyers agree to this at checkout, so be specific about refunds,
+          transfers and what happens if the event is cancelled.
+        </p>
+        <EditorTextarea
+          value={state.ticketTerms}
+          onChange={(value) =>
+            dispatch({ type: "SET_FIELD", key: "ticketTerms", value })
+          }
+          placeholder="Tickets are non-refundable within 14 days of the event. Tickets may be transferred to another attendee at any time by contacting us."
+        />
+      </div>
+
+      {/* Tickets on the gate - tickbox reveals the details textarea. */}
+      <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <div>
+            <p className="text-sm font-semibold text-ink-900">
+              Tickets on the gate
+            </p>
+            <p className="text-xs text-ink-500 mt-0.5">
+              Tickets will also be available to buy on the day
+            </p>
+          </div>
+          <span className="switch">
+            <input
+              type="checkbox"
+              checked={state.ticketsOnGate}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  key: "ticketsOnGate",
+                  value: e.target.checked,
+                })
+              }
+            />
+            <span className="slider" />
+          </span>
+        </label>
+        {state.ticketsOnGate && (
+          <div className="mt-4 pt-4 border-t border-ink-200">
+            <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+              On the gate details
+            </label>
+            <EditorTextarea
+              value={state.ticketsOnGateInfo}
+              onChange={(value) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  key: "ticketsOnGateInfo",
+                  value,
+                })
+              }
+              placeholder="Cash and card accepted on the gate. £15 per adult, under 12s free. Gate prices are higher than advance tickets."
+            />
+          </div>
+        )}
+      </div>
 
       {/* ---- Desktop nav row ---- */}
       <div className="hidden sm:flex items-center justify-between gap-3 pt-6 mt-8 border-t border-ink-200">
@@ -570,7 +682,7 @@ export function TicketsPanel() {
 
       {/* ---- Drawers ----
           The `key` prop forces a full remount whenever the drawer
-          opens/closes or the editing target changes — that lets the
+          opens/closes or the editing target changes - that lets the
           drawer seed its form state synchronously from props via
           `useState(initialiser)` without a re-syncing useEffect (which
           would trigger React's "setState within an effect can cause
@@ -586,7 +698,7 @@ export function TicketsPanel() {
           setTicketDrawerOpen(false);
         }}
         onSave={(t) => handleSaveTicket(t, editingTicket !== null)}
-        onRemove={(id) => handleRemoveTicket(id)}
+        onRemove={(id) => handleRemoveTicket(id, editingTicket?.name ?? "")}
         isSaving={ticketSaver.isPending}
         isDeleting={ticketRemover.isPending}
         errorMessage={
@@ -602,7 +714,7 @@ export function TicketsPanel() {
           setSectionDrawerOpen(false);
         }}
         onSave={(s) => handleSaveSection(s, editingSection !== null)}
-        onRemove={(id) => handleRemoveSection(id)}
+        onRemove={(id) => handleRemoveSection(id, editingSection?.name ?? "")}
         isSaving={sectionSaver.isPending}
         isDeleting={ticketRemover.isPending}
         errorMessage={
@@ -679,7 +791,7 @@ function TicketRow({
   const subtitle = ticketSubtitle(ticket);
   const priceText = Number.isFinite(ticket.price)
     ? `£${ticket.price.toFixed(2)}`
-    : "—";
+    : "-";
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
       <button
@@ -690,7 +802,7 @@ function TicketRow({
         <i className="fa-solid fa-grip-vertical" aria-hidden />
       </button>
 
-      {/* Icon — gold for ordinary tickets, dark with gold car icon when
+      {/* Icon - gold for ordinary tickets, dark with gold car icon when
           this is a Show Car entry. */}
       <div
         className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
@@ -810,7 +922,7 @@ function SectionRowActions({
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
-  // ink-300 default, white on hover, white/10 hover bg — same chrome
+  // ink-300 default, white on hover, white/10 hover bg - same chrome
   // as the rest of the dark surfaces in the editor (publish summary
   // card uses the same palette).
   const baseBtn =
@@ -910,7 +1022,7 @@ function RowActions({
   );
 }
 
-/** Build the small subtitle text shown beneath each ticket name —
+/** Build the small subtitle text shown beneath each ticket name -
  *  available count + sale window in human form. */
 function ticketSubtitle(t: Ticket): string {
   const parts: string[] = [];
@@ -932,7 +1044,7 @@ function ticketSubtitle(t: Ticket): string {
 /** "2026-04-15" → "15 Apr". Short variant for the subtitle. */
 function formatShort(iso: string): string {
   const full = formatEditorDate(iso); // "15 April 2026"
-  // The cheapest way to abbreviate the month is a single replace —
+  // The cheapest way to abbreviate the month is a single replace -
   // we don't need a second Intl format call.
   return full
     .replace(
@@ -940,4 +1052,153 @@ function formatShort(iso: string): string {
       (m) => m.slice(0, 3),
     )
     .replace(/\s\d{4}$/, "");
+}
+
+/**
+ * Event ticket logo - the image printed on the tickets themselves.
+ *
+ * Uploads on pick (rather than deferring to the event save) so the
+ * panel can show the real hosted image straight away, matching how
+ * the gallery behaves. Needs a saved event first: the upload endpoint
+ * attaches the image to an event id, so before the draft exists there
+ * is nothing to attach to.
+ */
+function TicketLogoField() {
+  const { state, dispatch } = useEventCreate();
+  const upload = useUploadEventImage();
+  const remove = useRemoveEventImage();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const eid = state.encryptedId;
+  const logo = state.ticketLogo;
+
+  const handlePick = async (file: File | undefined) => {
+    if (!file) return;
+    setError(null);
+    if (!eid) {
+      setError(
+        "Save the event basics first so we know which event to attach the logo to.",
+      );
+      return;
+    }
+
+    // Show the local preview immediately, then swap in the hosted
+    // image once Cloudflare confirms.
+    const local = makeLocalImage(file);
+    dispatch({ type: "SET_FIELD", key: "ticketLogo", value: local });
+
+    try {
+      const image = await upload.mutateAsync({
+        eid,
+        file,
+        mediaGroup: "ticket_logo",
+      });
+      dispatch({
+        type: "SET_FIELD",
+        key: "ticketLogo",
+        value: { kind: "remote", url: image.url, cloudflareId: image.id },
+      });
+    } catch (err) {
+      dispatch({ type: "SET_FIELD", key: "ticketLogo", value: null });
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : "Upload failed.",
+      );
+    } finally {
+      revokeIfLocal(local);
+    }
+  };
+
+  const handleRemove = async () => {
+    setError(null);
+    const current = logo;
+    dispatch({ type: "SET_FIELD", key: "ticketLogo", value: null });
+    revokeIfLocal(current);
+    // Only Cloudflare-backed images need a server-side delete; a local
+    // one that never uploaded is gone the moment we drop it.
+    if (eid && current?.kind === "remote" && current.cloudflareId) {
+      try {
+        await remove.mutateAsync({ eid, mediaId: current.cloudflareId });
+      } catch {
+        // The logo is already detached in the editor; a failed cleanup
+        // just leaves an orphan in Cloudflare, which isn't worth
+        // interrupting the user for.
+      }
+    }
+  };
+
+  return (
+    <div className="bg-white border border-ink-200 rounded-xl p-4 mb-4">
+      <label className="block text-sm font-semibold text-ink-900 mb-2">
+        Event ticket logo
+      </label>
+      <p className="text-xs text-ink-500 mb-3">
+        Printed at the top of every ticket for this event. A square or wide
+        logo on a transparent background works best.
+      </p>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        onChange={(e) => {
+          handlePick(e.target.files?.[0]);
+          // Reset so picking the same file twice still fires onChange.
+          e.target.value = "";
+        }}
+      />
+
+      {logo ? (
+        <div className="flex items-center gap-4">
+          <div className="w-24 h-24 shrink-0 rounded-lg border border-ink-200 bg-ink-50 flex items-center justify-center overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={imageSrc(logo)}
+              alt="Ticket logo"
+              className="max-w-full max-h-full object-contain"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={upload.isPending}
+              className="px-4 py-2 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-50 disabled:opacity-50 rounded-lg transition"
+            >
+              {upload.isPending ? "Uploading..." : "Replace logo"}
+            </button>
+            <button
+              type="button"
+              onClick={handleRemove}
+              disabled={upload.isPending}
+              className="px-4 py-2 text-sm font-semibold text-ink-500 hover:text-red-600 disabled:opacity-50 transition text-left"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={upload.isPending}
+          className="w-full py-6 border-2 border-dashed border-ink-200 hover:border-gold-500 hover:bg-gold-50 disabled:opacity-50 rounded-xl text-ink-500 hover:text-gold-700 font-medium text-sm transition flex flex-col items-center justify-center gap-2"
+        >
+          <i className="fa-solid fa-image text-lg" aria-hidden />
+          {upload.isPending ? "Uploading..." : "Upload ticket logo"}
+        </button>
+      )}
+
+      {error && (
+        <p className="text-sm text-red-600 mt-3" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
 }

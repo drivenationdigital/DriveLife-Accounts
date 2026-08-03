@@ -4,7 +4,7 @@ import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { VenueEditProvider, useVenueEdit } from "@/context/VenueEditContext";
-import { useConfirm } from "@/context/ConfirmContext";
+import { useAction } from "@/context/ActionContext";
 import { VenueEditorTopBar } from "@/components/venue-edit/VenueEditorTopBar";
 import { VenueEditorSidebar } from "@/components/venue-edit/VenueEditorSidebar";
 import { VenueEditorTabBar } from "@/components/venue-edit/VenueEditorTabBar";
@@ -28,11 +28,11 @@ import { useVenueEditQuery, useDeleteVenue } from "@/lib/myVenues";
  *
  * Layout mirrors the event editor at /events/new and the club editor at
  * /club/[clubId]/edit:
- *   [TopBar — full width, sticky]
+ *   [TopBar - full width, sticky]
  *   [Sidebar (lg+) | [TabBar (mobile) → main content]]
  *   [BottomBar (mobile, sticky)]
  *
- * Sidebar and TabBar both render — each is gated by its own media-query
+ * Sidebar and TabBar both render - each is gated by its own media-query
  * classes (hidden lg:flex / lg:hidden), so CSS alone decides which is
  * visible and no window-size measuring happens in JS.
  *
@@ -91,7 +91,7 @@ function EditVenueEditor({ venueId }: { venueId: string }) {
  *
  * As in the club editor, the PanelHeader and the desktop CTA row are
  * rendered once here off the step config rather than repeated inside
- * every panel — the panels stay pure field content.
+ * every panel - the panels stay pure field content.
  */
 function ActivePanel() {
   const searchParams = useSearchParams();
@@ -118,7 +118,7 @@ function ActivePanel() {
 
 /**
  * Desktop CTA row. Mobile uses the sticky bottom bar instead, so this is
- * hidden below sm — matching the event and club panels' footers.
+ * hidden below sm - matching the event and club panels' footers.
  */
 function PanelFooter({ stepKey }: { stepKey: VenueEditStepKey }) {
   const router = useRouter();
@@ -202,26 +202,26 @@ function PanelFooter({ stepKey }: { stepKey: VenueEditStepKey }) {
 function DeleteVenueButton() {
   const { venue } = useVenueEdit();
   const router = useRouter();
-  const confirm = useConfirm();
+  const runAction = useAction();
   const deleteVenue = useDeleteVenue();
 
   const handleDelete = async () => {
-    const ok = await confirm({
-      title: "Delete this venue?",
-      message:
-        "This will remove the venue. This can't be undone from here. Are you sure?",
-      confirmLabel: "Delete Venue",
-      cancelLabel: "Keep Venue",
-      danger: true,
+    const res = await runAction({
+      confirm: {
+        title: "Delete this venue?",
+        message:
+          "This will remove the venue. This can't be undone from here. Are you sure?",
+        confirmLabel: "Delete Venue",
+        cancelLabel: "Keep Venue",
+        danger: true,
+      },
+      loadingLabel: "Deleting venue...",
+      successTitle: "Venue deleted",
+      successMessage: "It's been removed from your venues.",
+      errorTitle: "Couldn't delete the venue",
+      run: () => deleteVenue.mutateAsync({ vid: venue.vid }),
     });
-    if (!ok) return;
-
-    try {
-      await deleteVenue.mutateAsync({ vid: venue.vid });
-      router.push("/venues");
-    } catch {
-      // Message surfaces below the button.
-    }
+    if (res) router.push("/venues");
   };
 
   return (
@@ -232,13 +232,8 @@ function DeleteVenueButton() {
         disabled={deleteVenue.isPending}
         className="text-xs font-semibold uppercase tracking-wide text-ink-500 underline underline-offset-4 transition hover:text-red-500 disabled:opacity-50"
       >
-        {deleteVenue.isPending ? "Deleting…" : "Delete Venue"}
+        Delete Venue
       </button>
-      {deleteVenue.error && (
-        <p className="mt-2 text-sm text-red-500">
-          {deleteVenue.error.message}
-        </p>
-      )}
     </div>
   );
 }
@@ -246,7 +241,7 @@ function DeleteVenueButton() {
 /**
  * Full-page skeleton shown while /venue-edit is in flight. Mirrors the
  * editor's chrome so the layout doesn't shift when the real content
- * arrives — same shape as the event and club skeletons, trimmed to four
+ * arrives - same shape as the event and club skeletons, trimmed to four
  * sidebar rows.
  *
  * Uses the `.skeleton-shimmer` class from editor.css, scoped under
@@ -255,7 +250,7 @@ function DeleteVenueButton() {
 function VenueEditorSkeleton() {
   return (
     <>
-      {/* Topbar placeholder — matches VenueEditorTopBar's sticky h-14. */}
+      {/* Topbar placeholder - matches VenueEditorTopBar's sticky h-14. */}
       <div className="h-14 border-b border-ink-200 bg-white flex items-center px-4 gap-3">
         <span className="skeleton-shimmer h-6 w-6 rounded-md" />
         <span className="skeleton-shimmer h-4 w-40 rounded" />
@@ -303,7 +298,7 @@ function VenueEditorSkeleton() {
 
 /**
  * Error state for the load endpoint. Keeps the editor chrome out of the
- * way so the user sees a focused message plus a way back — same treatment
+ * way so the user sees a focused message plus a way back - same treatment
  * as the event and club editors.
  */
 function VenueEditorErrorState({ error }: { error: Error }) {

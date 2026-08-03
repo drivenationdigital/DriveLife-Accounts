@@ -1,12 +1,12 @@
 /**
  * Mutation hooks for event image upload / removal.
  *
- *   useUploadEventImage()  — runs the full mint → CF upload → confirm
+ *   useUploadEventImage()  - runs the full mint → CF upload → confirm
  *                            pipeline. Resolves with { id, url, … }
  *                            so the caller can drop the new image
  *                            straight into editor state.
  *
- *   useRemoveEventImage()  — DELETE /event-image. Deletes from
+ *   useRemoveEventImage()  - DELETE /event-image. Deletes from
  *                            Cloudflare and ce_cf_events_media.
  *
  * Both invalidate ["event-images", eid] on success so any future

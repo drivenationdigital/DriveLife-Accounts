@@ -1,5 +1,5 @@
 /**
- * Public car club application — types + hooks.
+ * Public car club application - types + hooks.
  *
  * Backs /apply/car-club/[eventEid]. Mirrors lib/showCarApply.ts but
  * for clubs: a single application track per event (no per-category
@@ -76,7 +76,7 @@ export function useSubmitCarClubApplication() {
 
 /**
  * True when today is within the open/close window (or no window is
- * set). The server validates this on submit too — this just lets the
+ * set). The server validates this on submit too - this just lets the
  * page show a "closed" notice instead of letting the user fill the
  * whole form first.
  */

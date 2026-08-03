@@ -2,6 +2,7 @@
 
 import type { EventRecord } from "@/lib/apiTypes";
 import { DEFAULT_EVENT_COVER } from "@/lib/eventDefaults";
+import { clickableRow } from "@/components/ui/clickableRow";
 
 const STATUS_LABEL: Record<string, string> = {
   publish: "Published",
@@ -56,10 +57,14 @@ function Row({
   const statusLabel = STATUS_LABEL[event.post_status] ?? event.status.label;
   const type = event.type ?? "free";
   const address =
-    event.location?.address ?? event.location?.name ?? "—";
+    event.location?.address ?? event.location?.name ?? "-";
 
   return (
-    <tr onClick={() => onRowClick?.(event)}>
+    <tr
+      {...clickableRow(() => onRowClick?.(event), {
+        label: `Open ${event.title}`,
+      })}
+    >
       <td>
         <div className="tbl-event-cell">
           <div className="tbl-thumb">
@@ -128,7 +133,7 @@ function formatDateSubLabel(event: EventRecord): string {
 
   const start = event.first_date?.start_date;
   const end = event.last_date?.end_date ?? event.last_date?.start_date;
-  if (!start) return "—";
+  if (!start) return "-";
 
   const dateLabel = !end || start === end
     ? formatSingleDate(start)
@@ -137,7 +142,7 @@ function formatDateSubLabel(event: EventRecord): string {
   const endTime = event.last_date?.end_time ?? event.first_date?.end_time;
   const timeLabel =
     startTime && endTime && startTime !== endTime
-      ? `${startTime} — ${endTime}`
+      ? `${startTime} - ${endTime}`
       : startTime ?? endTime ?? "";
   return timeLabel ? `${dateLabel} · ${timeLabel}` : dateLabel;
 }
@@ -165,11 +170,11 @@ function formatRange(startIso: string, endIso: string): string {
     if (sameMonth) {
       const month = start.toLocaleDateString("en-GB", { month: "long" });
       const year = start.getFullYear();
-      return `${start.getDate()}–${end.getDate()} ${month} ${year}`;
+      return `${start.getDate()}-${end.getDate()} ${month} ${year}`;
     }
-    return `${formatSingleDate(startIso)} — ${formatSingleDate(endIso)}`;
+    return `${formatSingleDate(startIso)} - ${formatSingleDate(endIso)}`;
   } catch {
-    return `${startIso} — ${endIso}`;
+    return `${startIso} - ${endIso}`;
   }
 }
 

@@ -1,5 +1,5 @@
 /**
- * Event host options — the "Hosted by" dropdown source.
+ * Event host options - the "Hosted by" dropdown source.
  *
  *   GET /host-options → Me + clubs I admin + venues I own
  */

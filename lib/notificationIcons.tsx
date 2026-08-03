@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Shared notification presentation helpers — used by both the header
+ * Shared notification presentation helpers - used by both the header
  * bell dropdown and the full notifications screen so the icon mapping
  * and time formatting stay in one place.
  *

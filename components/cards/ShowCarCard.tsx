@@ -1,16 +1,15 @@
 "use client";
 
 import { useUI } from "@/context/UIContext";
-import { EyeIcon, TrashIcon } from "@/components/ui/Icons";
+import { EyeIcon, TrashIcon, UsersIcon } from "@/components/ui/Icons";
 import type { ShowCar } from "@/context/types";
-import { useConfirm } from "@/context/ConfirmContext";
-import { useToast } from "@/context/ToastContext";
+import { useAction } from "@/context/ActionContext";
 import { useDeleteShowCarApplication } from "@/lib/showCarApplications";
 
 interface ShowCarCardProps {
   car: ShowCar;
   /** Variant: pending cards used to surface approve/reject inline,
-   *  but those actions live in the detail modal now — the card just
+   *  but those actions live in the detail modal now - the card just
    *  opens it. Managed cards keep the delete affordance. */
   actions?: "pending" | "managed";
 }
@@ -26,13 +25,12 @@ interface ShowCarCardProps {
  *
  * Category pill: the text is now the actual ticket name the organiser
  * set (e.g. "Modified", "Concours"). The per-category colour CSS
- * classes (`.classic`, `.retro`, etc.) no longer match — base
+ * classes (`.classic`, `.retro`, etc.) no longer match - base
  * `.showcar-category` styling still applies.
  */
 export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
   const { openDetail } = useUI();
-  const confirm = useConfirm();
-  const toast = useToast();
+  const runAction = useAction();
   const deleteApp = useDeleteShowCarApplication();
 
   const openView = () => openDetail({ type: "showcar", data: car });
@@ -42,23 +40,20 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
     fn();
   };
 
-  const handleDelete = async () => {
-    const ok = await confirm({
-      title: "Delete this application?",
-      message: "This action cannot be undone.",
-      confirmLabel: "Delete",
-      danger: true,
-    });
-    if (!ok) return;
-    deleteApp.mutate(
-      { applicationId: Number(car.id) },
-      {
-        onSuccess: () => toast.success("Application deleted."),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't delete."),
+  const handleDelete = () =>
+    runAction({
+      confirm: {
+        title: "Delete this application?",
+        message: "This action cannot be undone.",
+        confirmLabel: "Delete",
+        cancelLabel: "Keep application",
+        danger: true,
       },
-    );
-  };
+      loadingLabel: "Deleting application...",
+      successTitle: "Application deleted",
+      errorTitle: "Couldn't delete the application",
+      run: () => deleteApp.mutateAsync({ applicationId: Number(car.id) }),
+    });
 
   return (
     <div
@@ -95,6 +90,18 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
         {car.ownerFirstName} {car.ownerLastName}
       </div>
       <div className="showcar-email">{car.ownerEmail}</div>
+      {car.ownerPhone && (
+        <div className="showcar-phone">{car.ownerPhone}</div>
+      )}
+      {car.clubAttending && car.club && (
+        <div className="showcar-club">
+          <UsersIcon width={11} height={11} />
+          <span>{car.club}</span>
+          {car.clubInstagram && (
+            <span className="showcar-club-ig">@{car.clubInstagram}</span>
+          )}
+        </div>
+      )}
 
       <div className="showcar-date">
         <span>{car.appliedLabel}</span>

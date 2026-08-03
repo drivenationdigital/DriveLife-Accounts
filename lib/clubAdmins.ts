@@ -1,5 +1,5 @@
 /**
- * Club administrators — invitations.
+ * Club administrators - invitations.
  *
  *   POST /wp-json/app/v1/club/{encryptedClubId}/invite-admin
  *
@@ -68,7 +68,7 @@ export function useInviteClubAdmin() {
       );
 
       // The endpoint returns structured errors with useful messages
-      // (no user with that email, not the owner, invalid club) — surface
+      // (no user with that email, not the owner, invalid club) - surface
       // them rather than a bare status code.
       let payload: InviteAdminResponse | null = null;
       try {

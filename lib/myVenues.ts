@@ -1,5 +1,5 @@
 /**
- * My Venues — paginated fetch for the dashboard "My Venues" tab.
+ * My Venues - paginated fetch for the dashboard "My Venues" tab.
  *
  * Venues where I'm an owner or follower, sorted owner → follower
  * (GET /my-venues?page=1). Badge shows "Unpublished" for drafts,
@@ -116,7 +116,7 @@ export interface VenueEditResponse {
   venue: VenueEditData;
 }
 
-/** POST body — ACF-named, partial-safe (only sent keys are written). */
+/** POST body - ACF-named, partial-safe (only sent keys are written). */
 export interface VenueUpdateBody {
   vid: string;
   post_title?: string;
@@ -222,7 +222,7 @@ function venueUniqueFileName(original: string): string {
 export interface UploadVenueImageVars {
   /** RAW venue id (VenueEditData.id), not the encrypted one. */
   venueId: number;
-  /** Encrypted id — used only to invalidate the edit query. */
+  /** Encrypted id - used only to invalidate the edit query. */
   encryptedId: string;
   file: File;
   mediaGroup: VenueMediaGroup;

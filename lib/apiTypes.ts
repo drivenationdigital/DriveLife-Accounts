@@ -48,7 +48,7 @@ export interface EventRecord {
   recurring: RecurringInfo | null;
   can_manage: boolean;
   /** Added by the WP `dl_accounts_event_pricing_type()` helper. May be
-   * absent on responses from older deployments — fall back to "free". */
+   * absent on responses from older deployments - fall back to "free". */
   type?: EventPricingType;
   /** The card UI shows location too; surfaced on list responses when
    * available. Falls back to undefined for older deployments. */
@@ -224,7 +224,7 @@ export interface ApiOrdersMeta {
 export interface ApiSales {
   kpis: ApiSalesKpis;
   /** Regular ticket types. Show car tickets are filtered server-side
-   *  into `show_car_tickets` below — same shape, just separated so
+   *  into `show_car_tickets` below - same shape, just separated so
    *  they render in the show cars tab instead of the tickets
    *  breakdown. Optional for back-compat with older /event responses
    *  that don't yet filter; the FE treats absence as "no show car
@@ -238,7 +238,7 @@ export interface ApiSales {
 }
 
 export interface ComingSoonStub {
-  /** Always disabled — a coming-soon feature is off. Present so the
+  /** Always disabled - a coming-soon feature is off. Present so the
    *  traders union shares `enabled` as a common discriminant. */
   enabled: false;
   status: "coming_soon";
@@ -267,8 +267,23 @@ export interface ApiShowCarRecord {
     make: string | null;
     model: string | null;
     registration: string | null;
+    /** Free-text colour from the apply form. Optional on the form, so
+     *  frequently null/empty. */
+    color: string | null;
     photo_url: string | null;
   };
+  /** Car club block from the apply form. `attending` is the yes/no
+   *  radio; `name` is only meaningful when it's true (the form clears
+   *  it otherwise). `instagram` is the handle without the leading "@"
+   *  and is collected regardless of club attendance.
+   *
+   *  Optional because the older /event `recent` buckets predate this
+   *  block - treat a missing object as "not attending, no handle". */
+  club?: {
+    attending: boolean;
+    name: string | null;
+    instagram: string | null;
+  } | null;
   applicant: {
     first_name: string | null;
     last_name: string | null;
@@ -296,7 +311,7 @@ export interface ApiCarClubRecord {
 }
 
 export interface ApiApplicationCounts {
-  /** Legacy bucket — no longer populated by the API; use `pending`. */
+  /** Legacy bucket - no longer populated by the API; use `pending`. */
   applied: number;
   /** Awaiting review. */
   pending: number;
@@ -326,14 +341,14 @@ export interface ApiShowCarsConfig {
  * eventEditMapper translates it to the editor's ShowCarCategory shape.
  */
 export interface ApiShowCarCategory {
-  /** Raw post id as a string — matches what the show-car save endpoint
+  /** Raw post id as a string - matches what the show-car save endpoint
    *  returns (`String(ticket_id)`) so refresh-then-edit re-uses the
    *  same id. */
   id: string;
   encrypted_id: string;
   name: string;
   description: string;
-  /** "YYYY-MM-DD" (date only — server strips the time portion). */
+  /** "YYYY-MM-DD" (date only - server strips the time portion). */
   applications_open: string | null;
   applications_close: string | null;
   spaces_available: number | null;
@@ -350,17 +365,17 @@ export interface ApiShowCarCategory {
 export interface ApiShowCarsSection {
   enabled: true;
   config: ApiShowCarsConfig;
-  /** Application counts — only present on the events-dashboard
+  /** Application counts - only present on the events-dashboard
    *  endpoint, not the editor's /event-edit. */
   counts?: ApiApplicationCounts;
-  /** Recent applications — same as counts: dashboard only. */
+  /** Recent applications - same as counts: dashboard only. */
   recent?: {
     applied: ApiShowCarRecord[];
     approved: ApiShowCarRecord[];
     confirmed: ApiShowCarRecord[];
     rejected: ApiShowCarRecord[];
   };
-  /** Per-category list — only present on the editor's /event-edit
+  /** Per-category list - only present on the editor's /event-edit
    *  endpoint, omitted on the dashboard endpoint. */
   categories?: ApiShowCarCategory[];
 }
@@ -397,20 +412,20 @@ export interface ApiCarClubsConfig {
   confirmed: number;
   /** cap − confirmed, floored at 0. null when no cap is set. */
   remaining: number | null;
-  /** Raw ticket stock counters — present only when a ticket exists. */
+  /** Raw ticket stock counters - present only when a ticket exists. */
   stock: number | null;
   stock_sold: number;
   ticket_url: string; // "" until the ticket exists
 }
 
-/** Car clubs CONFIG block — returned by the editor's /event-edit
+/** Car clubs CONFIG block - returned by the editor's /event-edit
  *  endpoint. Distinct from ApiCarClubs (the dashboard /event
  *  applications section); don't conflate the two. */
 export type ApiCarClubsConfigBlock =
   | { enabled: true; config: ApiCarClubsConfig }
   | { enabled: false };
 
-/** Dashboard /event clubs section — application counts + recent
+/** Dashboard /event clubs section - application counts + recent
  *  lists. */
 export type ApiCarClubs = ApiCarClubsSection | { enabled: false };
 
@@ -546,7 +561,7 @@ export interface MeResponse {
 }
 
 // ============================================================
-// Load event for editing — GET /event-edit?eid=...
+// Load event for editing - GET /event-edit?eid=...
 // ============================================================
 //
 // Mirrors the response shape from dl-accounts-event-edit.php.
@@ -570,10 +585,10 @@ export interface ApiEventRecurring {
   /** "week" | "month" | "custom". Stored as string to round-trip
    *  any future modes without breaking the type. */
   type: string;
-  /** Day of the week for `type=week` — "monday" | … | "sunday". */
+  /** Day of the week for `type=week` - "monday" | … | "sunday". */
   week: string;
   /** "first_sunday" etc for `type=month`. May be a slug or a label
-   *  depending on legacy save state — FE mapper handles both. */
+   *  depending on legacy save state - FE mapper handles both. */
   month: string;
   /** Pairs with the "Repeat until cancelled" checkbox. */
   repeat_until_cancelled: boolean;
@@ -642,11 +657,11 @@ export interface ApiEventDiscount {
   max_usage_per_coupon: string;
   max_usage_per_user: string;
   max_products_per_basket: string;
-  /** Times used — populated when /event-edit calls
+  /** Times used - populated when /event-edit calls
    *  cc_get_coupons_for_event with include_usage. */
   usage?: number;
   /** Total discount given for this coupon (sum of per-order
-   *  `discounted` across non-cancelled orders). Editor-only — added
+   *  `discounted` across non-cancelled orders). Editor-only - added
    *  in the /event-edit discount mapping, not the shared helper. */
   discount_given?: number;
 }
@@ -694,6 +709,11 @@ export interface ApiEventEditResponse {
      *  server-side deletion (DELETE /event-image expects it). */
     cover_image: { id: string | null; url: string } | null;
     gallery: Array<{ id: string | null; url: string }>;
+    /** Logo printed on this event's tickets (media_group
+     *  "ticket_logo"). Optional so older /event-edit deploys that
+     *  pre-date the ticket-logo rollout still parse; the mapper
+     *  treats absence as "no logo set". */
+    ticket_logo?: { id: string | null; url: string } | null;
   };
   tickets: {
     ticket_type: 1 | 2 | 3; // 1=none, 2=CE, 3=external
@@ -711,7 +731,7 @@ export interface ApiEventEditResponse {
   };
   discounts: ApiEventDiscount[];
   /** Event-level show-cars settings. Reuses ApiShowCars from the
-   *  event-detail endpoint — same shape, same discriminated union.
+   *  event-detail endpoint - same shape, same discriminated union.
    *  May be absent in older /event-edit deploys that pre-date the
    *  show-cars rollout; the eventEditMapper tolerates that. */
   show_cars?: ApiShowCars;
@@ -722,7 +742,7 @@ export interface ApiEventEditResponse {
    *  ce_event_trader_categories table. */
   traders?: ApiTradersConfigBlock;
   publish: {
-    /** Raw WP status — FE mapper converts to draft/published/scheduled. */
+    /** Raw WP status - FE mapper converts to draft/published/scheduled. */
     status: string;
     scheduled_date: string | null; // "YYYY-MM-DD" when status='future'
     scheduled_time: string | null; // "HH:MM"

@@ -10,7 +10,7 @@ interface PaginationProps {
 }
 
 /**
- * Numbered pagination with ellipsis — keeps at most ~7 visible buttons.
+ * Numbered pagination with ellipsis - keeps at most ~7 visible buttons.
  * Shows: prev · 1 … (current-1) current (current+1) … last · next
  */
 export function Pagination({

@@ -4,7 +4,7 @@ import { useEventCreate } from "@/context/EventCreateContext";
 import { useHostOptions, type HostOption } from "@/lib/hostOptions";
 
 /**
- * "Hosted by" dropdown — sits under the event title.
+ * "Hosted by" dropdown - sits under the event title.
  *
  * Replaces the old three-card "Choose Event Type" step. Defaults to
  * "Me"; auto-populates any clubs the user owns/admins and venues they

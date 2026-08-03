@@ -1,5 +1,5 @@
 /**
- * Dashboard "My Events" summary — pinned + upcoming events I organise,
+ * Dashboard "My Events" summary - pinned + upcoming events I organise,
  * capped at 5 (pinned first). Returns EventRecord[] so the dashboard
  * reuses the same EventCard as the My Events tab.
  */

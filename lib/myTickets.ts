@@ -1,5 +1,5 @@
 /**
- * My Tickets — paginated fetch for the dashboard "My Tickets" tab.
+ * My Tickets - paginated fetch for the dashboard "My Tickets" tab.
  *
  * Server splits active vs past and paginates each scope separately
  * (GET /my-tickets?scope=active&page=1). Each ticket links to the

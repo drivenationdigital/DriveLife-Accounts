@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * Create Something — hub page offering the things a user can create
+ * Create Something - hub page offering the things a user can create
  * (Event, Car Club, Venue). Linked from the Settings "Create
  * Something" nav card.
  */

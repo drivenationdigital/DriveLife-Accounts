@@ -6,6 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
 import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/context/ToastContext";
+import { ActionProvider } from "@/context/ActionContext";
 
 export const metadata: Metadata = {
   title: "CarEvents",
@@ -40,7 +41,11 @@ export default function RootLayout({
         />
         <QueryProvider>
           <AuthProvider>
-            <ConfirmProvider> <ToastProvider>{children}</ToastProvider></ConfirmProvider>
+            <ConfirmProvider>
+              <ToastProvider>
+                <ActionProvider>{children}</ActionProvider>
+              </ToastProvider>
+            </ConfirmProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

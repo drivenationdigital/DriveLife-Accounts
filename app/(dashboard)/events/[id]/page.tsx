@@ -46,7 +46,7 @@ function EventDetailContent() {
   const searchParams = useSearchParams();
 
   // URL-driven page state for the orders tab. Not reset when the user
-  // switches tabs — if they're on page 3, come back, still on page 3.
+  // switches tabs - if they're on page 3, come back, still on page 3.
   const ordersPage = Math.max(
     1,
     parseInt(searchParams?.get("ordersPage") ?? "1", 10) || 1

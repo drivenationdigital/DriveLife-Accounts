@@ -7,9 +7,9 @@ import {
   useUpdateLineItemMeta,
   useResendOrder,
   useCancelOrder,
+  orderTicketsUrl,
 } from "@/lib/orderActions";
-import { useToast } from "@/context/ToastContext";
-import { useConfirm } from "@/context/ConfirmContext";
+import { useAction } from "@/context/ActionContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
 // shared helper; tweak to match your palette.
@@ -40,40 +40,43 @@ export default function OrderPage() {
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
-  const toast = useToast();
-  const confirm = useConfirm();
+  const runAction = useAction();
 
   const handleResend = () => {
     if (!oid || resend.isPending) return;
-    resend.mutate(
-      { oid },
-      {
-        onSuccess: () => toast.success("Confirmation email re-sent."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't resend."),
+    return runAction({
+      confirm: {
+        title: "Resend the confirmation email?",
+        message:
+          "The customer will get a fresh copy of their confirmation and tickets at the email address on the order.",
+        confirmLabel: "Send email",
+        cancelLabel: "Cancel",
       },
-    );
+      loadingLabel: "Sending confirmation email...",
+      successTitle: "Confirmation email sent",
+      successMessage: "The customer has been sent their tickets again.",
+      errorTitle: "Couldn't send the email",
+      run: () => resend.mutateAsync({ oid }),
+    });
   };
 
-  const handleCancel = async () => {
+  const handleCancel = () => {
     if (!oid) return;
-    const ok = await confirm({
-      title: "Cancel this order?",
-      message:
-        "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
-      confirmLabel: "Cancel order",
-      cancelLabel: "Keep order",
-      danger: true,
-    });
-    if (!ok) return;
-    cancelOrder.mutate(
-      { oid },
-      {
-        onSuccess: () => toast.success("Order cancelled."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't cancel."),
+    return runAction({
+      confirm: {
+        title: "Cancel this order?",
+        message:
+          "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
+        confirmLabel: "Cancel order",
+        cancelLabel: "Keep order",
+        danger: true,
       },
-    );
+      loadingLabel: "Cancelling order...",
+      successTitle: "Order cancelled",
+      successMessage: "The customer's tickets have been voided.",
+      errorTitle: "Couldn't cancel the order",
+      run: () => cancelOrder.mutateAsync({ oid }),
+    });
   };
 
   return (
@@ -120,7 +123,7 @@ export default function OrderPage() {
 
             <div className="order-actions">
               <a
-                href={order.download_all_url}
+                href={oid ? orderTicketsUrl(oid) : order.download_all_url}
                 target="_blank"
                 rel="noreferrer"
                 className="order-btn order-btn-dark"
@@ -128,7 +131,7 @@ export default function OrderPage() {
                 Download all
               </a>
               {/* Resend/Cancel only make sense while the event is still
-                  to come — hide them once it's finished. Download stays
+                  to come - hide them once it's finished. Download stays
                   available so past tickets remain retrievable. */}
               {order.can_resend && (
                 <button
@@ -137,7 +140,7 @@ export default function OrderPage() {
                   onClick={handleResend}
                   disabled={resend.isPending}
                 >
-                  {resend.isPending ? "Sending…" : "Resend Tickets"}
+                  Resend Tickets
                 </button>
               )}
               {order.can_cancel && (
@@ -147,13 +150,13 @@ export default function OrderPage() {
                   onClick={handleCancel}
                   disabled={cancelOrder.isPending}
                 >
-                  {cancelOrder.isPending ? "Cancelling…" : "Cancel"}
+                  Cancel
                 </button>
               )}
             </div>
             {order.is_expired && (
               <p className="order-expired-note mt-2">
-                This event has ended — tickets can no longer be resent or
+                This event has ended - tickets can no longer be resent or
                 cancelled.
               </p>
             )}
@@ -214,7 +217,7 @@ function TicketCard({
     car_club: item.meta.car_club ?? "",
   });
   const updateMeta = useUpdateLineItemMeta();
-  const toast = useToast();
+  const runAction = useAction();
 
   const startEdit = () => {
     // Seed the form from current values each time editing opens.
@@ -229,28 +232,28 @@ function TicketCard({
     setEditing(true);
   };
 
-  const save = () => {
-    updateMeta.mutate(
-      {
-        oid,
-        line_id: item.line_id,
-        meta: { full_name: form.full_name, phone: form.phone },
-        car_details: {
-          car_make: form.car_make,
-          car_model: form.car_model,
-          car_reg: form.car_reg,
-          car_club: form.car_club,
-        },
-      },
-      {
-        onSuccess: () => {
-          setEditing(false);
-          toast.success("Ticket details updated.");
-        },
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't save."),
-      },
-    );
+  // No "Are you sure?" here - the Save button in an open edit form is
+  // already the deliberate step, and the change is reversible. The
+  // loader and confirmation notification still apply.
+  const save = async () => {
+    const res = await runAction({
+      loadingLabel: "Saving ticket details...",
+      successTitle: "Ticket details updated",
+      errorTitle: "Couldn't save the ticket details",
+      run: () =>
+        updateMeta.mutateAsync({
+          oid,
+          line_id: item.line_id,
+          meta: { full_name: form.full_name, phone: form.phone },
+          car_details: {
+            car_make: form.car_make,
+            car_model: form.car_model,
+            car_reg: form.car_reg,
+            car_club: form.car_club,
+          },
+        }),
+    });
+    if (res) setEditing(false);
   };
 
   const field = (key: keyof typeof form, placeholder: string) => (
@@ -282,9 +285,9 @@ function TicketCard({
         <p className="ticket-event" style={{ lineHeight: 1.9, margin: 0 }}>
           <strong>{item.event_title}</strong>
           <br />
-          <b>Event Date:</b> {item.event_date || "—"}
+          <b>Event Date:</b> {item.event_date || "-"}
           <br />
-          <b>Event Time:</b> {item.event_time || "—"}
+          <b>Event Time:</b> {item.event_time || "-"}
         </p>
 
         {editing ? (
@@ -399,7 +402,7 @@ function TicketCard({
 }
 
 // ============================================================
-// Ticket card styles — inline so the card keeps its white panel and
+// Ticket card styles - inline so the card keeps its white panel and
 // two-column (details | QR) layout even when the global order-* CSS
 // isn't loaded. Class names stay for when the stylesheet is present.
 // ============================================================
@@ -516,7 +519,7 @@ const metaInputStyle: React.CSSProperties = {
 };
 
 // ============================================================
-// Loading skeleton — mirrors the real order layout (header card,
+// Loading skeleton - mirrors the real order layout (header card,
 // ticket cards with QR block, totals) so the page doesn't jump when
 // data lands. Fully inline-styled + self-contained shimmer keyframes,
 // so it renders correctly with or without the order-* CSS.

@@ -10,21 +10,21 @@ import { useEditorSave } from "@/lib/useEditorSave";
  * Sticky topbar for the event editor.
  *
  * Mobile/tablet: shows the event title in the header (since the desktop
- * sidebar — which also shows the title — is hidden on those breakpoints).
+ * sidebar - which also shows the title - is hidden on those breakpoints).
  *
  * Desktop (lg+): the title is in the sidebar; the header keeps a flexible
  * spacer so the action buttons stay right-aligned.
  *
  * "Saved" pill is hardcoded for now. Once we wire up the create-event
  * mutation, it'll reflect actual save state (idle / saving / saved /
- * error). The DOM stays the same — only the icon + label change.
+ * error). The DOM stays the same - only the icon + label change.
  */
 export function EditorTopBar() {
   const { state } = useEventCreate();
   const router = useRouter();
   const { run, phase, isSaving } = useEditorSave();
 
-  // The topbar's rocket is an explicit "go live" — it publishes
+  // The topbar's rocket is an explicit "go live" - it publishes
   // regardless of the panel selection, except when the user has set up
   // a schedule (in which case we honour it and save as scheduled).
   const onPublish = async () => {
@@ -60,7 +60,7 @@ export function EditorTopBar() {
           </span>
         </Link>
 
-        {/* Vertical divider — only visible on tablets where both the back
+        {/* Vertical divider - only visible on tablets where both the back
             link and the title are showing. Hidden on lg+ since the title
             moves into the sidebar. */}
         <div
@@ -79,14 +79,14 @@ export function EditorTopBar() {
           </h1>
         </div>
 
-        {/* Spacer for desktop — pushes actions to the right edge. */}
+        {/* Spacer for desktop - pushes actions to the right edge. */}
         <div className="hidden lg:block flex-1" />
 
-        {/* Save status pill — md+ only (mobile keeps the bar uncluttered).
+        {/* Save status pill - md+ only (mobile keeps the bar uncluttered).
             Reflects the shared save mutation state. */}
         <SaveStatusPill phase={phase} />
 
-        {/* Preview button — sm+ (no value squeezing it onto a phone).
+        {/* Preview button - sm+ (no value squeezing it onto a phone).
             Only shown once the event is saved and has a post id; opens
             the WP preview URL. */}
         {state.postId && (
@@ -104,7 +104,7 @@ export function EditorTopBar() {
           </a>
         )}
 
-        {/* Publish — primary CTA. Label hides on phones, icon stays. */}
+        {/* Publish - primary CTA. Label hides on phones, icon stays. */}
         <button
           type="button"
           onClick={onPublish}

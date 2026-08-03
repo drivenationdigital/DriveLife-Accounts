@@ -3,7 +3,7 @@
  *
  * Why a custom loader rather than `@googlemaps/js-api-loader`?
  *   - Avoids adding a runtime dependency for a 30-line concern.
- *   - We only need the Places library, not the full Maps experience —
+ *   - We only need the Places library, not the full Maps experience -
  *     the static-map preview is rendered as a plain <img>, no JS map
  *     instance required.
  *
@@ -16,7 +16,7 @@
  *
  * Restrictions:
  *   - The key MUST be HTTP-referrer restricted in the Google Cloud
- *     console — exposing an unrestricted maps key in client JS would
+ *     console - exposing an unrestricted maps key in client JS would
  *     let anyone bill against your account.
  */
 
@@ -47,14 +47,14 @@ export function loadGoogleMaps(): Promise<void> {
     const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY;
     if (!key) {
       throw new Error(
-        "NEXT_PUBLIC_GOOGLE_MAPS_KEY is not set — add it to .env.local",
+        "NEXT_PUBLIC_GOOGLE_MAPS_KEY is not set - add it to .env.local",
       );
     }
 
     // Inject the bootstrap script if it isn't there yet. We don't
     // early-return when window.google.maps already exists, because
     // with `loading=async` the namespace is created before the
-    // libraries are populated — only `importLibrary()` reliably
+    // libraries are populated - only `importLibrary()` reliably
     // tells us when classes are ready.
     if (!document.querySelector("script[data-carevents-gmaps]")) {
       await new Promise<void>((resolve, reject) => {
@@ -77,7 +77,7 @@ export function loadGoogleMaps(): Promise<void> {
       });
     }
 
-    // Always await importLibrary — this is the only signal that the
+    // Always await importLibrary - this is the only signal that the
     // Places classes are actually available. The call is idempotent
     // and cheap once the library is loaded.
     const importLibrary = window.google?.maps?.importLibrary;

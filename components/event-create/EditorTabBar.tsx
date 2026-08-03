@@ -10,12 +10,12 @@ import {
 } from "@/lib/eventCreateSteps";
 
 /**
- * Mobile / tablet horizontal tab bar — visible below lg.
+ * Mobile / tablet horizontal tab bar - visible below lg.
  *
  * Sticky directly beneath the topbar (top-14 on phones / top-16 on
  * tablets matches the topbar's height bp).
  *
- * Auto-scrolls the active tab into view when it changes — without
+ * Auto-scrolls the active tab into view when it changes - without
  * this, advancing past tab 4 or 5 leaves the active tab off-screen
  * after a "Continue" click.
  */

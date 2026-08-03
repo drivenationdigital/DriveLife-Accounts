@@ -10,7 +10,7 @@ import type { Trader } from "@/context/types";
 
 /**
  * Public trader application link for an event. Route is
- * /apply/trader/[eventEid] (singular "trader" — the plural "traders"
+ * /apply/trader/[eventEid] (singular "trader" - the plural "traders"
  * 404s). Built on the current origin so it works in any environment.
  */
 function traderApplyUrl(eid: string): string {

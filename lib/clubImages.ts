@@ -1,5 +1,5 @@
 /**
- * Club images — upload / remove.
+ * Club images - upload / remove.
  *
  *   POST   /wp-json/app/v1/club/{encryptedClubId}/upload-image
  *   DELETE /wp-json/app/v1/club/{encryptedClubId}/remove-image
@@ -8,8 +8,8 @@
  * constraints drive the implementation:
  *
  *   1. The server appends chunks (FILE_APPEND) to a temp file keyed by
- *      `file_name`, so chunks MUST be sent sequentially — order is the
- *      file — and never in parallel.
+ *      `file_name`, so chunks MUST be sent sequentially - order is the
+ *      file - and never in parallel.
  *   2. `file_name` must be unique per upload. A collision (two uploads
  *      named logo.png) or a stale temp file from a failed upload would
  *      append onto existing bytes and corrupt the image. We mint a
@@ -77,7 +77,7 @@ export interface UploadClubImageVars {
   clubId: string;
   file: File;
   mediaGroup: ClubMediaGroup;
-  /** 0–100 progress callback. */
+  /** 0-100 progress callback. */
   onProgress?: (percent: number) => void;
 }
 
@@ -102,7 +102,7 @@ export function useUploadClubImage() {
 
       let last: UploadClubImageResponse | null = null;
 
-      // Sequential — the server appends, so order matters.
+      // Sequential - the server appends, so order matters.
       for (let index = 0; index < totalChunks; index++) {
         const start = index * CHUNK_BYTES;
         const slice = file.slice(start, start + CHUNK_BYTES);

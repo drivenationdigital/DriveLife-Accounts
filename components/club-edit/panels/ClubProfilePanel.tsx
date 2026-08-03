@@ -10,7 +10,7 @@ import {
 import { FieldLabel, Divider, ImageUploadRow, inputCls } from "../shared";
 
 /**
- * Step 2 — logo, cover, and the club's contact/social links.
+ * Step 2 - logo, cover, and the club's contact/social links.
  *
  * Images upload immediately on pick (they go straight to Cloudflare via
  * the app's chunked endpoint and are saved server-side), so they're

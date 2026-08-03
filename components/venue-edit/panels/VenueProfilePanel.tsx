@@ -10,7 +10,7 @@ import {
 } from "../shared";
 
 /**
- * Step 2 — logo, cover, and the venue's contact/social details.
+ * Step 2 - logo, cover, and the venue's contact/social details.
  *
  * Images upload immediately on pick (straight to Cloudflare via the app's
  * chunked endpoint, saved server-side), so they're independent of the

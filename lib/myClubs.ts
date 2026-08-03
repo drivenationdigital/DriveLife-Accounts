@@ -1,5 +1,5 @@
 /**
- * My Clubs — paginated fetch for the dashboard "My Clubs" tab.
+ * My Clubs - paginated fetch for the dashboard "My Clubs" tab.
  *
  * Clubs where I'm owner / admin / member, sorted owner → admin →
  * member (GET /my-clubs?page=1). Badge shows "Unpublished" for drafts,

@@ -4,7 +4,7 @@
  * Dedicated query (not useEventData().orders) so the list can be
  * searched + filtered from local component state without touching the
  * URL or the shared event context. Because the filters are part of the
- * queryKey, changing any of them re-runs the fetch automatically — no
+ * queryKey, changing any of them re-runs the fetch automatically - no
  * effects, no setState-in-effect, no URL round-trip.
  *
  * Backs POST /event/orders, which already accepts { eid, limit, offset,
@@ -95,7 +95,7 @@ export function useEventOrders({
 }
 
 /**
- * Distinct ticket names present across the loaded page's attendees —
+ * Distinct ticket names present across the loaded page's attendees -
  * used to populate the "Ticket type" filter dropdown. (Purely from the
  * data already returned; no extra request.)
  */

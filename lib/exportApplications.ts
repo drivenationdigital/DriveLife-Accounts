@@ -2,7 +2,7 @@
  * Applications CSV export (car clubs / traders / show cars).
  *
  *   POST /event-applications-export { eid, type }
- *     → { filename, csv } — all applications of that type for the event,
+ *     → { filename, csv } - all applications of that type for the event,
  *       turned into a file download client-side.
  */
 

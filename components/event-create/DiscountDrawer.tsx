@@ -22,20 +22,20 @@ import { FullScreenDatePicker } from "./FullScreenDatePicker";
  * State seeding pattern:
  *   - All form fields seeded via `useState(() => …)` from `editing`
  *     at mount. Parent (DiscountsPanel) re-keys this component on
- *     each open so seeding is fresh — no `useEffect` re-syncing.
+ *     each open so seeding is fresh - no `useEffect` re-syncing.
  *
  * Form sections:
- *   1. Code — uppercase mono input, helper line.
- *   2. Discount type — segmented `percentage` | `fixed`. The amount
+ *   1. Code - uppercase mono input, helper line.
+ *   2. Discount type - segmented `percentage` | `fixed`. The amount
  *      input swaps its prefix/suffix marker accordingly (£ before vs
  *      % after).
- *   3. Usage limits — total + per-customer (both nullable; blank ⇒
+ *   3. Usage limits - total + per-customer (both nullable; blank ⇒
  *      unlimited).
- *   4. Applicable tickets — checkbox list. The empty array stored on
- *      the discount means "applies to all tickets" — semantically
+ *   4. Applicable tickets - checkbox list. The empty array stored on
+ *      the discount means "applies to all tickets" - semantically
  *      different from a populated array containing every current id,
  *      because new tickets added later should auto-apply.
- *   5. Availability window — date+time on each side.
+ *   5. Availability window - date+time on each side.
  */
 type DateTarget = "from" | "until";
 
@@ -60,7 +60,7 @@ export function DiscountDrawer({
 }) {
   const { state } = useEventCreate();
 
-  // Pull just the ticket-kind rows from the ticket list — sections
+  // Pull just the ticket-kind rows from the ticket list - sections
   // aren't selectable for discounts.
   const allTickets: Ticket[] = state.ticketList.filter(
     (i): i is Ticket => i.kind === "ticket",
@@ -168,7 +168,7 @@ export function DiscountDrawer({
       discountGiven:0,
     };
     onSave(discount);
-    // No onClose() here — caller drives the drawer's open state
+    // No onClose() here - caller drives the drawer's open state
     // around the async save (same pattern as TicketDrawer).
   };
 
@@ -306,7 +306,7 @@ export function DiscountDrawer({
           </label>
           <div className="relative">
             {/* Prefix shows £ for fixed; suffix shows % for percentage.
-                We swap them rather than rendering both — avoids a
+                We swap them rather than rendering both - avoids a
                 hidden-but-occupying-space layout shift bug. */}
             {!isPercent && (
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 font-semibold pointer-events-none">
@@ -382,7 +382,7 @@ export function DiscountDrawer({
           </p>
           {allTickets.length === 0 ? (
             <p className="text-xs text-ink-500 italic">
-              No tickets yet — add tickets in step 5 first.
+              No tickets yet - add tickets in step 5 first.
             </p>
           ) : (
             <div className="bg-ink-50 border border-ink-200 rounded-lg p-4">

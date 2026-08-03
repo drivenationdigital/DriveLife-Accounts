@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();
   // Hydrate synchronously from cookies. Lazy initialisers only run once, on
   // mount, so there's no cascading render and no SSR/CSR mismatch (cookies
-  // aren't available on the server anyway — we return null there, then the
+  // aren't available on the server anyway - we return null there, then the
   // first client render reads the real values).
   const [user, setUser] = useState<AuthUser | null>(() => {
     if (typeof document === "undefined") return null;
@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cachedUser = readUserClient<AuthUser>();
     return token && cachedUser ? cachedUser : null;
   });
-  // Always true on the client — the lazy initialiser above already ran.
+  // Always true on the client - the lazy initialiser above already ran.
   // Kept on the context so consumers have a stable "are we ready?" signal
   // if we later hydrate auth from the server.
   const isInitialised = typeof document !== "undefined";
@@ -85,7 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearTokenClient();
     setUser(null);
     queryClient.clear(); // wipe all cached account data
-    window.location.href = "/login"; // hard reload — NOT router.push
+    window.location.href = "/login"; // hard reload - NOT router.push
   }, [queryClient]);
 
   const value = useMemo<AuthContextValue>(

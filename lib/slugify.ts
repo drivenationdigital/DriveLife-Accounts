@@ -7,7 +7,7 @@
  * traders, and in the Publish panel's URL preview.
  *
  * Note: this is a client-side preview only. The eventual server-
- * generated slug may differ (collision suffixes etc) — that's fine
+ * generated slug may differ (collision suffixes etc) - that's fine
  * for a preview; the saved URL will replace this once the API call
  * lands.
  */

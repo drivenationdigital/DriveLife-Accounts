@@ -4,10 +4,10 @@
  * The `id` values match the whitelist on the WP `/events` POST
  * endpoint (`general | dev_club | venue_dover`). Adding a new option
  * here also means whitelisting it server-side in
- * `dl-accounts-create-event.php` — keep both in sync.
+ * `dl-accounts-create-event.php` - keep both in sync.
  *
  * Eventually this list may become per-organiser (each user only sees
- * the venues / clubs they own). For now it's hardcoded — when the WP
+ * the venues / clubs they own). For now it's hardcoded - when the WP
  * side gains a `/event-types` route, swap this for a hook.
  */
 export type EventTypeId = "general" | "dev_club" | "venue_dover";

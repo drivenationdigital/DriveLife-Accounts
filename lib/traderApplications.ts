@@ -58,7 +58,7 @@ function appliedLabel(iso: string | null): string {
   }
 }
 
-/** "Required · 2kW" / "Required" / "Not required" — the power line
+/** "Required · 2kW" / "Required" / "Not required" - the power line
  *  the card shows. */
 function powerLabel(required: boolean, details: string): string {
   if (!required) return "Not required";
@@ -70,7 +70,7 @@ export function mapTrader(r: ApiTraderRecord): Trader {
     id: String(r.id),
     name: r.business_name || "Unnamed trader",
     category: r.category_name || "",
-    pitch: r.pitch_size || "—",
+    pitch: r.pitch_size || "-",
     power: powerLabel(r.power_required, r.power_details),
     contactName: r.contact_name,
     contactEmail: r.email,
@@ -145,7 +145,7 @@ export function useRejectTraderApplication() {
   });
 }
 
-/** Confirm (approved → confirmed). Organiser marks paid — mainly for
+/** Confirm (approved → confirmed). Organiser marks paid - mainly for
  *  in_person once payment clears. */
 export function useConfirmTraderApplication() {
   const qc = useQueryClient();

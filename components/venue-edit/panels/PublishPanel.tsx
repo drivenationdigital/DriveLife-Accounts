@@ -3,7 +3,7 @@
 import { useVenueEdit, type VenueForm } from "@/context/VenueEditContext";
 import { FieldLabel, selectCls } from "../shared";
 
-/** Step 4 — visibility (publish status). */
+/** Step 4 - visibility (publish status). */
 export function PublishPanel() {
   const { venue, set } = useVenueEdit();
   const isPublished = venue.status === "publish";

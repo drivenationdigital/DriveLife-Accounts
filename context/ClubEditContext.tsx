@@ -25,7 +25,7 @@ import {
  * Holds the whole club record for the wizard so every step edits one
  * source of truth and nothing is lost when moving between steps. Built
  * API-first: `hydrate()` takes exactly what the load endpoint returns,
- * and `buildPayload()` emits exactly what the save endpoint expects —
+ * and `buildPayload()` emits exactly what the save endpoint expects -
  * so wiring later is swapping the stubs in the page for real calls.
  *
  * Dirty tracking compares against the last hydrated snapshot, so the
@@ -47,7 +47,7 @@ interface ClubEditContextValue {
     value: ClubEditData[K],
   ) => void;
 
-  // Collection helpers — the fiddly bits the panels shouldn't re-implement.
+  // Collection helpers - the fiddly bits the panels shouldn't re-implement.
   toggleCategory: (id: number) => void;
   setAllCategories: (selected: boolean) => void;
   addQuestion: () => void;
@@ -73,7 +73,7 @@ export function ClubEditProvider({
 }) {
   const [club, setClub] = useState<ClubEditData>(initial ?? EMPTY_CLUB);
   const [categories, setCategories] = useState<ClubCategory[]>([]);
-  // Baseline for dirty comparison — the last hydrated/saved snapshot.
+  // Baseline for dirty comparison - the last hydrated/saved snapshot.
   const [baseline, setBaseline] = useState<string>(
     JSON.stringify(initial ?? EMPTY_CLUB),
   );
@@ -146,7 +146,7 @@ export function ClubEditProvider({
   const addAdministrator = useCallback((admin: ClubAdministrator) => {
     setClub((c) =>
       c.administrators.some((a) => a.id === admin.id)
-        ? c // already an admin — no duplicates
+        ? c // already an admin - no duplicates
         : { ...c, administrators: [...c.administrators, admin] },
     );
   }, []);

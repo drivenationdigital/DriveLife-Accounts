@@ -29,7 +29,7 @@ type DatepickerTarget =
   | { key: "recurringFirstDate"; title: "First date" }
   | { key: "recurringUntilDate"; title: "Until" }
   | {
-      // Per-row custom date — uses the row id (not a state key) to
+      // Per-row custom date - uses the row id (not a state key) to
       // identify which row to update on apply.
       key: "customDate";
       rowId: string;
@@ -41,16 +41,16 @@ type DatepickerTarget =
  *
  * Two modes: single event vs recurring series. The toggle is a
  * segmented control; the corresponding sub-form below swaps in/out
- * (no animation — the parent panel's fade already covers entry).
+ * (no animation - the parent panel's fade already covers entry).
  *
  * Date fields are rendered as `<button class="date-field">` and will
  * eventually open the fullscreen datepicker (separate component, not
  * built yet). For now they're inert visual elements showing the saved
- * date — clicking is a no-op until the datepicker lands. This matches
+ * date - clicking is a no-op until the datepicker lands. This matches
  * the mockup's behaviour where the buttons exist but the picker JS
  * isn't wired up.
  *
- * Time inputs use the native `<input type="time">` — the iOS-friendly
+ * Time inputs use the native `<input type="time">` - the iOS-friendly
  * styling is already in editor.css (`.input` rules).
  *
  * Toggle switches use the native checkbox + visual `.slider` span
@@ -67,7 +67,7 @@ export function DatesPanel() {
   // ---- Datepicker state ----
   // A single shared picker handles all four date fields (start, end,
   // recurring first, recurring until). The active field is held in
-  // local state — null means closed. When a field is clicked, we set
+  // local state - null means closed. When a field is clicked, we set
   // the target; the picker reads the corresponding state value via
   // `state[target.key]` and writes back via dispatch on apply.
   const [pickerTarget, setPickerTarget] = useState<DatepickerTarget | null>(
@@ -77,7 +77,7 @@ export function DatesPanel() {
   const applyPicker = (next: string | null) => {
     if (!pickerTarget) return;
     if (pickerTarget.key === "customDate") {
-      // Custom-date rows are stored in an array — find and update by id.
+      // Custom-date rows are stored in an array - find and update by id.
       const row = state.recurringCustomDates.find(
         (r) => r.id === pickerTarget.rowId,
       );
@@ -108,7 +108,7 @@ export function DatesPanel() {
   // ---- Multi-day + per-day-times sync -------------------------------
   //
   // The "Unique times per day" toggle is only meaningful for events
-  // that span more than one calendar day — for a single-day event
+  // that span more than one calendar day - for a single-day event
   // it would just render one row with the same start/end inputs the
   // user already has above. So we gate the toggle on multi-day.
   //
@@ -151,7 +151,7 @@ export function DatesPanel() {
           endTime: state.endTime,
         },
     );
-    // Only dispatch if something actually changed — array length, any
+    // Only dispatch if something actually changed - array length, any
     // row's date, or any row's times. Stringify is fine here, both
     // shapes are tiny (≤366 days).
     const sameLength = next.length === state.perDayTimes.length;
@@ -168,7 +168,7 @@ export function DatesPanel() {
       });
     if (sameContents) return;
     dispatch({ type: "SET_PER_DAY_TIMES", items: next });
-    // We deliberately depend on expectedDays only — startTime/endTime
+    // We deliberately depend on expectedDays only - startTime/endTime
     // are only consulted when filling NEW rows, not for re-syncing
     // existing ones. If we depended on them, every keystroke in the
     // global time inputs would re-flatten per-day customisations.
@@ -178,7 +178,7 @@ export function DatesPanel() {
   // ---- Mutually-exclusive toggle handlers --------------------------
   //
   // hideTimes hides the time UI entirely; uniqueTimesPerDay opens
-  // per-day rows. Both at once doesn't make sense — turning one on
+  // per-day rows. Both at once doesn't make sense - turning one on
   // forces the other off so the UI never enters an ambiguous state.
   const onHideTimesChange = (value: boolean) => {
     dispatch({ type: "SET_FIELD", key: "hideTimes", value });
@@ -293,7 +293,7 @@ export function DatesPanel() {
             </div>
 
             <div className="mt-5 pt-5 border-t border-ink-200 space-y-3">
-              {/* Hide times — visible unless per-day mode is on
+              {/* Hide times - visible unless per-day mode is on
                   (mutually exclusive). */}
               {!state.uniqueTimesPerDay && (
                 <ToggleRow
@@ -303,7 +303,7 @@ export function DatesPanel() {
                   onChange={onHideTimesChange}
                 />
               )}
-              {/* Unique times per day — visible only on multi-day
+              {/* Unique times per day - visible only on multi-day
                   events AND when hideTimes is off (mutually exclusive).
                   For single-day events the toggle would be meaningless
                   so we hide it entirely. */}
@@ -347,7 +347,7 @@ export function DatesPanel() {
       {isRecurring && (
         <div>
           <div className="bg-white border border-ink-200 rounded-2xl p-5 sm:p-6 mb-4 space-y-4">
-            {/* Frequency selector — dropdown, not segmented control,
+            {/* Frequency selector - dropdown, not segmented control,
                 to match the WP form's pattern. Three options: Week
                 (every X), Month (Nth weekday of each month), or
                 Specific Dates (manual list). */}
@@ -394,7 +394,7 @@ export function DatesPanel() {
                       type: "SET_FIELD",
                       key: "recurringWeek",
                       // The select's value is one of the 7 lowercase
-                      // weekday strings — guaranteed by the option list.
+                      // weekday strings - guaranteed by the option list.
                       value: e.target.value as typeof state.recurringWeek,
                     })
                   }
@@ -494,7 +494,7 @@ export function DatesPanel() {
                     <i className="fa-regular fa-calendar df-icon" aria-hidden />
                     <span className="df-display">
                       {state.recurringRepeatUntilCancelled
-                        ? "Ongoing — no end date"
+                        ? "Ongoing - no end date"
                         : state.recurringUntilDate
                           ? formatEditorDate(state.recurringUntilDate)
                           : "Pick a date"}
@@ -551,7 +551,7 @@ export function DatesPanel() {
             )}
           </div>
 
-          {/* Info callout — mockup uses gold-200/gold-50 to match the
+          {/* Info callout - mockup uses gold-200/gold-50 to match the
               host callout aesthetic on the Basics panel. */}
           <div className="flex items-start gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl">
             <i
@@ -606,7 +606,7 @@ export function DatesPanel() {
         </div>
       </div>
 
-      {/* ---- Desktop nav row (Back / Continue). Hidden on mobile —
+      {/* ---- Desktop nav row (Back / Continue). Hidden on mobile -
               the sticky bottom bar handles those on phones. */}
       <div className="hidden sm:flex items-center justify-between gap-3 pt-6 mt-8 border-t border-ink-200">
         <button
@@ -625,7 +625,7 @@ export function DatesPanel() {
         </button>
       </div>
 
-      {/* Shared datepicker — controlled by `pickerTarget`. Sits at the
+      {/* Shared datepicker - controlled by `pickerTarget`. Sits at the
           end of the section so it's last in DOM order; the portal it
           uses internally still escapes to <body>, but rendering it
           here keeps the JSX tree colocated with the panel that owns
@@ -652,11 +652,11 @@ export function DatesPanel() {
 }
 
 // ============================================================
-// Internal subcomponents — local to the file because they're
+// Internal subcomponents - local to the file because they're
 // only used here.
 // ============================================================
 
-/** Date trigger button — looks like an input, opens the fullscreen
+/** Date trigger button - looks like an input, opens the fullscreen
  * datepicker. Shows a placeholder string when no value is set so the
  * button isn't visually empty. */
 function DateField({
@@ -718,7 +718,7 @@ function TimeField({
   );
 }
 
-/** Date button stacked above a time input — the layout used twice in
+/** Date button stacked above a time input - the layout used twice in
  * the single-event view. Saves repeating the markup. */
 function DateTimePair({
   label,
@@ -731,7 +731,7 @@ function DateTimePair({
   label: string;
   date: string | null;
   time: string;
-  /** When true, the time input is hidden — used when `hideTimes` or
+  /** When true, the time input is hidden - used when `hideTimes` or
    *  `uniqueTimesPerDay` modes are on for the parent event. */
   hideTime?: boolean;
   onDateClick: () => void;
@@ -800,7 +800,7 @@ function ToggleRow({
  * WP form's `multi_event_start_time[]` / `multi_event_end_time[]`
  * pairs (one per day).
  *
- * The date itself is not editable here — it's derived from the date
+ * The date itself is not editable here - it's derived from the date
  * range. To change which days are present, the user adjusts the
  * Start/End date fields above and the panel re-syncs the array.
  */
@@ -862,7 +862,7 @@ function PerDayTimeRow({
  * Rows are addressed by synthetic id, not array index, so reorders
  * (if we add them later) won't break in-flight datepicker references.
  *
- * Dates are picked via the parent's shared full-screen datepicker —
+ * Dates are picked via the parent's shared full-screen datepicker -
  * we hand back the row id via `onPickDate` so the parent can route
  * the apply back to the right row.
  */
@@ -950,7 +950,7 @@ function CustomDateList({
                   }
                 />
               </div>
-              {/* Remove button — sits at the same baseline as the
+              {/* Remove button - sits at the same baseline as the
                   inputs on sm+, full-width on mobile so it's easy to
                   hit. */}
               <button

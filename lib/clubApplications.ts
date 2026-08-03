@@ -3,7 +3,7 @@
  *
  * Wraps GET /event-car-club-applications and maps rows to the Club
  * type the tab renders. Same dedicated-query approach as
- * useShowCarApplications — applications churn independently of the
+ * useShowCarApplications - applications churn independently of the
  * rest of the event payload, so they get their own key + tab-focus
  * refetch.
  */
@@ -46,7 +46,7 @@ export interface ClubSalesSummary {
   /** Sum of per-club ticket sales across confirmed clubs. */
   total: number;
   /** Attending members: real tickets sold (paid) or confirmed slots
-   *  (free) — not total applied. */
+   *  (free) - not total applied. */
   attending: number;
 }
 
@@ -156,7 +156,7 @@ export interface ClubRejectResponse {
 }
 
 /**
- * Approve mutation. No eid needed — invalidation is by query prefix,
+ * Approve mutation. No eid needed - invalidation is by query prefix,
  * so the call works from the global DetailModal without EventContext.
  * Also invalidates ["event"] because a free-club approval bumps
  * car_club_confirmed_slots, which the Clubs KPIs / capacity read.

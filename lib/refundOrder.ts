@@ -1,12 +1,12 @@
 /**
- * Stripe refund — full refund of an order.
+ * Stripe refund - full refund of an order.
  *
  * Posts to the standalone get-tickets endpoint (NOT the WP REST
  * namespace), which has the Stripe SDK bootstrapped. Sends the
  * dashboard JWT so the endpoint can verify admin/organiser access.
  *
  * Endpoint base: NEXT_PUBLIC_GET_TICKETS_URL (e.g.
- *   https://carevents.com/uk/get-tickets) — falls back to the live path.
+ *   https://carevents.com/uk/get-tickets) - falls back to the live path.
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -52,7 +52,7 @@ export function useRefundOrder() {
         });
       } catch {
         // fetch() only throws for network-layer failures (offline, DNS,
-        // CORS block, cert error) — never for a 4xx/5xx, which resolve
+        // CORS block, cert error) - never for a 4xx/5xx, which resolve
         // normally. So this is not a refund error the server reported.
         throw new Error(
           "Couldn't reach the refund service. Check your connection and try again.",

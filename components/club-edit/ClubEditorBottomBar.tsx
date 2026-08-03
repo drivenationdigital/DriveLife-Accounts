@@ -19,7 +19,7 @@ import {
  * The padding-bottom calc with safe-area-inset keeps the buttons clear of
  * the iOS home indicator.
  *
- * On the last step Continue becomes Update Club — the same save the
+ * On the last step Continue becomes Update Club - the same save the
  * topbar fires, through the same shared mutation.
  */
 export function ClubEditorBottomBar() {

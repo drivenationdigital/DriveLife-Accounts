@@ -1,5 +1,5 @@
 /**
- * My Account — API.
+ * My Account - API.
  *
  *   GET  /account          → full editable profile
  *   POST /account-update   → save name / town / email / notifications
@@ -36,7 +36,7 @@ interface AccountResponse {
   account: AccountData;
 }
 
-/** Body for /account-update — all fields optional (partial-safe). */
+/** Body for /account-update - all fields optional (partial-safe). */
 export interface AccountUpdateBody {
   first_name?: string;
   last_name?: string;

@@ -11,8 +11,7 @@ import {
   orderTicketsUrl,
 } from "@/lib/orderActions";
 import { useRefundOrder } from "@/lib/refundOrder";
-import { useConfirm } from "@/context/ConfirmContext";
-import { useToast } from "@/context/ToastContext";
+import { useAction } from "@/context/ActionContext";
 import { useEventOrders } from "@/lib/eventOrders";
 import { mapOrder } from "@/lib/eventMapper";
 import {
@@ -28,13 +27,14 @@ import {
   MoreHorizontalIcon,
 } from "@/components/ui/Icons";
 import { Pagination } from "@/components/ui/Pagination";
+import { clickableRow } from "@/components/ui/clickableRow";
 
 const PER_PAGE = 50;
 
 /**
  * Debounce a value: returns `value` only after it's been stable for
  * `delay` ms. The effect only updates this hook's own debounced copy
- * (syncing to a timer), which is a legitimate effect — not a
+ * (syncing to a timer), which is a legitimate effect - not a
  * setState-in-effect chain driving unrelated state.
  */
 function useDebounced<T>(value: T, delay = 350): T {
@@ -98,89 +98,75 @@ export function OrdersTab() {
 
   // ── Export (all orders, honouring the active search) ────────────
   const exportOrders = useExportOrders();
-  const toast = useToast();
-  const handleExport = () => {
-    if (exportOrders.isPending) return;
-    exportOrders.mutate(
-      {
-        eid: event.encryptedId,
-        search: debouncedSearch.trim() || undefined,
-      },
-      {
-        onSuccess: () => toast.success("Orders exported."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Export failed."),
-      },
-    );
-  };
+  const runAction = useAction();
+  const handleExport = () =>
+    runAction({
+      loadingLabel: "Preparing your CSV...",
+      successTitle: "Orders exported",
+      successMessage: "The CSV has been downloaded.",
+      errorTitle: "Export failed",
+      run: () =>
+        exportOrders.mutateAsync({
+          eid: event.encryptedId,
+          search: debouncedSearch.trim() || undefined,
+        }),
+    });
 
   // ── Row actions ─────────────────────────────────────────────────
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
   const refund = useRefundOrder();
-  const confirm = useConfirm();
 
-  // Which order id is mid-action, so we can show a spinner on that row
-  // (the mutation objects are shared across all rows).
-  const [busyOid, setBusyOid] = useState<string | null>(null);
-
-  const handleResend = (oid: string) => {
-    setBusyOid(oid);
-    resend.mutate(
-      { oid },
-      {
-        onSuccess: () => toast.success("Confirmation email re-sent."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't resend."),
-        onSettled: () => setBusyOid(null),
+  const handleResend = (oid: string) =>
+    runAction({
+      confirm: {
+        title: "Resend the confirmation email?",
+        message:
+          "The customer will get a fresh copy of their confirmation and tickets at the email address on the order.",
+        confirmLabel: "Send email",
+        cancelLabel: "Cancel",
       },
-    );
-  };
-
-  const handleCancelOrder = async (oid: string) => {
-    const ok = await confirm({
-      title: "Cancel this order?",
-      message:
-        "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
-      confirmLabel: "Cancel order",
-      cancelLabel: "Keep order",
-      danger: true,
+      loadingLabel: "Sending confirmation email...",
+      successTitle: "Confirmation email sent",
+      successMessage: "The customer has been sent their tickets again.",
+      errorTitle: "Couldn't send the email",
+      run: () => resend.mutateAsync({ oid }),
     });
-    if (!ok) return;
-    setBusyOid(oid);
-    cancelOrder.mutate(
-      { oid },
-      {
-        onSuccess: () => toast.success("Order cancelled."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Couldn't cancel."),
-        onSettled: () => setBusyOid(null),
-      },
-    );
-  };
 
-  const handleRefund = async (oid: string, amount: number) => {
-    const ok = await confirm({
-      title: "Refund this order?",
-      message: `${currency(
-        amount,
-      )} will be refunded to the customer via Stripe. This can't be undone.`,
-      confirmLabel: "Refund",
-      cancelLabel: "Keep order",
-      danger: true,
-    });
-    if (!ok) return;
-    setBusyOid(oid);
-    refund.mutate(
-      { oid },
-      {
-        onSuccess: () => toast.success("Refund issued."),
-        onError: (e) =>
-          toast.error(e instanceof Error ? e.message : "Refund failed."),
-        onSettled: () => setBusyOid(null),
+  const handleCancelOrder = (oid: string) =>
+    runAction({
+      confirm: {
+        title: "Cancel this order?",
+        message:
+          "The order will be cancelled and the customer's tickets voided. This can't be undone from here.",
+        confirmLabel: "Cancel order",
+        cancelLabel: "Keep order",
+        danger: true,
       },
-    );
-  };
+      loadingLabel: "Cancelling order...",
+      successTitle: "Order cancelled",
+      successMessage: "The customer's tickets have been voided.",
+      errorTitle: "Couldn't cancel the order",
+      run: () => cancelOrder.mutateAsync({ oid }),
+    });
+
+  const handleRefund = (oid: string, amount: number) =>
+    runAction({
+      confirm: {
+        title: "Refund this order?",
+        message: `${currency(
+          amount,
+        )} will be refunded to the customer via Stripe. This can't be undone.`,
+        confirmLabel: "Refund",
+        cancelLabel: "Keep order",
+        danger: true,
+      },
+      loadingLabel: "Issuing refund...",
+      successTitle: "Refund issued",
+      successMessage: `${currency(amount)} is on its way back to the customer.`,
+      errorTitle: "Refund failed",
+      run: () => refund.mutateAsync({ oid }),
+    });
 
   const goToPage = (next: number) => {
     setPage(next);
@@ -211,10 +197,9 @@ export function OrdersTab() {
             onClick={handleExport}
             disabled={exportOrders.isPending}
           >
-            <DownloadIcon />{" "}
-            {exportOrders.isPending ? "Exporting…" : "Export CSV"}
+            <DownloadIcon /> Export CSV
           </button>
-          {/* Manual orders — endpoint not built yet. */}
+          {/* Manual orders - endpoint not built yet. */}
           {/* <button type="button" className="btn btn-primary">
             <PlusIcon /> Add Manual Order
           </button> */}
@@ -272,7 +257,13 @@ export function OrdersTab() {
           </thead>
           <tbody>
             {rows.map((o) => (
-              <tr key={o.id}>
+              <tr
+                key={o.id}
+                {...clickableRow(
+                  () => router.push(`/orders/${o.encryptedId}`),
+                  { label: `Open order #${o.id}` },
+                )}
+              >
                 <td>
                   <span className="mono order-id">#{o.id}</span>
                 </td>
@@ -312,9 +303,7 @@ export function OrdersTab() {
                         View &amp; edit
                       </DropdownItem>
                       <DropdownItem onClick={() => handleResend(o.encryptedId)}>
-                        {busyOid === o.encryptedId && resend.isPending
-                          ? "Sending…"
-                          : "Resend confirmation"}
+                        Resend confirmation
                       </DropdownItem>
                       <DropdownItem
                         onClick={() =>
@@ -332,29 +321,21 @@ export function OrdersTab() {
                         <DropdownItem
                           danger
                           disabled={
-                            o.status === "cancelled" ||
-                            o.status === "refunded" ||
-                            (busyOid === o.encryptedId && refund.isPending)
+                            o.status === "cancelled" || o.status === "refunded"
                           }
                           onClick={() => handleRefund(o.encryptedId, o.amount)}
                         >
-                          {busyOid === o.encryptedId && refund.isPending
-                            ? "Refunding…"
-                            : "Refund"}
+                          Refund
                         </DropdownItem>
                       )}
                       <DropdownItem
                         danger
                         disabled={
-                          o.status === "cancelled" ||
-                          o.status === "refunded" ||
-                          (busyOid === o.encryptedId && cancelOrder.isPending)
+                          o.status === "cancelled" || o.status === "refunded"
                         }
                         onClick={() => handleCancelOrder(o.encryptedId)}
                       >
-                        {busyOid === o.encryptedId && cancelOrder.isPending
-                          ? "Cancelling…"
-                          : "Cancel order"}
+                        Cancel order
                       </DropdownItem>
                     </DropdownMenu>
                   </Dropdown>

@@ -17,7 +17,7 @@ import { useUpdateClub } from "@/lib/clubEdit";
 /**
  * Shared save controller for the club editor chrome.
  *
- * Three controls all "save" — the topbar's Update Club button, the
+ * Three controls all "save" - the topbar's Update Club button, the
  * mobile bottombar's last-step CTA, and the publish step's own button.
  * They share ONE mutation instance through this provider so the status
  * pill, spinners, and error message stay in sync no matter which control
@@ -28,7 +28,7 @@ import { useUpdateClub } from "@/lib/clubEdit";
 export type ClubSavePhase = "idle" | "saving" | "saved" | "error";
 
 interface ClubSaveContextValue {
-  /** Persist the current record. Never throws — read `error` instead. */
+  /** Persist the current record. Never throws - read `error` instead. */
   save: () => Promise<void>;
   phase: ClubSavePhase;
   isSaving: boolean;

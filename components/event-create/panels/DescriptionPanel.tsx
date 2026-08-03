@@ -16,19 +16,19 @@ import { EditorTextarea } from "../EditorTextarea";
  * Step 3 of the wizard.
  *
  * Three sections:
- *   1. Cover image — placeholder hover-card. Replace/Remove buttons
+ *   1. Cover image - placeholder hover-card. Replace/Remove buttons
  *      surface an upload UI later (when we wire image upload). For
  *      now, Replace prompts a URL paste, Remove clears the field.
  *      The full upload flow lives in the Gallery panel.
  *
- *   2. About text — textarea with a decorative formatting toolbar.
+ *   2. About text - textarea with a decorative formatting toolbar.
  *      The toolbar buttons don't do anything; rich-text editing would
  *      need a library like TipTap or ProseMirror, which is out of
  *      scope for the initial port. We keep the visual chrome so the
  *      design isn't compromised, and a future swap to a real editor
  *      can keep the same outer styling.
  *
- *   3. Contact & links — six labelled URL/email/tel inputs (website,
+ *   3. Contact & links - six labelled URL/email/tel inputs (website,
  *      email, phone, Facebook, Instagram, TikTok), each with a leading
  *      brand/icon. All optional.
  *
@@ -204,7 +204,7 @@ export function DescriptionPanel() {
                   />
                 </div>
               )}
-              {/* "Pending upload" pill — only shown for locals so the
+              {/* "Pending upload" pill - only shown for locals so the
                   user knows the image isn't on the server yet. */}
               {state.coverImage.kind === "local" && !coverBusy && (
                 <span className="absolute top-3 left-3 px-2 py-1 text-[10px] uppercase tracking-wider font-semibold bg-ink-900/80 text-white rounded">
@@ -253,9 +253,9 @@ export function DescriptionPanel() {
           {/* <button
             type="button"
             className="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-gold-700 bg-gold-50 hover:bg-gold-100 border border-gold-200 rounded-lg transition shrink-0"
-            // Decorative for now — AI generation comes later.
+            // Decorative for now - AI generation comes later.
             disabled
-            title="AI generation — coming soon"
+            title="AI generation - coming soon"
           >
             <span className="ai-sparkle">✨</span>
             Generate with AI

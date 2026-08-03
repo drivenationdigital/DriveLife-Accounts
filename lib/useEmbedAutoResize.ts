@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 
 /**
  * Reports the embedded content's height to the parent frame so the host
- * page can size the iframe to fit — no inner scrollbars. Pairs with the
+ * page can size the iframe to fit - no inner scrollbars. Pairs with the
  * host-side embed.js listener.
  *
  * Returns a ref to attach to the element that should be measured.
@@ -13,7 +13,7 @@ import { useEffect, useRef } from "react";
  * is floored at the iframe's viewport height, so once the parent applies a
  * height we report it back plus padding, and the frame ratchets taller on
  * every tick. Measuring the content element's own border-box breaks that
- * loop — the element's height depends on its content, not on how tall the
+ * loop - the element's height depends on its content, not on how tall the
  * parent made the frame. (Viewport units inside the embed are neutralised
  * in globals.css for the same reason.)
  *
@@ -25,7 +25,7 @@ import { useEffect, useRef } from "react";
 const DEFAULT_MIN_HEIGHT = 240;
 /** Ceiling. Past this the iframe keeps its own scrollbar rather than growing. */
 const DEFAULT_MAX_HEIGHT = 5000;
-/** Ignore sub-pixel churn — reacting to it is what sustains a resize loop. */
+/** Ignore sub-pixel churn - reacting to it is what sustains a resize loop. */
 const HEIGHT_EPSILON = 2;
 
 export function useEmbedAutoResize(options?: {

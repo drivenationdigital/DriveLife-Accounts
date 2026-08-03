@@ -11,12 +11,12 @@ import {
 } from "@/lib/venueEditSteps";
 
 /**
- * Mobile / tablet horizontal tab bar — visible below lg. Sticky directly
+ * Mobile / tablet horizontal tab bar - visible below lg. Sticky directly
  * beneath the topbar (top-14 on phones / top-16 on tablets matches the
  * topbar's height breakpoint).
  *
  * Auto-scrolls the active tab into view when it changes, and gates
- * forward jumps on the current step validating — same rule as the
+ * forward jumps on the current step validating - same rule as the
  * sidebar and the Continue button.
  */
 export function VenueEditorTabBar() {

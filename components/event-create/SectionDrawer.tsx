@@ -20,7 +20,7 @@ import { SecretCodeField } from "./TicketDrawer";
  *     There is NO `useEffect` re-syncing state from props.
  *   - The parent component (TicketsPanel) ensures the drawer is
  *     fully unmounted between opens by passing a stable `key` that
- *     changes whenever the open target changes — see the
+ *     changes whenever the open target changes - see the
  *     `key={…}` on this component in TicketsPanel.tsx.
  *
  * This avoids the "Calling setState synchronously within an effect
@@ -46,7 +46,7 @@ export function SectionDrawer({
   isDeleting?: boolean;
   errorMessage?: string | null;
 }) {
-  // Read `editing` once — initialiser runs at mount; the parent
+  // Read `editing` once - initialiser runs at mount; the parent
   // remounts us on each open so this is fresh every time.
   const [name, setName] = useState(() => editing?.name ?? "");
   const [isSecret, setIsSecret] = useState(() => editing?.isSecret ?? false);
@@ -66,7 +66,7 @@ export function SectionDrawer({
     if (!trimmed) return;
     const id = editing?.id ?? (makeLocalId("sec") as SectionId);
 
-    // Same safety net as TicketDrawer — never persist isSecret=true
+    // Same safety net as TicketDrawer - never persist isSecret=true
     // with an empty code; the section would be uncrackable.
     let finalCode = secretCode.trim();
     if (isSecret && !finalCode) {

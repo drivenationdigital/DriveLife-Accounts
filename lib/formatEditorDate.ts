@@ -1,5 +1,5 @@
 /**
- * Format a yyyy-mm-dd date string as "19 April 2026" — matching the
+ * Format a yyyy-mm-dd date string as "19 April 2026" - matching the
  * style used throughout the event editor's date fields. We construct
  * the Date manually from parts (rather than `new Date(iso)`) because
  * `new Date('2026-04-19')` is interpreted as midnight UTC, which can

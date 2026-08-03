@@ -4,7 +4,7 @@ import { useVenueEdit } from "@/context/VenueEditContext";
 import { EditorTextarea } from "@/components/event-create/EditorTextarea";
 import { FieldLabel } from "../shared";
 
-/** Step 3 — the venue's description (WYSIWYG). */
+/** Step 3 - the venue's description (WYSIWYG). */
 export function VenueDescriptionPanel() {
   const { venue, set } = useVenueEdit();
   return (

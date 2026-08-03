@@ -16,6 +16,7 @@ import {
   mapDiscountToBody,
 } from "@/lib/discountMutations";
 import { ApiError } from "@/lib/apiClient";
+import { useAction } from "@/context/ActionContext";
 
 import { PanelHeader } from "../PanelHeader";
 import { DiscountDrawer } from "../DiscountDrawer";
@@ -24,11 +25,11 @@ import { DiscountDrawer } from "../DiscountDrawer";
  * Step 6 of the wizard.
  *
  * Sections:
- *   1. Promo-code list — reorderable cards (HTML5 DnD + chevron
+ *   1. Promo-code list - reorderable cards (HTML5 DnD + chevron
  *      buttons) with edit / delete actions. Expired codes render
  *      with reduced opacity and an "Expired" badge.
  *   2. "Add another discount code" full-width dashed CTA.
- *   3. Quick stats card — Active codes, Total uses, Discount given.
+ *   3. Quick stats card - Active codes, Total uses, Discount given.
  *      "Discount given" is a server-derived metric so we display 0
  *      until real bookings exist; the others are computed locally.
  */
@@ -62,11 +63,12 @@ export function DiscountsPanel() {
 
   // ============================================================
   // Per-row save / delete mutations.
-  // Same pattern as TicketsPanel — mutation-first, drawer stays open
+  // Same pattern as TicketsPanel - mutation-first, drawer stays open
   // on error so the user can correct and retry.
   // ============================================================
   const discountSaver = useSaveDiscount();
   const discountRemover = useDeleteDiscount();
+  const runAction = useAction();
 
   const eid = state.encryptedId;
 
@@ -85,7 +87,7 @@ export function DiscountsPanel() {
         id: d.id,
         body: mapDiscountToBody(d),
       });
-      // Swap the local synthetic id for the server's raw post id —
+      // Swap the local synthetic id for the server's raw post id -
       // /event-edit returns plain ids for discounts (same as tickets),
       // so the editor state needs to match.
       const persisted: Discount = {
@@ -103,14 +105,37 @@ export function DiscountsPanel() {
     }
   };
 
-  const handleRemoveDiscount = async (id: DiscountId) => {
+  /** Delete is server-side and permanent, so it runs through the
+   *  shared action flow (confirm → full-screen loader → notification).
+   *  Both the row button and the drawer's "Remove" funnel through
+   *  here, so the confirm can't be skipped from either. */
+  const handleRemoveDiscount = async (id: DiscountId, code: string) => {
     if (!eid) return;
-    try {
-      await discountRemover.mutateAsync({ eid, id });
+    const res = await runAction({
+      confirm: {
+        title: "Delete this discount code?",
+        message: code.trim()
+          ? `"${code.trim()}" will stop working at checkout. Orders that already used it are unaffected. This can't be undone.`
+          : "The code will stop working at checkout. Orders that already used it are unaffected. This can't be undone.",
+        confirmLabel: "Delete code",
+        cancelLabel: "Keep code",
+        danger: true,
+      },
+      loadingLabel: "Deleting discount code...",
+      successTitle: "Discount code deleted",
+      errorTitle: "Couldn't delete the discount code",
+      run: async () => {
+        await discountRemover.mutateAsync({ eid, id });
+        return true;
+      },
+    });
+    if (res) {
       dispatch({ type: "REMOVE_DISCOUNT", id });
       setDrawerOpen(false);
-    } catch {
-      // Leave the row in place; surface error on the drawer if open.
+    } else {
+      // Cancelled or failed - the notification already covered it, so
+      // clear the mutation error rather than repeat it in the drawer.
+      discountRemover.reset();
     }
   };
 
@@ -169,7 +194,7 @@ export function DiscountsPanel() {
     (sum, d) => sum + (d.discountGiven ?? 0),
     0,
   );
-  // "£1,234" / "£0" — no decimals when whole, else two. Matches the
+  // "£1,234" / "£0" - no decimals when whole, else two. Matches the
   // other money figures in the editor.
   const discountGivenLabel = `£${totalDiscountGiven.toLocaleString("en-GB", {
     minimumFractionDigits: Number.isInteger(totalDiscountGiven) ? 0 : 2,
@@ -233,7 +258,7 @@ export function DiscountsPanel() {
                     discount={d}
                     todayIso={todayIso}
                     onEdit={() => openEdit(d)}
-                    onDelete={() => handleRemoveDiscount(d.id)}
+                    onDelete={() => handleRemoveDiscount(d.id, d.code)}
                     onMoveUp={() => moveItem(idx, -1)}
                     onMoveDown={() => moveItem(idx, 1)}
                     canMoveUp={idx > 0}
@@ -286,7 +311,7 @@ export function DiscountsPanel() {
 
       <DiscountDrawer
         // Same key-based remount pattern as TicketDrawer/SectionDrawer
-        // — synchronous form state seeding from props, no useEffect.
+        // - synchronous form state seeding from props, no useEffect.
         key={`disc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
         open={drawerOpen}
         editing={editing}
@@ -297,7 +322,7 @@ export function DiscountsPanel() {
           setDrawerOpen(false);
         }}
         onSave={(d) => handleSaveDiscount(d, editing !== null)}
-        onRemove={(id) => handleRemoveDiscount(id)}
+        onRemove={(id) => handleRemoveDiscount(id, editing?.code ?? "")}
         isSaving={discountSaver.isPending}
         isDeleting={discountRemover.isPending}
         errorMessage={
@@ -349,7 +374,7 @@ function DiscountRow({
         <i className="fa-solid fa-grip-vertical" aria-hidden />
       </button>
 
-      {/* Icon — gold for live codes, muted for expired ones. */}
+      {/* Icon - gold for live codes, muted for expired ones. */}
       <div
         className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
           expired
@@ -461,7 +486,7 @@ function isExpired(d: Discount, todayIso: string): boolean {
   return d.availableUntil != null && d.availableUntil < todayIso;
 }
 
-/** "15% off" or "£5 off" — the amount badge text. */
+/** "15% off" or "£5 off" - the amount badge text. */
 function discountAmountLabel(d: Discount): string {
   if (d.kind === "percentage") {
     // Trim a trailing .0 / .00 so 15.0 reads as "15% off".
@@ -494,7 +519,7 @@ function discountSubtitle(d: Discount): string {
   return parts.join(" · ");
 }
 
-/** "2026-04-15" → "15 Apr 2026" — tight subtitle variant. */
+/** "2026-04-15" → "15 Apr 2026" - tight subtitle variant. */
 function formatShort(iso: string): string {
   const full = formatEditorDate(iso); // "15 April 2026"
   return full.replace(

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCreateVenue } from "@/lib/myVenues";
 
 /**
- * Create Venue — entry step.
+ * Create Venue - entry step.
  *
  * A single "name your venue" step: creates a draft venue then forwards
  * to /venue/{encrypted_id}/edit where the full wizard (profile,
@@ -33,47 +33,12 @@ export default function CreateVenuePage() {
   const canProceed = title.trim().length > 0;
 
   return (
+    // Single centred card, matching the create-event entry screen -
+    // no "Get Started" side column.
     <div className="min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40">
-      <div className="mx-auto flex max-w-6xl gap-8 px-4 py-8 md:px-6">
-        {/* Left nav */}
-        <aside className="hidden w-64 shrink-0 md:block">
-          <div className="mb-6">
-            <Link
-              href="/create"
-              className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-ink-400 transition hover:text-gold-600"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-              Back
-            </Link>
-            <h2 className="mt-2 text-lg font-extrabold text-ink-900">
-              Create Venue
-            </h2>
-          </div>
-          <nav className="space-y-1.5">
-            <div className="flex w-full items-center gap-3 rounded-xl bg-gradient-to-r from-gold-500 to-gold-600 px-4 py-3 text-left text-sm font-semibold text-white shadow-sm shadow-gold-500/25">
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/25 text-[11px] font-bold text-white">
-                ›
-              </span>
-              Get Started
-            </div>
-          </nav>
-        </aside>
-
-        {/* Panel */}
-        <main className="flex-1">
-          <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-ink-100">
-            <div className="h-1.5 w-full rounded-t-2xl bg-gradient-to-r from-gold-400 via-gold-500 to-gold-600" />
+      <div className="mx-auto max-w-xl w-full px-4 py-8 sm:py-12">
+        <main>
+          <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-ink-100">
             <div className="p-8 md:p-10">
               <p className="text-center text-xs font-bold uppercase tracking-[0.18em] text-gold-600">
                 Create Venue
@@ -122,6 +87,17 @@ export default function CreateVenuePage() {
                   {error}
                 </p>
               )}
+
+              {/* Replaces the Back link that used to live in the side
+                  column - same placement as the create-event screen. */}
+              <div className="mt-8 text-center">
+                <Link
+                  href="/create"
+                  className="text-xs text-ink-500 transition hover:text-ink-900"
+                >
+                  Cancel and return
+                </Link>
+              </div>
             </div>
           </div>
         </main>

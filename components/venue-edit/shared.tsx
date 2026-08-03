@@ -88,7 +88,7 @@ export function TextField({
 
 /**
  * Image picker row (logo / cover). Hidden file input + ref so the
- * thumbnail and the button both open the picker — the pattern that
+ * thumbnail and the button both open the picker - the pattern that
  * actually works, rather than a bare button.
  */
 export function ImageUploadRow({

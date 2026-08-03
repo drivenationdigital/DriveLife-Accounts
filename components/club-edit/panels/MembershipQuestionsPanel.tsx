@@ -4,7 +4,7 @@ import { useClubEdit } from "@/context/ClubEditContext";
 import { textareaCls } from "../shared";
 
 /**
- * Step 4 — questions applicants answer when requesting to join.
+ * Step 4 - questions applicants answer when requesting to join.
  * Repeater backed by membership_questions.
  */
 export function MembershipQuestionsPanel() {

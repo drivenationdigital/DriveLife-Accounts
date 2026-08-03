@@ -4,11 +4,11 @@
  *
  * Two entry points:
  *
- *   useUpdateEvent()  — low-level: update a known event by eid with a
+ *   useUpdateEvent()  - low-level: update a known event by eid with a
  *                       pre-built body. Use when you've already mapped
  *                       state and have an encrypted id.
  *
- *   useSaveEvent()    — high-level "create/update": takes the whole
+ *   useSaveEvent()    - high-level "create/update": takes the whole
  *                       EventCreateState, creates the server-side
  *                       draft first if one doesn't exist yet
  *                       (encryptedId === null), then updates. This is
@@ -17,7 +17,7 @@
  * Both invalidate the editor, detail, and list caches on success so
  * the rest of the app reflects the change without a manual refetch.
  *
- * Kept in a separate file from queries.ts purely to stay additive —
+ * Kept in a separate file from queries.ts purely to stay additive -
  * the contents could live in queries.ts alongside useCreateEvent /
  * useEventForEdit if you'd rather keep all hooks in one place.
  */
@@ -58,7 +58,7 @@ function postEventUpdate(eid: string, body: ApiEventUpdateRequest) {
 
 /** Invalidate everything that could now be stale after a save. The
  *  keys mirror those used by useEventForEdit / useEvent /
- *  useOrganiserEvents — prefix matching means we don't need the exact
+ *  useOrganiserEvents - prefix matching means we don't need the exact
  *  param objects. */
 function invalidateEventCaches(
   qc: ReturnType<typeof useQueryClient>,

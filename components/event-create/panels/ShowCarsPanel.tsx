@@ -17,6 +17,7 @@ import {
   mapShowCarCategoryToBody,
 } from "@/lib/showCarMutations";
 import { ApiError } from "@/lib/apiClient";
+import { useAction } from "@/context/ActionContext";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
@@ -24,12 +25,12 @@ import { PanelHeader } from "../PanelHeader";
 import { ShowCarCategoryDrawer } from "../ShowCarCategoryDrawer";
 
 /**
- * Step 7 — Show Cars.
+ * Step 7 - Show Cars.
  *
  * Layout:
  *   1. Master "enable" toggle. Toggling off hides the rest of the
  *      panel (state values are preserved).
- *   2. Capacity limit — paired toggle + number input.
+ *   2. Capacity limit - paired toggle + number input.
  *   3. Categories list with reorder + drawer.
  *   4. Info textarea (with the decorative toolbar).
  *   5. Application links card.
@@ -64,10 +65,11 @@ export function ShowCarsPanel() {
 
   // ============================================================
   // Per-row save / delete mutations. Same pattern as TicketsPanel /
-  // DiscountsPanel — mutation-first, drawer stays open on error.
+  // DiscountsPanel - mutation-first, drawer stays open on error.
   // ============================================================
   const saver = useSaveShowCarCategory();
   const remover = useDeleteShowCarCategory();
+  const runAction = useAction();
   const eid = state.encryptedId;
 
   const errorText = (err: Error | null): string | null =>
@@ -85,7 +87,7 @@ export function ShowCarsPanel() {
         id: c.id,
         body: mapShowCarCategoryToBody(c),
       });
-      // Swap the local synthetic id for the server's raw post id —
+      // Swap the local synthetic id for the server's raw post id -
       // matches the ticket/discount panel convention so later edits
       // route to the update path.
       const persisted: ShowCarCategory = {
@@ -103,14 +105,37 @@ export function ShowCarsPanel() {
     }
   };
 
-  const handleRemoveCategory = async (id: ShowCarCategoryId) => {
+  /** Delete is server-side and permanent, so it runs through the
+   *  shared action flow (confirm → full-screen loader → notification).
+   *  Both the row button and the drawer's "Remove" funnel through
+   *  here, so the confirm can't be skipped from either. */
+  const handleRemoveCategory = async (id: ShowCarCategoryId, name: string) => {
     if (!eid) return;
-    try {
-      await remover.mutateAsync({ eid, id });
+    const res = await runAction({
+      confirm: {
+        title: "Delete this category?",
+        message: name.trim()
+          ? `"${name.trim()}" will be removed. Applications already submitted for it stay, but nobody can apply to it again. This can't be undone.`
+          : "The category will be removed. Applications already submitted for it stay, but nobody can apply to it again. This can't be undone.",
+        confirmLabel: "Delete category",
+        cancelLabel: "Keep category",
+        danger: true,
+      },
+      loadingLabel: "Deleting category...",
+      successTitle: "Category deleted",
+      errorTitle: "Couldn't delete the category",
+      run: async () => {
+        await remover.mutateAsync({ eid, id });
+        return true;
+      },
+    });
+    if (res) {
       dispatch({ type: "REMOVE_SHOW_CAR_CATEGORY", id });
       setDrawerOpen(false);
-    } catch {
-      // Leave the row in place; surface error on the drawer if open.
+    } else {
+      // Cancelled or failed - the notification already covered it, so
+      // clear the mutation error rather than repeat it in the drawer.
+      remover.reset();
     }
   };
 
@@ -195,64 +220,6 @@ export function ShowCarsPanel() {
 
       {state.showCarsEnabled && (
         <>
-          {/* Capacity */}
-          <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
-            <label className="flex items-center justify-between gap-3 cursor-pointer">
-              <div>
-                <p className="text-sm font-semibold text-ink-900">
-                  Limit total show cars
-                </p>
-                <p className="text-xs text-ink-500 mt-0.5">
-                  Cap the number of accepted applications
-                </p>
-              </div>
-              <span className="switch">
-                <input
-                  type="checkbox"
-                  checked={state.showCarsLimitEnabled}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_FIELD",
-                      key: "showCarsLimitEnabled",
-                      value: e.target.checked,
-                    })
-                  }
-                />
-                <span className="slider" />
-              </span>
-            </label>
-            {state.showCarsLimitEnabled && (
-              <div className="mt-4 pt-4 border-t border-ink-200">
-                <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                  Maximum show cars
-                </label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  step={1}
-                  className="input"
-                  placeholder="e.g. 50"
-                  value={
-                    Number.isFinite(state.showCarsMax)
-                      ? String(state.showCarsMax)
-                      : ""
-                  }
-                  onChange={(e) => {
-                    const parsed = parseInt(e.target.value, 10);
-                    dispatch({
-                      type: "SET_FIELD",
-                      key: "showCarsMax",
-                      value: Number.isFinite(parsed)
-                        ? Math.max(1, parsed)
-                        : NaN,
-                    });
-                  }}
-                />
-              </div>
-            )}
-          </div>
-
           {/* Categories */}
           <div className="mb-4">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
@@ -261,7 +228,7 @@ export function ShowCarsPanel() {
                   Show car categories
                 </h3>
                 <p className="text-xs text-ink-500 mt-0.5">
-                  Group applications by type — each category has its own
+                  Group applications by type - each category has its own
                   application window
                 </p>
               </div>
@@ -304,7 +271,7 @@ export function ShowCarsPanel() {
                       <ShowCarCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
-                        onDelete={() => handleRemoveCategory(c.id)}
+                        onDelete={() => handleRemoveCategory(c.id, c.name)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
                         canMoveUp={idx > 0}
@@ -332,7 +299,7 @@ export function ShowCarsPanel() {
               Show car information
             </label>
             <p className="text-xs text-ink-500 mb-3">
-              Perks, arrival times, parking instructions — anything applicants
+              Perks, arrival times, parking instructions - anything applicants
               need to know.
             </p>
             <EditorTextarea
@@ -381,7 +348,7 @@ export function ShowCarsPanel() {
           setDrawerOpen(false);
         }}
         onSave={(c) => handleSaveCategory(c, editing !== null)}
-        onRemove={(id) => handleRemoveCategory(id)}
+        onRemove={(id) => handleRemoveCategory(id, editing?.name ?? "")}
         isSaving={saver.isPending}
         isDeleting={remover.isPending}
         errorMessage={errorText(saver.error) ?? errorText(remover.error)}
@@ -498,9 +465,9 @@ function subtitleForCategory(c: ShowCarCategory): string {
   if (!c.applicationsOpen && !c.applicationsClose) return "";
   const parts: string[] = ["Applications"];
   if (c.applicationsOpen) parts.push(formatShort(c.applicationsOpen));
-  parts.push("–");
+  parts.push("-");
   if (c.applicationsClose) parts.push(formatShort(c.applicationsClose));
-  return parts.join(" ").replace("Applications  – ", "Applications ");
+  return parts.join(" ").replace("Applications  - ", "Applications ");
 }
 
 function formatShort(iso: string): string {

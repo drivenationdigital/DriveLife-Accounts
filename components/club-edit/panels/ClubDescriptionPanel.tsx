@@ -4,7 +4,7 @@ import { useClubEdit } from "@/context/ClubEditContext";
 import { EditorTextarea } from "@/components/event-create/EditorTextarea";
 import { FieldLabel } from "../shared";
 
-/** Step 3 — the club's description (WYSIWYG). */
+/** Step 3 - the club's description (WYSIWYG). */
 export function ClubDescriptionPanel() {
   const { club, setField } = useClubEdit();
   return (

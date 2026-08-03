@@ -4,7 +4,7 @@ import { useClubEdit } from "@/context/ClubEditContext";
 import { FieldLabel, selectCls } from "../shared";
 import type { ClubPostStatus, ClubTypeValue } from "@/lib/clubEditTypes";
 
-/** Step 7 — visibility (publish status) and join policy (club type). */
+/** Step 7 - visibility (publish status) and join policy (club type). */
 export function PublishPanel() {
   const { club, setField } = useClubEdit();
   const isPublished = club.status === "publish";
@@ -32,8 +32,8 @@ export function PublishPanel() {
           value={club.clubType}
           onChange={(e) => setField("clubType", e.target.value as ClubTypeValue)}
         >
-          <option value="1">Private club — requests need approval</option>
-          <option value="2">Public club — anyone can join</option>
+          <option value="1">Private club - requests need approval</option>
+          <option value="2">Public club - anyone can join</option>
         </select>
       </div>
 

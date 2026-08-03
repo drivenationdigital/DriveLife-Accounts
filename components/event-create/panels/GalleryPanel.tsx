@@ -29,7 +29,7 @@ import { PanelHeader } from "../PanelHeader";
  *
  * Three pieces:
  *
- *   1. Tile grid — gallery images at 3 cols (mobile/tablet) → 4 cols
+ *   1. Tile grid - gallery images at 3 cols (mobile/tablet) → 4 cols
  *      (lg+). Each tile has hover overlays:
  *        · keyboard chevrons for reorder
  *        · red X to remove
@@ -37,10 +37,10 @@ import { PanelHeader } from "../PanelHeader";
  *      uploaded to the server yet (kind === "local"). The save flow
  *      handles the upload step.
  *
- *   2. Dropzone — accepts both clicks (opens file picker) and
+ *   2. Dropzone - accepts both clicks (opens file picker) and
  *      file-drag drops. Selected files become local EditorImages.
  *
- *   3. Drag-to-reorder for tile reordering — uses native HTML5 DnD.
+ *   3. Drag-to-reorder for tile reordering - uses native HTML5 DnD.
  *      Distinct from the file-drag drop on the dropzone.
  *
  * Lifecycle: local images carry a blob URL that needs revoking when
@@ -71,7 +71,7 @@ export function GalleryPanel() {
   // swapped for `remote { url, cloudflareId }` in place. On failure
   // the local is removed and an error message is surfaced inline.
   //
-  // We track per-tile upload state in a Map keyed by previewUrl —
+  // We track per-tile upload state in a Map keyed by previewUrl -
   // the blob URL is unique per local image so it's a stable id even
   // as the gallery array gets re-spliced for reorders.
   // ============================================================
@@ -111,7 +111,7 @@ export function GalleryPanel() {
         ...p,
         `${local.file.name}: save the event basics first so we know where to attach the image.`,
       ]);
-      // Drop the local entry — leaving it would imply success.
+      // Drop the local entry - leaving it would imply success.
       dispatch({
         type: "SET_GALLERY",
         items: liveGalleryRef.current.filter((i) => i !== local),
@@ -127,7 +127,7 @@ export function GalleryPanel() {
         mediaGroup: "gallery",
       });
       // Swap this specific local for the returned remote. Find by
-      // identity (the local object itself), not index — the gallery
+      // identity (the local object itself), not index - the gallery
       // may have been reordered while the upload was in flight.
       const remote: EditorImage = {
         kind: "remote",
@@ -230,7 +230,7 @@ export function GalleryPanel() {
     if (!removed) return;
 
     // For CF-backed images (uploaded through this flow), delete from
-    // server first and only remove from local state on success — so a
+    // server first and only remove from local state on success - so a
     // server-side failure leaves the tile visible with an error
     // message rather than silently vanishing.
     if (removed.kind === "remote" && removed.cloudflareId && eid) {
@@ -263,7 +263,7 @@ export function GalleryPanel() {
   // ---- Cleanup on unmount ----
   // Revoke any local blob URLs still in state when the panel
   // unmounts. The galleryRef captured here is intentionally
-  // mutable — we want whatever's in state at unmount, not the
+  // mutable - we want whatever's in state at unmount, not the
   // value at first render.
   const galleryRef = useRef(state.gallery);
   galleryRef.current = state.gallery;
@@ -385,7 +385,7 @@ export function GalleryPanel() {
           );
         })}
 
-        {/* Add tile — quick way to add more without scrolling. */}
+        {/* Add tile - quick way to add more without scrolling. */}
         <button
           type="button"
           onClick={onPick}

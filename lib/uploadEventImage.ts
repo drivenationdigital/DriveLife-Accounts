@@ -13,13 +13,19 @@
  *
  * Why a separate helper rather than two mutation hooks chained from
  * the panel: this needs to talk to a third-party URL (step 2) with
- * different fetch semantics — no auth header (Cloudflare rejects
+ * different fetch semantics - no auth header (Cloudflare rejects
  * extra headers on a direct-creator POST), no JSON content type, and
  * the response is parsed but mostly ignored. Easier to wrap as one
  * Promise than to compose three useMutations and juggle their state.
  */
 
 import { apiPost } from "./apiClient";
+
+/**
+ * Which slot the image fills. `ticket_logo` is the logo printed on
+ * the event's tickets, set from the Tickets step.
+ */
+export type EventMediaGroup = "cover" | "gallery" | "ticket_logo";
 
 interface MintResponse {
   success: true;
@@ -30,7 +36,7 @@ interface MintResponse {
 export interface ConfirmedImage {
   id: string;
   url: string;
-  media_group: "cover" | "gallery";
+  media_group: EventMediaGroup;
   width: number;
   height: number;
 }
@@ -42,21 +48,21 @@ interface ConfirmResponse {
 
 interface ConfirmBody {
   media_id: string;
-  media_group: "cover" | "gallery";
+  media_group: EventMediaGroup;
   width: number;
   height: number;
   mime_type: string;
 }
 
 interface MintBody {
-  media_group: "cover" | "gallery";
+  media_group: EventMediaGroup;
 }
 
 export interface UploadEventImageArgs {
   /** Encrypted event id from state.encryptedId. */
   eid: string;
   file: File;
-  mediaGroup: "cover" | "gallery";
+  mediaGroup: EventMediaGroup;
   signal?: AbortSignal;
 }
 
@@ -65,7 +71,7 @@ export async function uploadEventImage(
 ): Promise<ConfirmedImage> {
   const { eid, file, mediaGroup, signal } = args;
 
-  // Step 1 — mint.
+  // Step 1 - mint.
   const mint = await apiPost<MintResponse, MintBody>(
     `/event-image-upload-url?eid=${encodeURIComponent(eid)}`,
     { media_group: mediaGroup },
@@ -73,7 +79,7 @@ export async function uploadEventImage(
 
   if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  // Step 2 — direct multipart POST to Cloudflare. The upload_url is
+  // Step 2 - direct multipart POST to Cloudflare. The upload_url is
   // one-time-use and pre-authorised; do NOT add Authorization or
   // X-WP-Token headers, Cloudflare rejects them.
   const form = new FormData();
@@ -100,7 +106,7 @@ export async function uploadEventImage(
     throw new Error(message);
   }
 
-  // Step 3 — confirm + insert. We read dimensions client-side so the
+  // Step 3 - confirm + insert. We read dimensions client-side so the
   // DB row carries them straight away; if dimensions fail (CORS or
   // an exotic format), we send zeros and the server stores nulls.
   const dims = await readImageDimensions(file).catch(() => ({ width: 0, height: 0 }));

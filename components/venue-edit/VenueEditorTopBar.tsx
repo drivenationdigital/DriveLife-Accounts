@@ -91,7 +91,7 @@ export function VenueEditorTopBar() {
 }
 
 /**
- * Live save indicator. Same phases as the club editor's pill — an
+ * Live save indicator. Same phases as the club editor's pill - an
  * idle-but-dirty venue reads "Unsaved changes" rather than the event
  * editor's "Not saved yet", because a venue being edited already exists.
  */
