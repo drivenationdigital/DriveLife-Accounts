@@ -4,6 +4,7 @@ import { TopBar } from "@/components/layout/TopBar";
 import { Sidebar, SidebarOverlay } from "@/components/layout/Sidebar";
 import { CreateModal } from "@/components/modals/CreateModal";
 import { DetailModal } from "@/components/modals/DetailModal";
+import { WelcomeModal } from "@/components/modals/WelcomeModal";
 
 /**
  * Layout for the authenticated dashboard area. Middleware ensures anyone
@@ -26,6 +27,9 @@ export default function DashboardLayout({
         </div>
         <CreateModal />
         <DetailModal />
+        {/* Renders itself only for accounts that have never picked a
+            profile type, i.e. brand-new users. */}
+        <WelcomeModal />
       </UIProvider>
     </EventProvider>
   );

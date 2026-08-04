@@ -271,6 +271,14 @@ export const EyeIcon = (p: IconProps) => (
   </svg>
 );
 
+/** Sun-burst "and much more" mark, used in the welcome flow */
+export const SparkleIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.2 2.2M16.9 16.9l2.2 2.2M4.9 19.1l2.2-2.2M16.9 7.1l2.2-2.2" />
+  </svg>
+);
+
 /** The stylised "eye" used in the Details buttons on app-cards */
 export const CarEventsEyeIcon = (p: IconProps) => (
   <svg

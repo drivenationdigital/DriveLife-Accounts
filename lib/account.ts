@@ -29,6 +29,15 @@ export interface AccountData {
   phone: string;
   nearest_town: string;
   notifications: NotificationPrefs;
+  /**
+   * Profile types the user picked in the welcome flow - indices into
+   * PROFILE_TYPE_OPTIONS (lib/profileTypes.ts), stored in the shared
+   * `ce_user_meta.about_contents` row. Optional so the app still builds
+   * against a WP deployment that predates it.
+   */
+  about_contents?: number[];
+  /** True while `about_contents` is empty, i.e. a brand-new account. */
+  needs_onboarding?: boolean;
 }
 
 interface AccountResponse {
@@ -46,6 +55,8 @@ export interface AccountUpdateBody {
   nearest_town?: string;
   phone?: string;
   notifications?: Partial<NotificationPrefs>;
+  /** Profile type indices. The server rejects an empty array. */
+  about_contents?: number[];
 }
 
 export interface ChangePasswordBody {

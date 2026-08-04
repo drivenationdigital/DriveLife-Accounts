@@ -11,6 +11,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { lockBodyScroll } from "@/lib/bodyScrollLock";
 import { useConfirm, type ConfirmOptions } from "./ConfirmContext";
 
 /**
@@ -208,15 +209,13 @@ function ActionOverlays({
   result: Result | null;
   onDismiss: () => void;
 }) {
-  // Lock body scroll while either overlay is up.
+  // Lock body scroll while either overlay is up. Ref-counted, so an
+  // overlay that opens on top of a modal can't leave the page locked
+  // when the two unmount in the wrong order.
   const blocking = loadingLabel !== null || result !== null;
   useEffect(() => {
     if (!blocking) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
+    return lockBodyScroll();
   }, [blocking]);
 
   // Esc dismisses the notification (never the loader - the request is

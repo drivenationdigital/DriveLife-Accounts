@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { lockBodyScroll } from "@/lib/bodyScrollLock";
 import type { DetailPayload, TabKey } from "./types";
 
 interface UIContextValue {
@@ -87,13 +88,11 @@ export function UIProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  // Body-lock when any modal is open
+  // Body-lock when any modal is open. Ref-counted so the shared action
+  // loader, which locks too, can't fight this one on the way out.
   useEffect(() => {
-    const anyOpen = createModalOpen || detail !== null;
-    document.body.style.overflow = anyOpen ? "hidden" : "";
-    return () => {
-      document.body.style.overflow = "";
-    };
+    if (!createModalOpen && detail === null) return;
+    return lockBodyScroll();
   }, [createModalOpen, detail]);
 
   // Reflect sidebar state on <body> to match original global CSS selectors.

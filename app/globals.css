@@ -4105,3 +4105,250 @@
     font-size: 24px;
   }
 }
+
+/* ============ WELCOME MODAL (first run) ============ */
+/* Two steps in one card: a dark hero + feature list, then the profile
+   type picker. Uses .modal-backdrop / .modal for the shell. */
+.welcome-modal {
+  max-width: 460px;
+  max-height: calc(100vh - 40px);
+  display: flex;
+  flex-direction: column;
+}
+.welcome-step {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.welcome-hero {
+  background:
+    radial-gradient(
+      circle 260px at top right,
+      rgba(178, 145, 92, 0.35) 0%,
+      transparent 70%
+    ),
+    var(--ink);
+  padding: 34px 28px 30px;
+  text-align: center;
+  position: relative;
+  flex-shrink: 0;
+}
+.welcome-hero .logo-mark-lg {
+  height: 52px;
+  width: auto;
+  margin-bottom: 16px;
+}
+.welcome-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.15;
+  margin-bottom: 6px;
+}
+.welcome-sub {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.65);
+  line-height: 1.5;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.welcome-body {
+  padding: 22px 26px 8px;
+  overflow-y: auto;
+  min-height: 0;
+}
+.welcome-feature {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 0;
+}
+.welcome-feature-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--gold-soft);
+  color: var(--gold-deep);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.welcome-feature-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.welcome-feature-text {
+  flex: 1;
+  min-width: 0;
+}
+.welcome-feature-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.welcome-feature-desc {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.welcome-footer {
+  padding: 18px 26px 24px;
+  flex-shrink: 0;
+}
+.welcome-footer .btn {
+  width: 100%;
+  justify-content: center;
+  padding: 12px 16px;
+  font-size: 14px;
+  background: var(--gold);
+  color: #fff;
+  font-weight: 600;
+}
+.welcome-footer .btn:hover {
+  background: var(--gold-hover);
+}
+.welcome-footer .btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.welcome-footer .btn:disabled:hover {
+  background: var(--gold);
+}
+
+/* Step 2 - profile type picker */
+.welcome-hero.compact {
+  padding: 26px 28px 22px;
+}
+.welcome-hero.compact .welcome-title {
+  font-size: 22px;
+}
+.welcome-choices {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.welcome-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  background: var(--surface);
+  position: relative;
+}
+.welcome-choice:hover {
+  border-color: var(--border-strong);
+  background: var(--bg);
+}
+.welcome-choice:has(input:checked) {
+  border-color: var(--gold);
+  background: var(--gold-softer);
+}
+.welcome-choice input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+/* Multi-select, so a square box rather than a radio dot. */
+.welcome-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 2px solid var(--border-strong);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.welcome-choice:has(input:checked) .welcome-check {
+  border-color: var(--gold);
+  background: var(--gold);
+}
+.welcome-choice:has(input:checked) .welcome-check::after {
+  content: "";
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: translateY(-1px) rotate(-45deg);
+}
+.welcome-choice:has(input:focus-visible) {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--gold-soft);
+}
+.welcome-choice-text {
+  min-width: 0;
+}
+.welcome-choice-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.3;
+}
+.welcome-choice-desc {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin-top: 1px;
+}
+.welcome-footer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+}
+.welcome-back {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+  padding: 4px 6px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+.welcome-back:hover {
+  color: var(--ink);
+  background: var(--bg-2);
+}
+.welcome-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.welcome-footer-row .welcome-dots {
+  margin-top: 0;
+}
+.welcome-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  transition: background 0.15s ease;
+}
+.welcome-dot.active {
+  background: var(--gold);
+}
+
+@media (max-width: 600px) {
+  .welcome-hero {
+    padding: 26px 20px 22px;
+  }
+  .welcome-body {
+    padding: 18px 20px 8px;
+  }
+  .welcome-footer {
+    padding: 16px 20px 20px;
+  }
+}

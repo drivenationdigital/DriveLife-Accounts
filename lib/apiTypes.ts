@@ -546,6 +546,15 @@ export interface AuthUser {
   email: string;
   display_name: string;
   roles: string[];
+  /**
+   * Profile types the user picked in the welcome flow - indices into
+   * PROFILE_TYPE_OPTIONS (lib/profileTypes.ts), stored in the shared
+   * `ce_user_meta.about_contents` row. Optional because tokens issued
+   * before this shipped cached a user object without it.
+   */
+  about_contents?: number[];
+  /** True while `about_contents` is empty, i.e. a brand-new account. */
+  needs_onboarding?: boolean;
 }
 
 export interface LoginResponse {

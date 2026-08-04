@@ -66,6 +66,9 @@ export default function SettingsPage() {
             events.
           </p>
           <button
+          onClick={() => {
+            window.location.href = "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_Ln2o2ZGab16J09GztcAtEnWt1JJd94HS&scope=read_write";
+          }}
             type="button"
             className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700"
           >
@@ -75,14 +78,14 @@ export default function SettingsPage() {
       </Section>
 
       {/* Website Widgets */}
-      <Section title="Website Widgets">
+      {/* <Section title="Website Widgets">
         <p className="mb-4 text-sm text-ink-500">
           Embed your club, venue, or event application pages on your own website
           - visitors can apply without leaving your site. Copy the snippet below
           to get started.
         </p>
         <EmbedBox />
-      </Section>
+      </Section> */}
 
       {/* Help & Support */}
       <Section title="Help &amp; Support">
