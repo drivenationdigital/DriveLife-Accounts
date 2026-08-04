@@ -4,6 +4,10 @@ import { useEventData } from "@/context/EventContext";
 import { KpiCard } from "@/components/cards/KpiCard";
 import { ClubTable } from "@/components/tables/ClubTable";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
+import {
+  ApplicationsSkeleton,
+  ApplicationsError,
+} from "@/components/tabs/ApplicationsSkeleton";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { useClubApplications } from "@/lib/clubApplications";
 import { useExportApplications } from "@/lib/exportApplications";
@@ -21,7 +25,8 @@ import type { Club } from "@/context/types";
 export function ClubsTab() {
   const { event } = useEventData();
   const eid = event.encryptedId;
-  const { data, isLoading, error } = useClubApplications(eid);
+  const { data, isLoading, error, refetch, isFetching } =
+    useClubApplications(eid);
 
   const exportApps = useExportApplications();
   const runAction = useAction();
@@ -38,7 +43,24 @@ export function ClubsTab() {
   const clubs = data?.clubs ?? [];
   const sales = data?.sales;
 
-  if (!isLoading && !error && clubs.length === 0) {
+  // First load: shimmer the real layout. Without this the tab renders
+  // a zeroed KPI strip and no section cards, which reads as "there's
+  // nothing here" right up until the data lands.
+  if (isLoading) {
+    return <ApplicationsSkeleton label="Loading club applications" />;
+  }
+
+  if (error && clubs.length === 0) {
+    return (
+      <ApplicationsError
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+        retrying={isFetching}
+      />
+    );
+  }
+
+  if (clubs.length === 0) {
     return (
       <ComingSoonBanner
         title="No club applications yet"

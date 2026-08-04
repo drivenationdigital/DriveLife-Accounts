@@ -28,7 +28,10 @@ export default function MyVenuesPage() {
   return (
     <div className="my-venues">
       <header className="mv-header">
-        <h1 className="mv-title">My Venues</h1>
+        <div className="mv-header-text">
+          <h1 className="mv-title">My Venues</h1>
+          <p className="mv-sub">Venues you follow or administer</p>
+        </div>
         <Link href="/venue/create" className="mv-create-btn">
           + Create Venue
         </Link>

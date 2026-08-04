@@ -5,6 +5,10 @@ import { KpiCard } from "@/components/cards/KpiCard";
 import { AppCard } from "@/components/cards/AppCard";
 import { PlusIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
+import {
+  ApplicationsSkeleton,
+  ApplicationsError,
+} from "@/components/tabs/ApplicationsSkeleton";
 import { useTraderApplications } from "@/lib/traderApplications";
 import type { Trader } from "@/context/types";
 
@@ -53,9 +57,37 @@ function TraderGroup({
 export function TradersTab() {
   const { event } = useEventData();
   const eid = event.encryptedId;
-  const { data: traders = [], isLoading, error } = useTraderApplications(eid);
+  const {
+    data: traders = [],
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useTraderApplications(eid);
 
-  if (!isLoading && !error && traders.length === 0) {
+  // First load: shimmer the card grid rather than showing an empty
+  // KPI strip that snaps into content a moment later.
+  if (isLoading) {
+    return (
+      <ApplicationsSkeleton
+        variant="cards"
+        rows={4}
+        label="Loading trader applications"
+      />
+    );
+  }
+
+  if (error && traders.length === 0) {
+    return (
+      <ApplicationsError
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+        retrying={isFetching}
+      />
+    );
+  }
+
+  if (traders.length === 0) {
     return (
       <ComingSoonBanner
         title="No trader applications yet"

@@ -5,6 +5,10 @@ import { KpiCard } from "@/components/cards/KpiCard";
 import { ShowCarTable } from "@/components/tables/ShowCarTable";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
+import {
+  ApplicationsSkeleton,
+  ApplicationsError,
+} from "@/components/tabs/ApplicationsSkeleton";
 import { useShowCarApplications } from "@/lib/showCarApplications";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
@@ -60,18 +64,46 @@ export function ShowCarsTab() {
     });
   };
   // Applications live on a dedicated query - see useShowCarApplications.
-  // Fall back to [] while loading or on error so the rest of the tab
-  // (KPIs, category table, "no applications" empty state) still
-  // renders cleanly. Approve / reject are wired inside the detail
-  // modal now, not on the cards.
-  const { data: showCars = [] } = useShowCarApplications(eid);
+  // Fall back to [] on error so the rest of the tab (KPIs, category
+  // table, "no applications" empty state) still renders cleanly.
+  // Approve / reject are wired inside the detail modal now, not on the
+  // cards.
+  const {
+    data: showCars = [],
+    isLoading,
+    error,
+    refetch,
+    isFetching,
+  } = useShowCarApplications(eid);
 
-  // No show car tickets ⇒ feature isn't set up for this event.
+  // No show car tickets ⇒ feature isn't set up for this event. Checked
+  // before the loading state because it reads from the already-loaded
+  // event payload - no point shimmering a tab that's about to say
+  // "not enabled".
   if (showCarTickets.length === 0) {
     return (
       <ComingSoonBanner
         title="Show cars not enabled for this event"
         message="Create a show car ticket type in the event editor to start accepting applications."
+      />
+    );
+  }
+
+  // First load: shimmer the KPI strip + a table card rather than
+  // flashing "0 pending / no applications yet" at the user.
+  if (isLoading) {
+    return <ApplicationsSkeleton label="Loading show car applications" />;
+  }
+
+  // Failed fetch would otherwise fall through to "No applications
+  // yet", which is a lie the organiser can't tell apart from an
+  // actually-empty event.
+  if (error && showCars.length === 0) {
+    return (
+      <ApplicationsError
+        message={(error as Error)?.message}
+        onRetry={() => refetch()}
+        retrying={isFetching}
       />
     );
   }

@@ -28,7 +28,10 @@ export default function MyClubsPage() {
   return (
     <div className="my-clubs">
       <header className="mc-header">
-        <h1 className="mc-title">My Clubs</h1>
+        <div className="mc-header-text">
+          <h1 className="mc-title">My Clubs</h1>
+          <p className="mc-sub">Clubs you follow or administer.</p>
+        </div>
         <Link href="/club/create" className="mc-create-btn">
           + Create Club
         </Link>

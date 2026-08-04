@@ -703,13 +703,9 @@
   margin-bottom: 14px;
   flex-wrap: wrap;
 }
+/* Type comes from the shared page-title rule at the bottom of this
+   file - the event name is this page's main title. */
 .event-title {
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 700;
-  line-height: 1.05;
-  color: var(--ink);
-  letter-spacing: -0.01em;
   text-transform: none;
 }
 .status-chip {
@@ -2260,9 +2256,6 @@
   .event-hero {
     padding: 22px;
   }
-  .event-title {
-    font-size: 28px;
-  }
   .app-card-grid {
     grid-template-columns: 1fr;
   }
@@ -2348,13 +2341,11 @@
 .events-page .page-header-text {
   min-width: 0;
 }
+/* Type comes from the shared page-title rule at the bottom of this
+   file. Only the margin is local - this selector outranks the shared
+   one on specificity, so redeclaring the font here would quietly pin
+   My Events to a different size than every other page. */
 .events-page .page-title {
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 700;
-  line-height: 1;
-  color: var(--ink);
-  letter-spacing: -0.01em;
   margin-bottom: 6px;
 }
 .events-page .page-sub {
@@ -2831,9 +2822,6 @@
 }
 
 @media (max-width: 900px) {
-  .events-page .page-title {
-    font-size: 32px;
-  }
   .events-page .event-grid {
     grid-template-columns: 1fr;
     gap: 14px;
@@ -3429,9 +3417,6 @@
   .event-hero {
     padding: 22px;
   }
-  .event-title {
-    font-size: 28px;
-  }
   .trader-grid {
     grid-template-columns: 1fr;
   }
@@ -3866,9 +3851,12 @@
 .se-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 28px; }
 .se-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
 
-.mes { margin-top: 32px; }
-.mes-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 12px; margin-bottom: 20px; }
-.mes-title { font-size: 20px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0; }
+/* .mes is a .section card now - box, border and bottom margin all come
+   from that. Only the header's own tweaks live here. */
+.mes-header { align-items: flex-end; flex-wrap: wrap; }
+/* Size/weight/colour come from the shared page-title rule at the
+   bottom of this file - only the margin is local. */
+.mes-title { margin: 0; }
 .mes-viewall { font-size: 14px; color: var(--gold-deep, #bd7420); text-decoration: none; }
 .mes-viewall:hover { text-decoration: underline; }
 .mes-state.error { color: var(--danger, #c0492f); padding: 12px; }
@@ -3909,8 +3897,12 @@
 @media (max-width: 720px) { .dash-tiles { grid-template-columns: repeat(2, 1fr); } }
 
 .my-clubs { padding: 8px 0 40px; }
-.mc-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
-.mc-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0; }
+/* flex-end (not center) so the button sits on the baseline of the
+   sub-line rather than floating mid-way up the two-line text block -
+   same as .events-page .page-header. */
+.mc-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
+.mc-header-text { min-width: 0; }
+.mc-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0 0 6px; }
 .mc-create-btn { background: var(--gold-deep, #bd7420); color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
 .mc-create-btn:hover { filter: brightness(.95); }
 .mc-state { padding: 40px 24px; text-align: center; color: var(--muted, #6b6860); background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; }
@@ -3934,8 +3926,10 @@
 .mc-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
 
 .my-venues { padding: 8px 0 40px; }
-.mv-header { display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
-.mv-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0; }
+/* Same flex-end reasoning as .mc-header above. */
+.mv-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
+.mv-header-text { min-width: 0; }
+.mv-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0 0 6px; }
 .mv-create-btn { background: var(--gold-deep, #bd7420); color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
 .mv-create-btn:hover { filter: brightness(.95); }
 .mv-state { padding: 40px 24px; text-align: center; color: var(--muted, #6b6860); background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; }
@@ -4072,27 +4066,42 @@
    ───────────────────────────────────────────────────────────────────── */
 .page-title,
 .mc-title,
+.mes-title,
 .mt-title,
 .mv-title,
 .se-title,
 .gu-title,
+.event-title,
 .dash-tiles-heading {
   font-family: var(--font-display);
-  font-size: 40px;
+  font-size: 30px;
   font-weight: 700;
-  line-height: 1;
+  /* 1.1 rather than 1 - the event hero title is in this list and can
+     wrap to two lines, which collides at a flat 1. */
+  line-height: 1.1;
   color: var(--ink, #1f1d18);
   letter-spacing: -0.01em;
+}
+
+/* Sub-line under a page title. Matches `.events-page .page-sub` so the
+   club and venue headers read as the same family as "My Events". */
+.mc-sub,
+.mv-sub {
+  color: var(--ink-3);
+  font-size: 14px;
+  margin: 0;
 }
 
 @media (max-width: 720px) {
   .page-title,
   .mc-title,
+  .mes-title,
   .mt-title,
   .mv-title,
   .se-title,
   .gu-title,
+  .event-title,
   .dash-tiles-heading {
-    font-size: 32px;
+    font-size: 24px;
   }
 }
