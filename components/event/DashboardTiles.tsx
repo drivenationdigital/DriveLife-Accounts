@@ -3,10 +3,12 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import {
+  BookmarkIcon,
   CalendarIcon,
   TicketIcon,
   CarIcon,
   BuildingIcon,
+  UserIcon,
 } from "@/components/ui/Icons";
 
 interface Tile {
@@ -16,16 +18,17 @@ interface Tile {
 }
 
 const TILES: Tile[] = [
+  { label: "Saved Events", href: "/saved-events", icon: <BookmarkIcon /> },
   { label: "My Events", href: "/events", icon: <CalendarIcon /> },
-  { label: "My Tickets", href: "/my-tickets", icon: <TicketIcon /> },
-  { label: "My Clubs", href: "/clubs", icon: <CarIcon /> },
-  { label: "My Venues", href: "/venues", icon: <BuildingIcon /> },
+  { label: "Tickets", href: "/my-tickets", icon: <TicketIcon /> },
+  { label: "Clubs", href: "/clubs", icon: <CarIcon /> },
+  { label: "Venues", href: "/venues", icon: <BuildingIcon /> },
+  { label: "Account", href: "/account", icon: <UserIcon /> },
 ];
 
 export function DashboardTiles() {
   return (
     <div className="dash-tiles-wrap">
-      <h1 className="dash-tiles-heading">Your Dashboard</h1>
       <div className="dash-tiles">
         {TILES.map((tile) => (
           <Link key={tile.href} href={tile.href} className="dash-tile">

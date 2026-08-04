@@ -6,8 +6,9 @@ import { useUI } from "@/context/UIContext";
 import { currency, statusPillClass } from "@/lib/utils";
 import { KpiCard } from "@/components/cards/KpiCard";
 import { TicketRow } from "@/components/cards/TicketRow";
-import { ShowCarCard } from "@/components/cards/ShowCarCard";
 import { AppCard } from "@/components/cards/AppCard";
+import { ShowCarTable } from "@/components/tables/ShowCarTable";
+import { ClubTable } from "@/components/tables/ClubTable";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { useRouter } from "next/navigation";
@@ -365,87 +366,70 @@ export function OverviewTab() {
               Manage →
             </a>
           </div>
+          <div className="section-body flush">
+            <ShowCarTable cars={pendingShowCars} />
+          </div>
+        </div>
+      )}
+
+      {/* Pending clubs - table, matching the Clubs tab */}
+      {features.car_clubs.enabled && pendingClubs.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Pending Car Clubs</div>
+              <div className="section-subtitle">
+                {pendingClubs.length} awaiting review
+              </div>
+            </div>
+            <a
+              href="#"
+              className="section-link"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveTab("clubs");
+              }}
+            >
+              Manage →
+            </a>
+          </div>
+          <div className="section-body flush">
+            <ClubTable clubs={pendingClubs} spacesMode="requested" />
+          </div>
+        </div>
+      )}
+
+      {/* Pending traders - still cards; the trader tab hasn't moved to
+          tables, so keeping the card grid here keeps the two in step. */}
+      {features.traders.enabled && pendingTraders.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Pending Traders</div>
+              <div className="section-subtitle">
+                {pendingTraders.length} awaiting review
+              </div>
+            </div>
+            <a
+              href="#"
+              className="section-link"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveTab("traders");
+              }}
+            >
+              Manage →
+            </a>
+          </div>
           <div className="section-body">
-            <div className="showcars-section-grid">
-              {pendingShowCars.map((car) => (
-                <ShowCarCard key={car.id} car={car} actions="pending" />
+            <div className="app-card-grid">
+              {pendingTraders.map((trader) => (
+                <AppCard key={trader.id} kind="trader" entity={trader} />
               ))}
             </div>
           </div>
         </div>
       )}
-
-      {/* Pending clubs / traders */}
-      {(features.car_clubs.enabled || features.traders.enabled) &&
-        (pendingClubs.length > 0 || pendingTraders.length > 0) && (
-          <div
-            className={
-              features.car_clubs.enabled && features.traders.enabled
-                ? "two-col"
-                : ""
-            }
-          >
-            {features.car_clubs.enabled && pendingClubs.length > 0 && (
-              <div className="section">
-                <div className="section-header">
-                  <div>
-                    <div className="section-title">Pending Car Clubs</div>
-                    <div className="section-subtitle">
-                      {pendingClubs.length} awaiting review
-                    </div>
-                  </div>
-                  <a
-                    href="#"
-                    className="section-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveTab("clubs");
-                    }}
-                  >
-                    Manage →
-                  </a>
-                </div>
-                <div className="section-body">
-                  <div className="app-card-grid">
-                    {pendingClubs.map((club) => (
-                      <AppCard key={club.id} kind="club" entity={club} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {features.traders.enabled && pendingTraders.length > 0 && (
-              <div className="section">
-                <div className="section-header">
-                  <div>
-                    <div className="section-title">Pending Traders</div>
-                    <div className="section-subtitle">
-                      {pendingTraders.length} awaiting review
-                    </div>
-                  </div>
-                  <a
-                    href="#"
-                    className="section-link"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      setActiveTab("traders");
-                    }}
-                  >
-                    Manage →
-                  </a>
-                </div>
-                <div className="section-body">
-                  <div className="app-card-grid">
-                    {pendingTraders.map((trader) => (
-                      <AppCard key={trader.id} kind="trader" entity={trader} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
     </>
   );
 }

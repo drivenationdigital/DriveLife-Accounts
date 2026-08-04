@@ -1,23 +1,22 @@
 "use client";
 
 import { useEventData } from "@/context/EventContext";
-import { useUI } from "@/context/UIContext";
 import { KpiCard } from "@/components/cards/KpiCard";
+import { ClubTable } from "@/components/tables/ClubTable";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
-import { CheckIcon, XIcon, DownloadIcon } from "@/components/ui/Icons";
+import { DownloadIcon } from "@/components/ui/Icons";
 import { useClubApplications } from "@/lib/clubApplications";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
 import type { Club } from "@/context/types";
 
 /**
- * Clubs tab - lists car club applications grouped by status.
+ * Clubs tab - car club applications, one section card per status
+ * (Pending / Approved / Rejected), each holding a table.
  *
- * Markup mirrors the dashboard's existing section/club-row classes
- * (section / section-body flush / club-row / club-name / club-sub /
- * tab-count / pill). Reads from the dedicated useClubApplications
- * query so the list refreshes on tab focus + after approve/reject.
- * Approve/reject open the detail modal, which owns the mutation.
+ * Reads from the dedicated useClubApplications query so the list
+ * refreshes on tab focus + after approve/reject. Approve/reject open
+ * the detail modal, which owns the mutation.
  */
 export function ClubsTab() {
   const { event } = useEventData();
@@ -82,185 +81,80 @@ export function ClubsTab() {
         <KpiCard label="Attending Members" value={attendingMembers} />
       </div>
 
-      <div className="section">
-        <div className="section-header">
-          <div>
-            <div className="section-title">Car Club Applications</div>
-            <div className="section-subtitle">
-              All clubs organised by status
-            </div>
-          </div>
+      {pending.length > 0 && (
+        <ClubSection
+          title="Pending Club Applications"
+          subtitle={`${pending.length} awaiting review`}
+          clubs={pending}
+          spacesMode="requested"
+        />
+      )}
+
+      {confirmed.length > 0 && (
+        <ClubSection
+          title="Approved Clubs"
+          subtitle={`${confirmed.length} confirmed for event`}
+          clubs={confirmed}
+          spacesMode="sold"
+          onExport={handleExport}
+          exporting={exportApps.isPending}
+        />
+      )}
+
+      {rejected.length > 0 && (
+        <ClubSection
+          title="Rejected Clubs"
+          subtitle={`${rejected.length} ${rejected.length === 1 ? "application" : "applications"} rejected`}
+          clubs={rejected}
+          spacesMode="requested"
+        />
+      )}
+    </>
+  );
+}
+
+/**
+ * One status group as its own section card. Approved is the only
+ * group that carries the export button - it's the list that becomes a
+ * gate list on the day.
+ */
+function ClubSection({
+  title,
+  subtitle,
+  clubs,
+  spacesMode,
+  onExport,
+  exporting,
+}: {
+  title: string;
+  subtitle: string;
+  clubs: Club[];
+  spacesMode: "requested" | "sold";
+  onExport?: () => void;
+  exporting?: boolean;
+}) {
+  return (
+    <div className="section">
+      <div className="section-header">
+        <div>
+          <div className="section-title">{title}</div>
+          <div className="section-subtitle">{subtitle}</div>
+        </div>
+        {onExport && (
           <button
             type="button"
             className="btn btn-secondary"
-            onClick={handleExport}
-            disabled={exportApps.isPending}
+            onClick={onExport}
+            disabled={exporting}
           >
             <DownloadIcon />
             Export
           </button>
-        </div>
-
-        <div className="section-body flush">
-          <ClubGroup
-            label="Pending"
-            tone="warn"
-            clubs={pending}
-            variant="pending"
-            isFirst
-          />
-          <ClubGroup
-            label="Confirmed"
-            tone="success"
-            clubs={confirmed}
-            variant="managed"
-          />
-          <ClubGroup
-            label="Rejected"
-            tone="muted"
-            clubs={rejected}
-            variant="managed"
-          />
-        </div>
+        )}
       </div>
-    </>
-  );
-}
-
-function ClubGroup({
-  label,
-  tone,
-  clubs,
-  variant,
-  isFirst,
-}: {
-  label: string;
-  tone: "warn" | "success" | "muted";
-  clubs: Club[];
-  variant: "pending" | "managed";
-  isFirst?: boolean;
-}) {
-  if (clubs.length === 0) return null;
-
-  // tab-count colours per the mock: warn-soft/warn, success-soft/
-  // success, bg-2/muted. Inline styles match the reference HTML so
-  // we don't depend on extra class variants existing.
-  const pillStyle: React.CSSProperties =
-    tone === "warn"
-      ? { background: "var(--warn-soft)", color: "var(--warn)" }
-      : tone === "success"
-        ? { background: "var(--success-soft)", color: "var(--success)" }
-        : { background: "var(--bg-2)", color: "var(--muted)" };
-
-  return (
-    <>
-      <div
-        style={{
-          padding: "14px 24px 8px",
-          borderBottom: "1px solid var(--border)",
-          borderTop: isFirst ? undefined : "1px solid var(--border)",
-          display: "flex",
-          gap: 8,
-        }}
-      >
-        <span
-          className="tab-count"
-          style={{ ...pillStyle, fontWeight: 600, padding: "4px 10px" }}
-        >
-          {label} · {clubs.length}
-        </span>
+      <div className="section-body flush">
+        <ClubTable clubs={clubs} spacesMode={spacesMode} />
       </div>
-      {clubs.map((club) => (
-        <ClubRow key={club.id} club={club} variant={variant} />
-      ))}
-    </>
-  );
-}
-
-function ClubRow({
-  club,
-  variant,
-}: {
-  club: Club;
-  variant: "pending" | "managed";
-}) {
-  const { openDetail } = useUI();
-  const openView = () => openDetail({ type: "club", data: club });
-
-  // FE status → pill class. The stylesheet styles confirmed clubs
-  // via the `paid` pill class and rejected via `refunded`. The FE
-  // 'approved' status IS the confirmed state for clubs (server maps
-  // DB 'paid' → 'approved'), so we label it "Confirmed".
-  const pillClass =
-    club.status === "approved"
-      ? "paid"
-      : club.status === "rejected"
-        ? "refunded"
-        : "pending";
-  const pillLabel =
-    club.status === "approved"
-      ? "Confirmed"
-      : club.status.charAt(0).toUpperCase() + club.status.slice(1);
-
-  return (
-    <div
-      className="club-row"
-      onClick={openView}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          openView();
-        }
-      }}
-    >
-      <div>
-        <div className="club-name">{club.name}</div>
-        <div className="club-sub">
-          {variant === "pending"
-            ? `${club.membersAttending} member${club.membersAttending === 1 ? "" : "s"} attending · ${club.appliedLabel}`
-            : club.status === "rejected"
-              ? club.updatedLabel
-              : `${club.membersAttending} member${club.membersAttending === 1 ? "" : "s"} attending · ${club.updatedLabel}`}
-        </div>
-      </div>
-
-      {variant === "pending" ? (
-        <div style={{ display: "flex", gap: 6, marginRight: 10 }}>
-          {/* Both buttons open the detail modal, which owns the
-              approve/reject mutation + async UI. stopPropagation so
-              the row's own openView doesn't also fire. */}
-          <button
-            type="button"
-            className="showcar-action-btn approve"
-            style={{ width: 28, height: 28 }}
-            title="Review & approve"
-            onClick={(e) => {
-              e.stopPropagation();
-              openView();
-            }}
-          >
-            <CheckIcon />
-          </button>
-          <button
-            type="button"
-            className="showcar-action-btn reject"
-            style={{ width: 28, height: 28 }}
-            title="Review & reject"
-            onClick={(e) => {
-              e.stopPropagation();
-              openView();
-            }}
-          >
-            <XIcon />
-          </button>
-        </div>
-      ) : (
-        <div />
-      )}
-
-      <span className={`pill ${pillClass}`}>{pillLabel}</span>
     </div>
   );
 }

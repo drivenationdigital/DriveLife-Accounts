@@ -68,7 +68,7 @@ export default function NotificationsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-8 md:px-6">
       <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-extrabold text-ink-900">Notifications</h1>
+        <h1 className="page-title">Notifications</h1>
         {initiallyUnread && initiallyUnread.size > 0 && (
           <span className="text-sm text-ink-400">
             {initiallyUnread.size} new

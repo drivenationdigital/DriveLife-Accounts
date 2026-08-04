@@ -12,7 +12,12 @@ export function MyEventsSummary() {
   const events = data?.events ?? [];
 
   const openEvent = (event: EventRecord) => {
-    router.push(`/events/${event.encrypted_id}`);
+    console.log(event);
+    if (event.can_manage === true) {
+      router.push(`/events/${event.encrypted_id}/edit`);
+    } else {
+      window.open(event.link, "_blank");
+    }
   };
 
   return (

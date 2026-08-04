@@ -2,7 +2,7 @@
 
 import { useEventData } from "@/context/EventContext";
 import { KpiCard } from "@/components/cards/KpiCard";
-import { ShowCarCard } from "@/components/cards/ShowCarCard";
+import { ShowCarTable } from "@/components/tables/ShowCarTable";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { ComingSoonBanner } from "@/components/ui/ComingSoonBanner";
 import { useShowCarApplications } from "@/lib/showCarApplications";
@@ -26,11 +26,13 @@ import type { ShowCar, Ticket } from "@/context/types";
  *   - KPI strip across the top - Pending Review, Awaiting Payment,
  *     Confirmed. Rejected doesn't get a KPI because it's not a target
  *     metric.
+ *   - One section card per status group (Pending / Awaiting Payment /
+ *     Confirmed / Rejected), each holding a table of applications.
+ *     A group only renders when it has rows - the KPI strip already
+ *     carries the zero counts.
  *   - "Confirmed Spaces by Category" table showing utilisation per
- *     show car category (only rendered when categoryStats has rows).
- *   - One "Show Car Applications" card containing all four status
- *     groups as nested subsections. Each subsection only renders when
- *     it has rows - the KPI strip already carries the zero counts.
+ *     show car category (only rendered when there are show car
+ *     tickets).
  *
  * Empty states:
  *
@@ -91,40 +93,41 @@ export function ShowCarsTab() {
 
   // Render groups in workflow order: applications enter at "Pending
   // Review", move to "Awaiting Payment" on approval, then "Confirmed"
-  // after payment; rejection branches off at any point.
+  // after payment; rejection branches off at any point. Each group is
+  // its own section card - the statuses are separate concerns for the
+  // organiser, so merging them into one box buried the boundaries.
   const groups: Array<{
     key: ShowCar["status"];
     title: string;
-    dot: string;
-    variant: "pending" | "managed";
+    subtitle: string;
     cars: ShowCar[];
+    /** Only the confirmed list is worth exporting - it's the one that
+     *  becomes a gate list on the day. */
+    exportable?: boolean;
   }> = [
     {
       key: "pending",
-      title: "Pending Review",
-      dot: "dot-pending",
-      variant: "pending",
+      title: "Pending Show Cars",
+      subtitle: `${pending.length} ${pending.length === 1 ? "application" : "applications"} awaiting review`,
       cars: pending,
     },
     {
       key: "awaiting-payment",
       title: "Awaiting Payment",
-      dot: "dot-approved",
-      variant: "managed",
+      subtitle: `${awaitingPayment.length} approved - waiting for payment`,
       cars: awaitingPayment,
     },
     {
       key: "confirmed",
-      title: "Confirmed",
-      dot: "dot-confirmed",
-      variant: "managed",
+      title: "Confirmed Show Cars",
+      subtitle: `${confirmed.length} paid and confirmed for event`,
       cars: confirmed,
+      exportable: true,
     },
     {
       key: "rejected",
-      title: "Rejected",
-      dot: "dot-rejected",
-      variant: "managed",
+      title: "Rejected Show Cars",
+      subtitle: `${rejected.length} ${rejected.length === 1 ? "application" : "applications"} rejected`,
       cars: rejected,
     },
   ];
@@ -150,6 +153,53 @@ export function ShowCarsTab() {
           valueColor="var(--success)"
         />
       </div>
+
+      {showCars.length === 0 ? (
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Show Car Applications</div>
+            </div>
+          </div>
+          <div className="section-body">
+            <div
+              style={{
+                padding: "32px 16px",
+                textAlign: "center",
+                color: "var(--muted)",
+                fontSize: 14,
+              }}
+            >
+              No applications yet. Applications will appear here as car owners
+              submit them.
+            </div>
+          </div>
+        </div>
+      ) : (
+        populated.map((g) => (
+          <div className="section" key={g.key}>
+            <div className="section-header">
+              <div>
+                <div className="section-title">{g.title}</div>
+                <div className="section-subtitle">{g.subtitle}</div>
+              </div>
+              {g.exportable && (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleExport}
+                  disabled={exportApps.isPending}
+                >
+                  <DownloadIcon /> Export
+                </button>
+              )}
+            </div>
+            <div className="section-body flush">
+              <ShowCarTable cars={g.cars} />
+            </div>
+          </div>
+        ))
+      )}
 
       {showCarTickets.length > 0 && (
         <div className="section">
@@ -199,52 +249,6 @@ export function ShowCarsTab() {
         </div>
       )}
 
-      <div className="section">
-        <div className="section-header">
-          <div>
-            <div className="section-title">Show Car Applications</div>
-            <div className="section-subtitle">
-              Approve or reject applications, grouped by status
-            </div>
-          </div>
-          {showCars.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={handleExport}
-              disabled={exportApps.isPending}
-            >
-              <DownloadIcon /> Export
-            </button>
-          )}
-        </div>
-        <div className="section-body">
-          {showCars.length === 0 ? (
-            <div
-              style={{
-                padding: "32px 16px",
-                textAlign: "center",
-                color: "var(--muted)",
-                fontSize: 14,
-              }}
-            >
-              No applications yet. Applications will appear here as car owners
-              submit them.
-            </div>
-          ) : (
-            populated.map((g, idx) => (
-              <ApplicationGroup
-                key={g.key}
-                title={g.title}
-                dot={g.dot}
-                cars={g.cars}
-                variant={g.variant}
-                isFirst={idx === 0}
-              />
-            ))
-          )}
-        </div>
-      </div>
     </>
   );
 }
@@ -272,74 +276,5 @@ function CategoryRow({ ticket }: { ticket: Ticket }) {
         </div>
       </td>
     </tr>
-  );
-}
-
-/**
- * One status block inside the Show Car Applications card. Renders a
- * dot + title + count pill header, then the application cards grid.
- * Subsequent groups get a top border so they read as siblings rather
- * than stacked cards - `isFirst` controls that.
- */
-function ApplicationGroup({
-  title,
-  dot,
-  cars,
-  variant,
-  isFirst,
-}: {
-  title: string;
-  dot: string;
-  cars: ShowCar[];
-  variant: "pending" | "managed";
-  isFirst: boolean;
-}) {
-  return (
-    <div
-      style={{
-        paddingTop: isFirst ? 0 : 20,
-        marginTop: isFirst ? 0 : 20,
-        borderTop: isFirst ? undefined : "1px solid var(--border)",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          marginBottom: 14,
-        }}
-      >
-        <span className={`showcars-dot ${dot}`} />
-        <h4
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: 16,
-            fontWeight: 700,
-            color: "var(--ink)",
-            margin: 0,
-          }}
-        >
-          {title}
-        </h4>
-        <span
-          style={{
-            padding: "3px 10px",
-            borderRadius: 999,
-            background: "var(--card-soft, rgba(0,0,0,0.05))",
-            fontSize: 12,
-            color: "var(--muted)",
-            fontWeight: 500,
-          }}
-        >
-          {cars.length} {cars.length === 1 ? "application" : "applications"}
-        </span>
-      </div>
-      <div className="showcars-section-grid">
-        {cars.map((car) => (
-          <ShowCarCard key={car.id} car={car} actions={variant} />
-        ))}
-      </div>
-    </div>
   );
 }

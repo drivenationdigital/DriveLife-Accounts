@@ -44,9 +44,7 @@ export default function CreateHubPage() {
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600">
           Create Something
         </p>
-        <h1 className="mt-1 text-2xl font-extrabold text-ink-900 md:text-3xl">
-          What would you like to add?
-        </h1>
+        <h1 className="page-title mt-1">What would you like to add?</h1>
         <p className="mx-auto mt-2 max-w-md text-sm text-ink-500">
           Choose what you’d like to create. You can always edit or remove it
           later from your dashboard.

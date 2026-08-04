@@ -220,7 +220,7 @@
   align-items: center;
 }
 .topbar-logo .logo-wordmark {
-  height: 24px;
+  height: 31px;
   width: auto;
   display: block;
 }
@@ -654,6 +654,7 @@
   min-width: 0;
   padding: 28px 36px 60px;
   max-width: 1400px;
+  margin-inline: auto !important;
 }
 .breadcrumb {
   display: flex;
@@ -1200,6 +1201,101 @@
   font-family: "Geist Mono", monospace;
   font-size: 12.5px;
 }
+
+/* ------------------------------------------------------------------
+ * Application tables (show cars + car clubs).
+ *
+ * The show-car and club application lists reuse the card-era text
+ * classes (.showcar-model, .showcar-reg, .showcar-owner, ...) inside
+ * table cells. Those classes carry card spacing - margins, a top
+ * border on the date line - which reads wrong in a row, so the table
+ * context flattens them here rather than forking a second set of
+ * names. */
+/* Scoped under .table deliberately: .showcar-photo is defined further
+ * down this file with width:100% and a 16/9 ratio, so an unscoped
+ * .row-thumb would lose the cascade to it and the thumbnails would
+ * render full-bleed. */
+.table .row-thumb {
+  width: 48px;
+  height: 48px;
+  aspect-ratio: 1 / 1;
+  border-radius: 8px;
+  margin-bottom: 0;
+}
+.table .row-thumb-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 16px;
+}
+/* Initials avatar for club rows. Tints t1-t5 are assigned from a hash
+ * of the club name so a given club keeps the same colour everywhere. */
+.app-card-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-2);
+  color: var(--ink-2);
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  flex-shrink: 0;
+}
+.app-card-logo.t1 {
+  background: linear-gradient(135deg, #f2ead8, #b2915c);
+  color: #fff;
+}
+.app-card-logo.t2 {
+  background: linear-gradient(135deg, #e8dfd0, #6b5432);
+  color: #fff;
+}
+.app-card-logo.t3 {
+  background: linear-gradient(135deg, #d8dfe8, #3d5a7a);
+  color: #fff;
+}
+.app-card-logo.t4 {
+  background: linear-gradient(135deg, #e4dce4, #6e5a70);
+  color: #fff;
+}
+.app-card-logo.t5 {
+  background: linear-gradient(135deg, #d5dccd, #5a6a4a);
+  color: #fff;
+}
+.table td.showcar-date {
+  display: table-cell;
+  margin: 0;
+  padding-top: 14px;
+  border-top: none;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.table .showcar-model {
+  margin-bottom: 0;
+  font-size: 13.5px;
+}
+.table .showcar-reg {
+  margin-bottom: 0;
+}
+.table .showcar-owner {
+  margin-bottom: 0;
+  font-size: 13px;
+}
+.table .btn-view {
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+}
+/* Actions column - fixed narrow, right-aligned. */
+.table th.col-actions,
+.table td.col-actions {
+  width: 90px;
+  text-align: right;
+}
+.table th.col-thumb,
+.table td.col-thumb {
+  width: 64px;
+}
+
 .order-id {
   color: var(--gold-deep);
   font-weight: 500;
@@ -3804,7 +3900,7 @@
 
 .dash-tiles-wrap { text-align: center; margin-bottom: 32px; }
 .dash-tiles-heading { font-size: 28px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0 0 24px; }
-.dash-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.dash-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
 .dash-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; padding: 28px 16px; text-decoration: none; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s, transform .15s; }
 .dash-tile:hover { box-shadow: 0 6px 18px rgba(31,29,24,.1); transform: translateY(-2px); }
 .dash-tile-icon { color: var(--gold-deep, #bd7420); }
@@ -3969,3 +4065,34 @@
 .icon-btn.confirm { color: #1e7b3c; }
 .icon-btn.confirm:hover { background: #e7f6ec; }
 .icon-btn.cancel:hover { background: #fdf0f0; color: #b33; }
+/* ─────────────────────────────────────────────────────────────────────
+   Page titles - every dashboard page heading matches "My Events".
+   Placed last so it wins over the per-page title rules above; margins
+   stay with those rules so each page keeps its own spacing.
+   ───────────────────────────────────────────────────────────────────── */
+.page-title,
+.mc-title,
+.mt-title,
+.mv-title,
+.se-title,
+.gu-title,
+.dash-tiles-heading {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink, #1f1d18);
+  letter-spacing: -0.01em;
+}
+
+@media (max-width: 720px) {
+  .page-title,
+  .mc-title,
+  .mt-title,
+  .mv-title,
+  .se-title,
+  .gu-title,
+  .dash-tiles-heading {
+    font-size: 32px;
+  }
+}
