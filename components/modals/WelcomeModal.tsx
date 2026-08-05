@@ -19,8 +19,8 @@ import {
  *
  * Shown once, to new accounts only: the server sets `needs_onboarding`
  * while `ce_user_meta.about_contents` is empty, which is true until the
- * user picks what describes them here. Saving writes those indices, so
- * the modal never comes back - on this dashboard or in the app.
+ * user picks what describes them here. Saving writes that index, so the
+ * modal never comes back - on this dashboard or in the app.
  *
  * Deliberately not dismissible (no close button, no backdrop click, no
  * Escape). An answer is the only way out, otherwise `about_contents`
@@ -56,7 +56,9 @@ export function WelcomeModal() {
   const runAction = useAction();
 
   const [step, setStep] = useState<1 | 2>(1);
-  const [picked, setPicked] = useState<number[]>([]);
+  // Single choice - `about_contents` stays an array for the app's sake,
+  // but only ever holds the one profile type picked here.
+  const [picked, setPicked] = useState<number | null>(null);
 
   // Only a loaded account can tell us this; older WP deployments omit
   // the flag entirely, in which case nobody sees the flow.
@@ -70,15 +72,8 @@ export function WelcomeModal() {
 
   if (!open) return null;
 
-  const toggle = (value: number) =>
-    setPicked((current) =>
-      current.includes(value)
-        ? current.filter((v) => v !== value)
-        : [...current, value],
-    );
-
   const finish = async () => {
-    if (picked.length === 0) return;
+    if (picked === null) return;
     // No confirm step - picking and pressing "Get started" is already
     // the deliberate action. The account cache updates on success, which
     // flips needs_onboarding and unmounts this.
@@ -89,7 +84,7 @@ export function WelcomeModal() {
       errorTitle: "Couldn't save your choices",
       run: () =>
         updateAccount.mutateAsync({
-          about_contents: [...picked].sort((a, b) => a - b),
+          about_contents: [picked],
         }),
     });
   };
@@ -142,7 +137,7 @@ export function WelcomeModal() {
                 Which best describes you?
               </div>
               <div className="welcome-sub">
-                Pick everything that applies - we&apos;ll tailor your dashboard
+                Pick the one that fits best - we&apos;ll tailor your dashboard
                 to how you use CarEvents.
               </div>
             </div>
@@ -151,11 +146,11 @@ export function WelcomeModal() {
                 {PROFILE_TYPE_OPTIONS.map((option) => (
                   <label className="welcome-choice" key={option.value}>
                     <input
-                      type="checkbox"
+                      type="radio"
                       name="welcome-role"
                       value={option.value}
-                      checked={picked.includes(option.value)}
-                      onChange={() => toggle(option.value)}
+                      checked={picked === option.value}
+                      onChange={() => setPicked(option.value)}
                     />
                     <span className="welcome-check" aria-hidden="true" />
                     <span className="welcome-choice-text">
@@ -175,7 +170,7 @@ export function WelcomeModal() {
                 type="button"
                 className="btn"
                 onClick={finish}
-                disabled={picked.length === 0}
+                disabled={picked === null}
               >
                 Get started
               </button>

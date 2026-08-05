@@ -4256,11 +4256,11 @@
   opacity: 0;
   pointer-events: none;
 }
-/* Multi-select, so a square box rather than a radio dot. */
+/* Single-select, so a radio dot rather than a square tick box. */
 .welcome-check {
   width: 18px;
   height: 18px;
-  border-radius: 5px;
+  border-radius: 50%;
   border: 2px solid var(--border-strong);
   flex-shrink: 0;
   display: inline-flex;
@@ -4274,11 +4274,10 @@
 }
 .welcome-choice:has(input:checked) .welcome-check::after {
   content: "";
-  width: 9px;
-  height: 5px;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #fff;
-  transform: translateY(-1px) rotate(-45deg);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
 }
 .welcome-choice:has(input:focus-visible) {
   border-color: var(--gold);
