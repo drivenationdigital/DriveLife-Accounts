@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import AccountSkeleton from "@/components/account/AccountSkeleton";
 import {
   useAccount,
   useUpdateAccount,
@@ -120,13 +121,7 @@ export default function AccountPage() {
 
   // ── Loading / error ─────────────────────────────────────────────
   if (isLoading && !account) {
-    return (
-      <div className="mx-auto max-w-3xl px-4 py-8 md:px-6">
-        <div className="rounded-2xl bg-white p-10 text-center shadow-sm ring-1 ring-ink-100">
-          <p className="text-sm text-ink-500">Loading your details…</p>
-        </div>
-      </div>
-    );
+    return <AccountSkeleton />;
   }
 
   if (error || !account) {
