@@ -13,7 +13,17 @@ export const mockEventData: EventData = {
     slug: "porsche-ft-genome-design-25-04-26",
     site: "uk",
     siteLabel: "United Kingdom",
+    siteCountry: "GB",
+    siteTicketing: true,
+    isRecurringParent: false,
+    isRecurringChild: false,
+    recurringDisplay: "",
+    parentEid: "",
+    recurringCount: 0,
   },
+
+  // A one-off event, so no occurrence table.
+  occurrences: null,
 
   kpis: {
     totalOrders: 220,

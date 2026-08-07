@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { EventCard } from "@/components/event/EventCard";
 import { useSavedEvents, type SavedEventScope } from "@/lib/savedEvents";
 import type { EventRecord } from "@/lib/apiTypes";
+import { eventRowPath } from "@/lib/siteRoutes";
 
 export default function SavedEventsPage() {
   const router = useRouter();
@@ -14,7 +15,7 @@ export default function SavedEventsPage() {
     // owners/admins to the manage view (which needs an admin token);
     // everyone else goes to the public event preview.
     if (event.can_manage) {
-      router.push(`/events/${event.encrypted_id}`);
+      router.push(eventRowPath(event));
     } else if (event.link) {
       // Public permalink - open in a new tab (leaves the dashboard).
       window.open(event.link, "_blank", "noopener,noreferrer");

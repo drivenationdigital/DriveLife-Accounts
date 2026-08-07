@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { EventCard } from "@/components/event/EventCard";
 import { useMyEventsSummary } from "@/lib/myEventsSummary";
 import type { EventRecord } from "@/lib/apiTypes";
+import { eventRowPath } from "@/lib/siteRoutes";
 
 export function MyEventsSummary() {
   const router = useRouter();
@@ -12,9 +13,8 @@ export function MyEventsSummary() {
   const events = data?.events ?? [];
 
   const openEvent = (event: EventRecord) => {
-    console.log(event);
     if (event.can_manage === true) {
-      router.push(`/events/${event.encrypted_id}/edit`);
+      router.push(eventRowPath(event));
     } else {
       window.open(event.link, "_blank");
     }

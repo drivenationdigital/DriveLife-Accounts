@@ -3,6 +3,8 @@
 import type { EventRecord } from "@/lib/apiTypes";
 import { DEFAULT_EVENT_COVER } from "@/lib/eventDefaults";
 import { clickableRow } from "@/components/ui/clickableRow";
+import { CountryFlag } from "@/components/ui/CountryFlag";
+import { eventKey } from "@/lib/eventKey";
 
 const STATUS_LABEL: Record<string, string> = {
   publish: "Published",
@@ -37,7 +39,7 @@ export function EventsTableView({ events, onRowClick, dimmed }: Props) {
           </thead>
           <tbody>
             {events.map((ev) => (
-              <Row key={ev.id} event={ev} onRowClick={onRowClick} />
+              <Row key={eventKey(ev)} event={ev} onRowClick={onRowClick} />
             ))}
           </tbody>
         </table>
@@ -79,6 +81,18 @@ function Row({
                   img.src = DEFAULT_EVENT_COVER;
               }}
             />
+            {/* Region marker - the list merges both regions, so without
+                it two same-named events are indistinguishable. No key
+                text at this size; the flag alone carries it, and the
+                label is on the element for screen readers.
+                Account dashboard only, never the public site. */}
+            {event.site && (
+              <CountryFlag
+                country={event.site.country}
+                label={event.site.label}
+                className="tbl-site-flag"
+              />
+            )}
           </div>
           <div className="tbl-event-text">
             <div className="tbl-event-title">
@@ -128,7 +142,17 @@ function mapStatus(postStatus: string): string {
 
 function formatDateSubLabel(event: EventRecord): string {
   if (event.is_recurring && event.recurring) {
-    return event.recurring.display || "Recurring";
+    const pattern = event.recurring.display || "Recurring";
+    // The card opens the next occurrence, not the series, so name the
+    // date a click actually lands on rather than the pattern alone.
+    const next = event.next_occurrence;
+    if (!next?.start_date) return pattern;
+    // `is_past` means every occurrence has been and gone and the API
+    // fell back to the FIRST child. Printing that date next to "Next"
+    // would read as an upcoming event, so say what's actually true.
+    return next.is_past
+      ? `${pattern} · All dates passed`
+      : `${pattern} · Next ${formatSingleDate(next.start_date)}`;
   }
 
   const start = event.first_date?.start_date;

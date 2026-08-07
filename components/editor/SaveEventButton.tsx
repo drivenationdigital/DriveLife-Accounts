@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEventCreate } from "@/context/EventCreateContext";
+import { eventDetailPath } from "@/lib/siteRoutes";
 import { useSaveEvent } from "@/lib/eventMutations";
 import { canSaveDates } from "@/lib/eventSaveMapper";
 import { ApiError } from "@/lib/apiClient";
@@ -34,7 +35,7 @@ export function SaveEventButton({
       onSuccess: (data) => {
         // The view page keys off the encrypted id (the `[id]` segment
         // is really the eid). Send the user there after a save.
-        router.push(`/events/${data.encrypted_id}`);
+        router.push(eventDetailPath(data.encrypted_id, state.site));
       },
     });
   };

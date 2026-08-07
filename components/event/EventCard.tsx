@@ -21,7 +21,6 @@ interface Props {
 export function EventCard({ event, onClick }: Props) {
   const statusKey = mapStatus(event.post_status);
   const statusLabel = STATUS_LABEL[event.post_status] ?? event.status.label;
-  const type = event.type ?? "free";
 
   const dateLabel = formatDateLabel(event);
   const timeLabel = formatTimeLabel(event);
@@ -51,24 +50,26 @@ export function EventCard({ event, onClick }: Props) {
         <div className="ev-cover-gradient" />
         <div className="ev-cover-pills">
           <span className={`pill-status ${statusKey}`}>{statusLabel}</span>
-          <span className={`pill-solid ${type}`}>
-            {type === "ticketed" ? "Ticketed" : "Free"}
-          </span>
         </div>
-        {event.is_pinned && (
-          <span className="ev-pinned-marker" aria-label="Pinned">
-            ★
-          </span>
-        )}
-        {event.site && (
-          <span className="ev-site-badge">
-            <CountryFlag
-              country={event.site.country}
-              label={event.site.label}
-            />
-            {event.site.key.toUpperCase()}
-          </span>
-        )}
+        {/* Top-right cluster. Both markers want the same corner and the
+            pinned star is the rarer of the two, so they share a row
+            rather than one being pushed elsewhere. */}
+        <div className="ev-cover-corner">
+          {event.is_pinned && (
+            <span className="ev-pinned-marker" aria-label="Pinned">
+              ★
+            </span>
+          )}
+          {event.site && (
+            <span className="ev-site-badge">
+              <CountryFlag
+                country={event.site.country}
+                label={event.site.label}
+              />
+              {event.site.key.toUpperCase()}
+            </span>
+          )}
+        </div>
       </div>
       <div className="ev-body">
         <h3 className="ev-title">{event.title}</h3>
@@ -112,6 +113,13 @@ function mapStatus(postStatus: string): string {
   }
 }
 
+/**
+ * The calendar line.
+ *
+ * On a recurring series this is the pattern on its own ("Last Wednesday
+ * Of Every Month"); the concrete next date goes on the clock line below
+ * it, so the two facts get a line each instead of being run together.
+ */
 function formatDateLabel(event: EventRecord): string {
   if (event.is_recurring && event.recurring) {
     return event.recurring.display || "Recurring";
@@ -127,7 +135,25 @@ function formatDateLabel(event: EventRecord): string {
   return formatRange(start, end);
 }
 
+/**
+ * The clock line.
+ *
+ * On a recurring series it carries the occurrence a click actually
+ * opens, rather than a time - the card links to the next occurrence,
+ * not the series, and the pattern alone doesn't say which date that is.
+ */
 function formatTimeLabel(event: EventRecord): string {
+  if (event.is_recurring && event.recurring) {
+    const next = event.next_occurrence;
+    if (!next?.start_date) return "";
+    // `is_past` means every occurrence has been and gone and the API
+    // fell back to the FIRST child. Printing that date after "Next"
+    // would read as an upcoming event, so say what's actually true.
+    return next.is_past
+      ? "All dates passed"
+      : `Next ${formatSingleDate(next.start_date)}`;
+  }
+
   const startTime = event.first_date?.start_time;
   const endTime = event.last_date?.end_time ?? event.first_date?.end_time;
   if (startTime && endTime && startTime !== endTime) {

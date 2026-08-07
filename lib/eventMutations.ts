@@ -25,6 +25,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "./apiClient";
 import type { EventCreateState } from "@/context/EventCreateContext";
+import type { SiteKey } from "./apiTypes";
 import type { CreateEventParams, CreateEventResponse } from "./queries";
 import {
   mapStateToUpdateRequest,
@@ -47,11 +48,22 @@ const HOST_TYPE_TO_EVENT_TYPE: Record<
   venue: "venue_dover",
 };
 
-/** POST the update. `eid` rides in the query string (the route's
- *  registered arg); the section payload is the JSON body. */
-function postEventUpdate(eid: string, body: ApiEventUpdateRequest) {
+/** POST the update. `eid` and `site` ride in the query string (the
+ *  route's registered args); the section payload is the JSON body.
+ *
+ *  `site` picks the multisite blog to resolve `eid` on. Without it the
+ *  API defaults to UK, so saving a US event would write to whatever UK
+ *  post shares its id - see the note in eventActions.ts. */
+function postEventUpdate(
+  eid: string,
+  body: ApiEventUpdateRequest,
+  site?: SiteKey,
+) {
+  const qs =
+    `eid=${encodeURIComponent(eid)}` +
+    (site ? `&site=${encodeURIComponent(site)}` : "");
   return apiPost<ApiEventUpdateResponse, ApiEventUpdateRequest>(
-    `/event-update?eid=${encodeURIComponent(eid)}`,
+    `/event-update?${qs}`,
     body,
   );
 }
@@ -59,7 +71,8 @@ function postEventUpdate(eid: string, body: ApiEventUpdateRequest) {
 /** Invalidate everything that could now be stale after a save. The
  *  keys mirror those used by useEventForEdit / useEvent /
  *  useOrganiserEvents - prefix matching means we don't need the exact
- *  param objects. */
+ *  param objects, and it deliberately clears both regions' entries for
+ *  this eid rather than trying to guess which one was written. */
 function invalidateEventCaches(
   qc: ReturnType<typeof useQueryClient>,
   eid: string,
@@ -78,9 +91,9 @@ export function useUpdateEvent() {
   return useMutation<
     ApiEventUpdateResponse,
     Error,
-    { eid: string; body: ApiEventUpdateRequest }
+    { eid: string; body: ApiEventUpdateRequest; site?: SiteKey }
   >({
-    mutationFn: ({ eid, body }) => postEventUpdate(eid, body),
+    mutationFn: ({ eid, body, site }) => postEventUpdate(eid, body, site),
     onSuccess: (_data, { eid }) => invalidateEventCaches(qc, eid),
   });
 }
@@ -111,10 +124,13 @@ export function useSaveEvent() {
           },
         );
         eid = created.encrypted_id;
+        // A freshly created draft lives on the API's default site, so
+        // there's no region to send back for it yet.
+        return postEventUpdate(eid, mapStateToUpdateRequest(state));
       }
 
       const body = mapStateToUpdateRequest(state);
-      return postEventUpdate(eid, body);
+      return postEventUpdate(eid, body, state.site ?? undefined);
     },
     onSuccess: (data) => invalidateEventCaches(qc, data.encrypted_id),
   });

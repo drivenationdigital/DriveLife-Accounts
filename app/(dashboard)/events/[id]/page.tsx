@@ -20,6 +20,7 @@ import { Breadcrumb } from "@/components/event/Breadcrumb";
 import { EventHero } from "@/components/event/EventHero";
 import { EventTabs } from "@/components/event/EventTabs";
 import { EventDetailSkeleton } from "@/components/event/EventDetailSkeleton";
+import { OccurrenceTable } from "@/components/event/OccurrenceTable";
 
 const ORDERS_PER_PAGE = 20;
 
@@ -60,14 +61,28 @@ function EventDetailContent() {
 
   const eventQuery = useEvent(eid, { site });
 
-  const showCarsEnabled = eventQuery.data?.show_cars?.enabled === true;
-  const carClubsEnabled = eventQuery.data?.clubs?.enabled === true;
+  // Ticketing is a per-region capability: the US site is listing-only
+  // for now. The API returns shape-identical zero payloads there rather
+  // than erroring, so this gating is about not firing pointless
+  // requests and not rendering empty states - nothing would crash
+  // without it. Absent flags mean a pre-multisite deployment, which was
+  // UK-only and ticketed, so both default to available.
+  const ticketingAvailable =
+    (eventQuery.data?.site?.ticketing ??
+      eventQuery.data?.event?.site?.ticketing ??
+      true) &&
+    (eventQuery.data?.sales?.ticketing_available ?? true);
+
+  const showCarsEnabled =
+    ticketingAvailable && eventQuery.data?.show_cars?.enabled === true;
+  const carClubsEnabled =
+    ticketingAvailable && eventQuery.data?.clubs?.enabled === true;
 
   const ordersQuery = useEventOrders(eid, {
     site,
     limit: ORDERS_PER_PAGE,
     offset: (ordersPage - 1) * ORDERS_PER_PAGE,
-    enabled: activeTab === "orders",
+    enabled: activeTab === "orders" && ticketingAvailable,
   });
 
   const showCarsQuery = useEventShowCars(eid, {
@@ -158,11 +173,26 @@ function EventDetailContent() {
     );
   }
 
+  // A recurring series parent holds the pattern and the child list, not
+  // a date or any sales of its own, so it renders the occurrence table
+  // where a normal event renders its dashboard. There's no separate
+  // occurrence endpoint - /event returns one shape or the other, and
+  // `occurrences !== null` is the switch.
+  const isSeriesParent = eventData.occurrences !== null;
+
+  // The legacy page decided from the first child whether a parent had
+  // any sales surface worth showing at all.
+  const parentHasSales =
+    eventData.occurrences === null ||
+    eventData.occurrences.ticketed ||
+    eventData.occurrences.registrationRequired;
+
   return (
     <EventProvider initialData={eventData}>
       <Breadcrumb />
       <EventHero />
-      <EventTabs />
+      {isSeriesParent && <OccurrenceTable />}
+      {(!isSeriesParent || parentHasSales) && <EventTabs />}
     </EventProvider>
   );
 }

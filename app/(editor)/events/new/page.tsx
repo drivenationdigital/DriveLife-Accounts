@@ -113,11 +113,15 @@ export default function EventCreatePage() {
 function PageInner() {
   const searchParams = useSearchParams();
   const eid = searchParams.get("eid");
+  // The region the eid belongs to, carried in from wherever linked
+  // here. An eid on its own is ambiguous across regions, so this has to
+  // go up on both the load and every subsequent save.
+  const site = searchParams.get("site") || undefined;
 
   // Drives the load. The hook stays idle when eid is null/empty
   // (brand-new event from the create wizard - context is already
   // populated by the wizard, no fetch needed).
-  const query = useEventForEdit(eid);
+  const query = useEventForEdit(eid, site);
   const { dispatch } = useEventCreate();
 
   // Track which eid we've hydrated for. Without this, every render
@@ -132,10 +136,12 @@ function PageInner() {
     if (hydratedFor.current === eid) return;
     dispatch({
       type: "HYDRATE",
-      partial: mapEventEditResponse(query.data),
+      // The region isn't part of the /event-edit payload, so it's
+      // folded in from the URL here. Saving reads it back off state.
+      partial: { ...mapEventEditResponse(query.data), site: site ?? null },
     });
     hydratedFor.current = eid;
-  }, [query.data, eid, dispatch]);
+  }, [query.data, eid, site, dispatch]);
 
   // Loading state - only when we have an eid AND haven't yet
   // hydrated. The data becoming available + the effect running

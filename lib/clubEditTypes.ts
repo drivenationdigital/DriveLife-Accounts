@@ -54,6 +54,11 @@ export interface ClubAdministrator {
 export interface ClubEditData {
   id: number;
   encrypted_id: string;
+  /** Region the club lives on, carried in from the `?site=` param on
+   *  the edit route. Not part of the /club-edit payload - the editor
+   *  folds it in on hydration so saving can send it back up. Empty
+   *  when unknown, which lets the API fall back to its default. */
+  site: string;
 
   // ── Basic details ──────────────────────────────────────────────
   title: string;
@@ -107,6 +112,11 @@ export interface ClubEditResponse {
  */
 export interface ClubUpdateBody {
   cid: string; // encrypted club id
+  /** Multisite blog the club lives on ("uk", "us", …). Part of the
+   *  club's identity, not a filter: cids repeat across regions, so
+   *  without it a US club saves over whatever UK club shares its id.
+   *  Optional so pre-multisite callers still compile. */
+  site?: string;
   post_title: string;
   post_status: ClubPostStatus;
   club_type: ClubTypeValue;
@@ -138,6 +148,7 @@ export interface ClubUpdateBody {
 export const EMPTY_CLUB: ClubEditData = {
   id: 0,
   encrypted_id: "",
+  site: "",
   title: "",
   categoryIds: [],
   locationType: "1",
@@ -163,6 +174,7 @@ export const EMPTY_CLUB: ClubEditData = {
 export function toClubUpdateBody(club: ClubEditData): ClubUpdateBody {
   return {
     cid: club.encrypted_id,
+    site: club.site || undefined,
     post_title: club.title,
     post_status: club.status,
     club_type: club.clubType,

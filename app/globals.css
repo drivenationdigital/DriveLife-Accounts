@@ -2532,7 +2532,10 @@
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
-  max-width: calc(100% - 60px);
+  /* Keeps clear of .ev-cover-corner opposite. The reserve covers the
+     widest case - pinned star plus region badge - since the pills wrap
+     rather than overflow when space is tight. */
+  max-width: calc(100% - 118px);
 }
 
 .ev-body {
@@ -2644,6 +2647,12 @@
   color: var(--danger);
 }
 
+.pill-status.deleted {
+  background: var(--bg-2);
+  color: var(--muted);
+  text-decoration: line-through;
+}
+
 .pill-type {
   display: inline-flex;
   align-items: center;
@@ -2665,10 +2674,18 @@
 }
 
 /* Pinned star marker on cards (replaces the table-only star) */
-.ev-pinned-marker {
+/* Top-right marker cluster on a card cover: pinned star + region
+   badge. Positioned once here so the two markers can't overlap. */
+.ev-cover-corner {
   position: absolute;
   top: 12px;
   right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ev-pinned-marker {
   background: rgba(255, 255, 255, 0.95);
   width: 28px;
   height: 28px;
@@ -2682,12 +2699,10 @@
   backdrop-filter: blur(4px);
 }
 
-/* Country-site badge on cards - sits bottom-right of the cover so it
-   clears the status pills (top-left) and the pinned star (top-right) */
+/* Country-site badge on cards - top-right of the cover, inside
+   .ev-cover-corner, which owns the positioning. Clears the status
+   pills, which sit top-left. */
 .ev-site-badge {
-  position: absolute;
-  bottom: 12px;
-  right: 12px;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2701,6 +2716,77 @@
   line-height: 1;
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
+}
+
+/* Region chip in the event hero. Same information as the card badge,
+   but sitting inline with the title and status rather than over an
+   image, so it takes the surface treatment instead of the glass one. */
+.event-site-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background: var(--bg-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* Link from one occurrence back up to its series parent. */
+.event-series-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 6px 12px 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--gold-deep);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms;
+}
+.event-series-link:hover {
+  border-color: var(--gold);
+  color: var(--gold-hover);
+}
+.event-series-link svg {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.event-series-pattern {
+  padding-left: 8px;
+  border-left: 1px solid var(--border);
+  color: var(--muted);
+  font-weight: 500;
+}
+
+/* Region flag on the events-table thumbnail, top-right. The list merges
+   both regions, so the flag is what tells two same-named events apart.
+   Smaller than the card badge - the thumb is only 48px - and given a
+   white hairline so it reads against a dark cover image.
+
+   Scoped through .tbl-thumb deliberately: .country-flag sets its own
+   size and shadow further down this file, and at equal specificity it
+   would win on source order. */
+.events-page .tbl-thumb .tbl-site-flag {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 16px;
+  height: 8px;
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.9),
+    0 1px 2px rgba(0, 0, 0, 0.35);
 }
 
 .country-flag {
@@ -2772,6 +2858,7 @@
   min-width: 240px;
 }
 .events-page .tbl-thumb {
+  position: relative; /* anchors the region flag in the top-right */
   width: 48px;
   height: 48px;
   border-radius: 8px;
@@ -4386,5 +4473,164 @@
   }
   .welcome-footer {
     padding: 16px 20px 20px;
+  }
+}
+
+/* ============ RECURRING SERIES - OCCURRENCE TABLE ============ */
+/* Shown on a series parent in place of the sales dashboard. The parent
+   post holds the pattern and the child list, not a date of its own. */
+
+.occurrences .section-header {
+  flex-wrap: wrap;
+}
+
+/* Only rendered when the list actually contains deleted rows. */
+.occ-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.occ-toggle input {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--gold);
+  cursor: pointer;
+}
+
+.occ-empty {
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+/* The table scrolls inside its own box rather than widening the page. */
+.occ-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.occ-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+.occ-table thead th {
+  padding: 12px 24px;
+  text-align: left;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.occ-table tbody td {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink-2);
+  vertical-align: top;
+}
+.occ-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.occ-row:hover td {
+  background: var(--bg-2);
+}
+
+/* A deleted occurrence is shown only when the toggle is on, reads as
+   inactive, and offers no link or actions. */
+.occ-row.deleted td {
+  opacity: 0.55;
+}
+.occ-row.deleted:hover td {
+  background: transparent;
+}
+
+.occ-date {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.occ-date-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+.occ-date-link:hover {
+  color: var(--gold-deep);
+  text-decoration: underline;
+}
+.occ-date-label {
+  font-weight: 600;
+  color: var(--ink);
+}
+.occ-next {
+  padding: 3px 8px;
+  border-radius: 20px;
+  background: var(--gold-soft, var(--bg-2));
+  color: var(--gold-deep);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+.occ-title {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.occ-location {
+  max-width: 260px;
+  color: var(--muted);
+}
+
+.occ-actions {
+  white-space: nowrap;
+  text-align: right;
+}
+.occ-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  margin-left: 6px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms, color 120ms;
+}
+.occ-action:hover {
+  border-color: var(--gold);
+  color: var(--gold-deep);
+}
+.occ-action svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 640px) {
+  .occ-table thead th,
+  .occ-table tbody td {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }

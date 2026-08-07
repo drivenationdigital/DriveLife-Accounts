@@ -17,6 +17,7 @@ import {
   EditIcon,
   ExternalLinkIcon,
   MoreVerticalIcon,
+  RepeatIcon,
   InfoCircleIcon,
   CreditCardIcon,
   CircleSlashIcon,
@@ -29,6 +30,8 @@ import {
   useDeleteEvent,
 } from "@/lib/eventActions";
 import { useAction } from "@/context/ActionContext";
+import { eventDetailPath, eventEditorPath } from "@/lib/siteRoutes";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 
 export function EventHero() {
   const { event } = useEventData();
@@ -67,10 +70,12 @@ export function EventHero() {
       successTitle: "Event duplicated",
       successMessage: "The copy has been created as a draft.",
       errorTitle: "Couldn't duplicate the event",
-      run: () => clone.mutateAsync({ eid: event.encryptedId }),
+      run: () =>
+        clone.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
     });
-    // New draft -> straight into its editor.
-    if (res) router.push("/events/new?eid=" + res.encrypted_id);
+    // New draft -> straight into its editor. The clone is created on
+    // the same blog as its source, so it keeps the same region.
+    if (res) router.push(eventEditorPath(res.encrypted_id, event.site));
   };
 
   const handleCancel = async () => {
@@ -87,7 +92,8 @@ export function EventHero() {
       successTitle: "Event cancelled",
       successMessage: "It no longer accepts bookings.",
       errorTitle: "Couldn't cancel the event",
-      run: () => cancel.mutateAsync({ eid: event.encryptedId }),
+      run: () =>
+        cancel.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
     });
     if (res) router.push("/events");
   };
@@ -106,7 +112,8 @@ export function EventHero() {
       successTitle: "Event deleted",
       successMessage: "It's been removed from your events.",
       errorTitle: "Couldn't delete the event",
-      run: () => del.mutateAsync({ eid: event.encryptedId }),
+      run: () =>
+        del.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
     });
     if (res) router.push("/events");
   };
@@ -121,7 +128,49 @@ export function EventHero() {
               <span className={`status-chip ${event.status}`}>
                 {event.status === "published" ? "Published" : event.status}
               </span>
+              {/* Region marker. Account dashboard only - this must not
+                  appear on the public carevents.com site. */}
+              {event.siteCountry && (
+                <span className="event-site-chip">
+                  <CountryFlag
+                    country={event.siteCountry}
+                    label={event.siteLabel}
+                  />
+                  {event.siteLabel || event.site.toUpperCase()}
+                </span>
+              )}
             </div>
+
+            {/* One occurrence of a series - link back up to the parent,
+                which owns the pattern and the full list of dates.
+
+                Since the events list now links to the next occurrence
+                rather than the series, this button is the only route
+                into the occurrence table - so it carries the pattern
+                alongside it to make clear why it's here. */}
+            {event.isRecurringChild && event.parentEid && (
+              <button
+                type="button"
+                className="event-series-link my-12"
+                onClick={() =>
+                  router.push(eventDetailPath(event.parentEid, event.site))
+                }
+              >
+                <RepeatIcon /> View Related Events
+                {(event.recurringDisplay || event.recurringCount > 0) && (
+                  <span className="event-series-pattern">
+                    {event.recurringDisplay}
+                    {event.recurringCount > 0 && (
+                      <>
+                        {event.recurringDisplay ? " · " : ""}
+                        {event.recurringCount}{" "}
+                        {event.recurringCount === 1 ? "date" : "dates"}
+                      </>
+                    )}
+                  </span>
+                )}
+              </button>
+            )}
 
             <div className="event-meta">
               <span className="event-meta-item">
@@ -167,7 +216,7 @@ export function EventHero() {
               type="button"
               className="btn btn-primary"
               onClick={() => {
-                router.push("/events/new?eid=" + event.encryptedId);
+                router.push(eventEditorPath(event.encryptedId, event.site));
               }}
             >
               <EditIcon /> Edit Event

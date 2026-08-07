@@ -57,6 +57,8 @@ export const queryKeys = {
     offset: number
   ) => ["event-car-clubs", eid, { site, status, limit, offset }] as const,
   eventCategories: () => ["event-categories"] as const,
+  eventEdit: (eid: string, site: SiteKey | undefined) =>
+    ["event-edit", eid, { site }] as const,
 };
 
 export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
@@ -67,6 +69,9 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
     per_page: params.per_page ?? 20,
     // Empty string treated as no filter - same as omitting it.
     search: params.search?.trim() || undefined,
+    // Left undefined on purpose: the list routes merge every region
+    // when `site` is absent, which is the account view's default.
+    site: params.site || undefined,
   };
 
   return useQuery<OrganiserEventsResponse>({
@@ -270,14 +275,23 @@ export function useCreateEvent() {
  * away unsaved local edits. The TanStack default of "stale on
  * mount, fresh while window has focus" would do that. We also turn
  * off refetch-on-window-focus for the same reason.
+ *
+ * `site` is the multisite blog key the event lives on. Encrypted ids
+ * are only unique within a site, so without it a US eid resolves
+ * against the UK blog - usually a 404, but a silent mismatch when the
+ * organiser happens to own a UK event with the same post id.
  */
-export function useEventForEdit(eid: string | null | undefined) {
+export function useEventForEdit(
+  eid: string | null | undefined,
+  site?: SiteKey,
+) {
   const safeEid = (eid ?? "").trim();
   return useQuery({
-    queryKey: ["event-edit", safeEid] as const,
+    queryKey: queryKeys.eventEdit(safeEid, site),
     queryFn: () =>
       apiGet<import("./apiTypes").ApiEventEditResponse>(
-        `/event-edit?eid=${encodeURIComponent(safeEid)}`,
+        `/event-edit?eid=${encodeURIComponent(safeEid)}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
       ),
     enabled: safeEid.length > 0,
     staleTime: 0,

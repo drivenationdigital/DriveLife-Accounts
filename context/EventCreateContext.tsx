@@ -375,6 +375,14 @@ export type EventCreateState = {
   // saved on the server yet.
   encryptedId: string | null;
 
+  // Which multisite blog the event lives on ("uk", "us", …). Comes from
+  // the `?site=` param the events list puts on the editor link, and
+  // must go back up on every save - encrypted ids repeat across
+  // regions, so `encryptedId` alone doesn't identify the post. null on
+  // a brand-new event (it's created on the API's default site) and on
+  // older links that predate multisite.
+  site: string | null;
+
   // Raw WP post id of the saved event, when editing an existing event.
   // null for a brand-new event with nothing saved yet. Used to build
   // the topbar Preview link (WP preview URL), which only shows when set.
@@ -570,6 +578,7 @@ export type EventCreateState = {
 
 const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
+  site: null,
   postId: null,
   hostType: "me",
   hostId: null,
@@ -658,6 +667,7 @@ const INITIAL_STATE: EventCreateState = {
  * easier to read and maintain. */
 type ScalarStateKey =
   | "encryptedId"
+  | "site"
   | "hostType"
   | "hostId"
   | "hostName"

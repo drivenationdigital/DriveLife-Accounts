@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { VenueCard } from "@/components/venue/VenueCard";
 import { useMyVenues, type MyVenue } from "@/lib/myVenues";
+import { venueEditPath } from "@/lib/siteRoutes";
 
 export default function MyVenuesPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function MyVenuesPage() {
     // Only owners can edit. Followers open the public venue page (in a
     // new tab) rather than the edit wizard, which they can't access.
     if (venue.role === "owner") {
-      router.push(`/venue/${venue.encrypted_id}/edit`);
+      router.push(venueEditPath(venue.encrypted_id, venue.site?.key));
     } else if (venue.permalink) {
       window.open(venue.permalink, "_blank", "noopener,noreferrer");
     }
@@ -63,7 +64,11 @@ export default function MyVenuesPage() {
           }}
         >
           {venues.map((venue) => (
-            <VenueCard key={venue.id} venue={venue} onClick={openVenue} />
+            <VenueCard
+                key={`${venue.site?.key ?? ""}:${venue.id}`}
+                venue={venue}
+                onClick={openVenue}
+              />
           ))}
         </div>
       )}

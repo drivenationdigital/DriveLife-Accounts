@@ -14,6 +14,7 @@ import {
 } from "@tanstack/react-query";
 import { apiGet, apiPost, apiDelete } from "./apiClient";
 import { readTokenClient } from "./authCookies";
+import type { EventSite, SiteKey } from "./apiTypes";
 
 export type VenueRole = "owner" | "follower";
 
@@ -30,6 +31,9 @@ export interface MyVenue {
   is_published: boolean;
   badge: string; // "Unpublished" | "Owner" | "Following"
   permalink: string;
+  /** Which country site this venue belongs to. Optional for
+   *  back-compat with pre-multisite deployments. */
+  site?: EventSite;
 }
 
 export interface MyVenuesPagination {
@@ -43,14 +47,24 @@ export interface MyVenuesPagination {
 export interface MyVenuesResponse {
   success: true;
   venues: MyVenue[];
+  /** Every region in scope for this response. */
+  sites?: EventSite[];
   pagination: MyVenuesPagination;
 }
 
-export function useMyVenues(page: number, perPage = 12) {
+/**
+ * `site` here is a FILTER, not an identifier - unlike the detail
+ * routes. Omitting it merges every region the user has venues on,
+ * which is the account view's default.
+ */
+export function useMyVenues(page: number, perPage = 12, site?: SiteKey) {
   return useQuery<MyVenuesResponse, Error>({
-    queryKey: ["my-venues", page, perPage],
+    queryKey: ["my-venues", page, perPage, { site }],
     queryFn: () =>
-      apiGet<MyVenuesResponse>(`/my-venues?page=${page}&per_page=${perPage}`),
+      apiGet<MyVenuesResponse>(
+        `/my-venues?page=${page}&per_page=${perPage}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
+      ),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -119,6 +133,10 @@ export interface VenueEditResponse {
 /** POST body - ACF-named, partial-safe (only sent keys are written). */
 export interface VenueUpdateBody {
   vid: string;
+  /** Multisite blog the venue lives on. Part of its identity, not a
+   *  filter - see useDeleteVenue. Optional so pre-multisite callers
+   *  still compile. */
+  site?: SiteKey;
   post_title?: string;
   venue_location?: string;
   latitude?: string;
@@ -140,12 +158,22 @@ export interface VenueUpdateResponse {
   permalink: string;
 }
 
-/** Load a venue for editing. Skipped until a vid is available. */
-export function useVenueEditQuery(vid: string) {
+/**
+ * Load a venue for editing. Skipped until a vid is available.
+ *
+ * `site` picks the multisite blog to resolve the vid on - encrypted ids
+ * are only unique within a site. It sits in a trailing options object
+ * in the key so existing ["venue-edit", vid] prefix invalidations still
+ * match both regions.
+ */
+export function useVenueEditQuery(vid: string, site?: SiteKey) {
   return useQuery<VenueEditResponse, Error>({
-    queryKey: ["venue-edit", vid],
+    queryKey: ["venue-edit", vid, { site }],
     queryFn: () =>
-      apiGet<VenueEditResponse>(`/venue-edit?vid=${encodeURIComponent(vid)}`),
+      apiGet<VenueEditResponse>(
+        `/venue-edit?vid=${encodeURIComponent(vid)}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
+      ),
     enabled: Boolean(vid),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -301,10 +329,13 @@ export interface DeleteVenueResponse {
  */
 export function useDeleteVenue() {
   const qc = useQueryClient();
-  return useMutation<DeleteVenueResponse, Error, { vid: string }>({
-    mutationFn: ({ vid }) =>
+  return useMutation<DeleteVenueResponse, Error, { vid: string; site?: SiteKey }>({
+    // Region matters most here: without it a US vid resolves against
+    // the UK blog, and this route trashes what it finds.
+    mutationFn: ({ vid, site }) =>
       apiDelete<DeleteVenueResponse>(
-        `/venue-delete?vid=${encodeURIComponent(vid)}`,
+        `/venue-delete?vid=${encodeURIComponent(vid)}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
       ),
     onSuccess: (_d, { vid }) => {
       qc.invalidateQueries({ queryKey: ["my-venues"] });

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
+import { eventDetailPath } from "@/lib/siteRoutes";
 import {
   EVENT_CREATE_STEP_COUNT,
   adjacentSteps,
@@ -61,7 +62,7 @@ export function PublishPanel() {
       const res = await run();
       // Draft → stay so they can keep editing; live/scheduled → view.
       if (res.post_status !== "draft") {
-        router.push(`/events/${res.encrypted_id}`);
+        router.push(eventDetailPath(res.encrypted_id, state.site));
       }
     } catch {
       // Surfaced inline below via `error`.

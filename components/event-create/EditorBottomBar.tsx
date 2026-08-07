@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
+import { eventDetailPath } from "@/lib/siteRoutes";
 import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
 import {
   adjacentSteps,
@@ -51,7 +52,7 @@ export function EditorBottomBar() {
     try {
       const res = await run();
       if (res.post_status !== "draft") {
-        router.push(`/events/${res.encrypted_id}`);
+        router.push(eventDetailPath(res.encrypted_id, state.site));
       }
     } catch {
       // The PublishPanel surfaces the error message; here we just

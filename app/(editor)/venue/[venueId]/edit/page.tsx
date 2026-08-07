@@ -59,7 +59,11 @@ export default function EditVenuePage({
 
 function EditVenueEditor({ venueId }: { venueId: string }) {
   const { hydrate } = useVenueEdit();
-  const { data, isLoading, error } = useVenueEditQuery(venueId);
+  // Region the vid belongs to, carried in on the link that opened this
+  // page. Encrypted ids repeat across regions, so it goes up on the
+  // load and on every mutation below.
+  const site = useSearchParams().get("site") || undefined;
+  const { data, isLoading, error } = useVenueEditQuery(venueId, site);
 
   useEffect(() => {
     if (!data) return;
@@ -204,6 +208,10 @@ function DeleteVenueButton() {
   const router = useRouter();
   const runAction = useAction();
   const deleteVenue = useDeleteVenue();
+  // Read the region straight off the URL rather than threading it down
+  // - this button is mounted several levels below the page component,
+  // and the vid alone would resolve against the API's default region.
+  const site = useSearchParams().get("site") || undefined;
 
   const handleDelete = async () => {
     const res = await runAction({
@@ -219,7 +227,7 @@ function DeleteVenueButton() {
       successTitle: "Venue deleted",
       successMessage: "It's been removed from your venues.",
       errorTitle: "Couldn't delete the venue",
-      run: () => deleteVenue.mutateAsync({ vid: venue.vid }),
+      run: () => deleteVenue.mutateAsync({ vid: venue.vid, site }),
     });
     if (res) router.push("/venues");
   };

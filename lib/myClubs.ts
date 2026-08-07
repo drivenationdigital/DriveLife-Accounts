@@ -13,6 +13,7 @@ import {
   keepPreviousData,
 } from "@tanstack/react-query";
 import { apiGet, apiDelete } from "./apiClient";
+import type { EventSite, SiteKey } from "./apiTypes";
 
 export type ClubRole = "owner" | "admin" | "member";
 
@@ -30,6 +31,9 @@ export interface MyClub {
   is_published: boolean;
   badge: string; // "Unpublished" | "Owner" | "Admin" | "Member"
   permalink: string;
+  /** Which country site this club belongs to. Optional for
+   *  back-compat with pre-multisite deployments. */
+  site?: EventSite;
 }
 
 export interface MyClubsPagination {
@@ -43,14 +47,25 @@ export interface MyClubsPagination {
 export interface MyClubsResponse {
   success: true;
   clubs: MyClub[];
+  /** Every region in scope for this response. */
+  sites?: EventSite[];
   pagination: MyClubsPagination;
 }
 
-export function useMyClubs(page: number, perPage = 12) {
+/**
+ * `site` here is a FILTER, not an identifier - unlike the detail
+ * routes. Omitting it merges every region the user has clubs on, which
+ * is what the account view wants; pass a key only for an explicit
+ * region filter.
+ */
+export function useMyClubs(page: number, perPage = 12, site?: SiteKey) {
   return useQuery<MyClubsResponse, Error>({
-    queryKey: ["my-clubs", page, perPage],
+    queryKey: ["my-clubs", page, perPage, { site }],
     queryFn: () =>
-      apiGet<MyClubsResponse>(`/my-clubs?page=${page}&per_page=${perPage}`),
+      apiGet<MyClubsResponse>(
+        `/my-clubs?page=${page}&per_page=${perPage}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
+      ),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -70,10 +85,14 @@ export interface DeleteClubResponse {
  */
 export function useDeleteClub() {
   const qc = useQueryClient();
-  return useMutation<DeleteClubResponse, Error, { cid: string }>({
-    mutationFn: ({ cid }) =>
+  return useMutation<DeleteClubResponse, Error, { cid: string; site?: SiteKey }>({
+    // `site` is not optional in spirit: cids repeat across regions, so
+    // omitting it on a US club resolves the same id on the UK blog -
+    // and this is a delete.
+    mutationFn: ({ cid, site }) =>
       apiDelete<DeleteClubResponse>(
-        `/club-delete?cid=${encodeURIComponent(cid)}`,
+        `/club-delete?cid=${encodeURIComponent(cid)}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
       ),
     onSuccess: (_d, { cid }) => {
       qc.invalidateQueries({ queryKey: ["my-clubs"] });

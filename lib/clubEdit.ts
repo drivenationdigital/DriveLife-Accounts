@@ -14,6 +14,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
 import type { ClubEditResponse, ClubUpdateBody } from "./clubEditTypes";
+import type { SiteKey } from "./apiTypes";
 
 export interface ClubUpdateResponse {
   success: true;
@@ -24,12 +25,25 @@ export interface ClubUpdateResponse {
   share_url: string;
 }
 
-/** Load a club for editing. Skipped until a cid is available. */
-export function useClubEditQuery(cid: string) {
+/**
+ * Load a club for editing. Skipped until a cid is available.
+ *
+ * `site` is the multisite blog the club lives on. Encrypted ids are
+ * only unique within a site, so a cid on its own is ambiguous once
+ * /my-clubs merges both regions - the same rule as events. Omitting it
+ * falls back to the API default, which keeps older links working.
+ *
+ * It sits in a trailing options object in the key so existing prefix
+ * invalidations (["club-edit", cid]) keep matching both regions.
+ */
+export function useClubEditQuery(cid: string, site?: SiteKey) {
   return useQuery<ClubEditResponse, Error>({
-    queryKey: ["club-edit", cid],
+    queryKey: ["club-edit", cid, { site }],
     queryFn: () =>
-      apiGet<ClubEditResponse>(`/club-edit?cid=${encodeURIComponent(cid)}`),
+      apiGet<ClubEditResponse>(
+        `/club-edit?cid=${encodeURIComponent(cid)}` +
+          (site ? `&site=${encodeURIComponent(site)}` : ""),
+      ),
     enabled: Boolean(cid),
     // The wizard holds its own working copy once hydrated, so don't
     // refetch underneath the user mid-edit.

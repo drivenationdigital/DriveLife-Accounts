@@ -34,6 +34,35 @@ export interface EventDetail {
   site: string;
   /** Human label for `site`, e.g. "United Kingdom". Empty when unknown. */
   siteLabel: string;
+  /** ISO 3166-1 alpha-2 for the region flag ("GB" / "US"). Empty when
+   *  unknown. Dashboard only - never rendered on the public site. */
+  siteCountry: string;
+  /** False when the region can't sell tickets (US at time of writing).
+   *  The whole ticketing surface - Tickets, Orders, Attendees,
+   *  Applications - is hidden rather than shown empty. Defaults to true
+   *  so a response without a site block behaves as it always did. */
+  siteTicketing: boolean;
+
+  // ---- Recurring series ----
+  /** True when this eid resolves to the series PARENT rather than a
+   *  single dated event. The parent renders an occurrence table in
+   *  place of the sales dashboard. */
+  isRecurringParent: boolean;
+  /** True when this is one occurrence of a series - it renders as a
+   *  normal event, plus a back-link up to the parent. */
+  isRecurringChild: boolean;
+  /** Pre-formatted pattern from the API, e.g. "Third Saturday Of Every
+   *  Month". Render as-is. Empty when not recurring. */
+  recurringDisplay: string;
+  /** Encrypted id of the series parent, for a child's "View Related
+   *  Events" link. Empty when there's no parent to link to.
+   *
+   *  This is now the main route into the series overview: the events
+   *  list links to the next occurrence rather than the parent, so this
+   *  button is how a user reaches the occurrence table at all. */
+  parentEid: string;
+  /** How many occurrences the series has. 0 when unknown. */
+  recurringCount: number;
 }
 
 export interface Ticket {
@@ -148,6 +177,44 @@ export interface CategoryStat {
   capacity: number;
 }
 
+/** One dated occurrence of a recurring series, as rendered in the
+ *  parent's occurrence table. Each is a real event with its own eid, so
+ *  a row links through to its own event view. */
+export interface Occurrence {
+  id: string;
+  /** Encrypted id of the CHILD event. */
+  eid: string;
+  title: string;
+  /** Formatted date, or a range when the occurrence spans days. */
+  dateLabel: string;
+  timeLabel: string;
+  location: string;
+  statusSlug: string;
+  statusLabel: string;
+  /** Deleted occurrences stay in the list. They're hidden behind a
+   *  toggle, render as plain text rather than a link, and get no
+   *  actions - matching the legacy page. */
+  isDeleted: boolean;
+  /** False for finished / cancelled / deleted rows. Gates the actions. */
+  canManage: boolean;
+  /** Public permalink. */
+  link: string;
+}
+
+export interface EventOccurrences {
+  /** In the organiser's stored order, NOT date order. Never re-sort. */
+  items: Occurrence[];
+  total: number;
+  /** True when `items` contains deleted rows - gates the toggle. */
+  hasDeleted: boolean;
+  /** Next upcoming occurrence, else the first. */
+  next: { id: string; eid: string } | null;
+  /** Both derive from the first child, and gate whether the parent
+   *  shows sales surfaces at all. */
+  ticketed: boolean;
+  registrationRequired: boolean;
+}
+
 /** Pagination metadata for the orders tab. `null` means we only have the
  * first N recent orders from the main /event load - not a paginated page. */
 export interface OrdersPagination {
@@ -180,6 +247,10 @@ export interface EventFeatures {
 
 export interface EventData {
   event: EventDetail;
+  /** Non-null ONLY when this eid resolved to a recurring series parent.
+   *  The whole view switches on it: the parent shows this table where a
+   *  normal event shows its sales dashboard. */
+  occurrences: EventOccurrences | null;
   kpis: {
     totalOrders: number;
     ordersThisWeek: number;

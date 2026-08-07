@@ -65,7 +65,11 @@ export default function EditClubPage({
 
 function EditClubEditor({ clubId }: { clubId: string }) {
   const { hydrate } = useClubEdit();
-  const { data, isLoading, error } = useClubEditQuery(clubId);
+  // Region the cid belongs to, carried in on the link that opened this
+  // page. Encrypted ids repeat across regions, so it has to go up on
+  // both the load and every save.
+  const site = useSearchParams().get("site") || undefined;
+  const { data, isLoading, error } = useClubEditQuery(clubId, site);
 
   useEffect(() => {
     if (!data) return;
@@ -75,11 +79,14 @@ function EditClubEditor({ clubId }: { clubId: string }) {
     hydrate(
       {
         ...data.club,
+        // Not in the payload - folded in from the URL so the save
+        // payload can carry it back.
+        site: site ?? "",
         terms: data.club.terms.trim() || defaultClubTerms(data.club.title),
       },
       data.options.categories,
     );
-  }, [data, hydrate]);
+  }, [data, site, hydrate]);
 
   if (error) return <ClubEditorErrorState error={error} />;
   if (isLoading || !data) return <ClubEditorSkeleton />;
@@ -149,6 +156,9 @@ function PanelFooter({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  // Region the cid belongs to - the delete below resolves against the
+  // API's default region without it.
+  const site = searchParams.get("site") || undefined;
   const { isDirty } = useClubEdit();
   const { save, isSaving, error } = useClubSave();
 
@@ -170,7 +180,7 @@ function PanelFooter({
       successTitle: "Club deleted",
       successMessage: "It's been removed from your clubs.",
       errorTitle: "Couldn't delete the club",
-      run: () => deleteClub.mutateAsync({ cid: clubId }),
+      run: () => deleteClub.mutateAsync({ cid: clubId, site }),
     });
     if (res) router.push("/clubs");
   };

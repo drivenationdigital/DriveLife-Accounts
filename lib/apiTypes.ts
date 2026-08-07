@@ -23,9 +23,32 @@ export interface RecurringInfo {
   type: "week" | "month" | "custom" | null;
   weekly_recurrance_type: string;
   monthly_recurrance_type: string;
+  /** Pre-formatted human pattern, e.g. "Third Saturday Of Every Month".
+   *  Render as-is - the server does the wording. */
   display: string;
+  /** How many occurrences the series has. */
+  child_count?: number;
   child_event_ids: number[];
   child_last_dates: string[];
+}
+
+/**
+ * The occurrence a recurring list row now links to: the next upcoming
+ * one, so a click lands on a real event view rather than the series
+ * overview.
+ */
+export interface ApiNextOccurrence {
+  id: number;
+  eid: string;
+  start_date: string | null;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  status: EventStatus;
+  /** True when every occurrence has passed and this fell back to the
+   *  FIRST child rather than a genuinely upcoming one. The row stays
+   *  clickable either way. */
+  is_past?: boolean;
 }
 
 export type EventPricingType = "free" | "ticketed";
@@ -53,7 +76,22 @@ export interface EventSite {
 
 export interface EventRecord {
   id: number;
+  /**
+   * The SERIES identity on a recurring row - always the parent, never
+   * an occurrence. Two things depend on that: pinning has to pin the
+   * whole series, and "View Related Events" has to open the occurrence
+   * table. Use `link_eid` for navigation instead; the two ids do
+   * different jobs and must not be collapsed into one.
+   */
   encrypted_id: string;
+  /**
+   * What the card links to: the next upcoming occurrence of a recurring
+   * series, so a click lands on a real event view. Absent on
+   * non-recurring events - fall back to `encrypted_id`.
+   */
+  link_eid?: string;
+  /** Details of the occurrence `link_eid` points at. */
+  next_occurrence?: ApiNextOccurrence;
   title: string;
   link: string;
   post_status: PostStatus;
@@ -105,6 +143,10 @@ export interface OrganiserEventsParams {
   page?: number;
   per_page?: number;
   search?: string;
+  /** Region FILTER, not an identifier - unlike the detail routes.
+   *  Omitted merges every region the user organises on, which is what
+   *  the account view wants. Pass a key only for an explicit filter. */
+  site?: SiteKey;
 }
 
 export interface PaginationMeta {
@@ -168,11 +210,80 @@ export interface ApiEventCore {
   organisers: ApiOrganiser[];
   is_pinned: boolean;
   is_recurring: boolean;
-  recurring:
-    | (RecurringInfo & { parent_id: number | null; is_parent: boolean })
-    | null;
+  recurring: ApiEventCoreRecurring | null;
   created_at: string;
   updated_at: string;
+}
+
+/**
+ * Recurrence block on a single event. Present on BOTH the series parent
+ * (`is_parent: true`) and each child occurrence, so a child can link
+ * back up to its series without a second request.
+ */
+export interface ApiEventCoreRecurring {
+  type: "week" | "month" | "custom" | null;
+  /** Null when the pattern isn't of that granularity. */
+  weekly_recurrance_type: string | null;
+  monthly_recurrance_type: string | null;
+  /** Pre-formatted pattern, e.g. "Third Saturday Of Every Month".
+   *  Correct on children as well as parents - it used to come back
+   *  empty on children. */
+  display: string;
+  /** Post id of the series parent. Null on the parent itself. */
+  parent_id: number | null;
+  /** Encrypted id of the series parent - what the child view's
+   *  "View Related Events" link needs. Optional because older
+   *  deployments returned `parent_id` only, which the UI can't link to. */
+  parent_eid?: string | null;
+  is_parent: boolean;
+  has_end_date: boolean;
+  /** How many occurrences the series has. */
+  child_count?: number;
+}
+
+/**
+ * One occurrence row on a recurring series parent. Each is a real
+ * `events` post, so `eid` links straight through to its own event view.
+ */
+export interface ApiOccurrence {
+  id: number;
+  /** Encrypted id of the CHILD event. */
+  eid: string;
+  title: string;
+  start_date: string | null;
+  end_date: string | null;
+  start_time: string | null;
+  end_time: string | null;
+  /** Flattened display string, not the structured ApiLocation. */
+  location: string | null;
+  status: EventStatus;
+  is_deleted: boolean;
+  /** False for finished / cancelled / deleted occurrences. Gates the
+   *  row's actions. */
+  can_manage: boolean;
+  /** Public permalink. */
+  link: string;
+}
+
+/**
+ * The occurrence table shown in place of the sales dashboard when an
+ * eid resolves to a series parent. Non-null ONLY for a parent.
+ */
+export interface ApiOccurrences {
+  /** In the organiser's stored ACF order, NOT date order. Render as
+   *  received - re-sorting client-side loses their ordering. */
+  items: ApiOccurrence[];
+  total: number;
+  /** True when `items` contains deleted rows - gates the
+   *  "Show deleted events" toggle. */
+  has_deleted: boolean;
+  /** Next upcoming occurrence, else the first. The anchor the legacy
+   *  "Add Additional Dates" control used. */
+  next: { id: number; eid: string } | null;
+  /** Both derive from the FIRST child - the legacy page used them to
+   *  decide whether to show the sales panels on the parent. */
+  ticketed: boolean;
+  registration_required: boolean;
 }
 
 export interface ApiTicketType {
@@ -259,6 +370,11 @@ export interface ApiOrdersMeta {
 }
 
 export interface ApiSales {
+  /** False on a region without ticketing (US at time of writing). The
+   *  block is still shape-identical - every count 0, every list empty -
+   *  so nothing crashes; the UI hides the sales surfaces instead of
+   *  rendering zeroes. Optional for back-compat: absent means true. */
+  ticketing_available?: boolean;
   kpis: ApiSalesKpis;
   /** Regular ticket types. Show car tickets are filtered server-side
    *  into `show_car_tickets` below - same shape, just separated so
@@ -429,7 +545,17 @@ export interface ApiCarClubsSection {
   };
 }
 
-export type ApiShowCars = ApiShowCarsSection | { enabled: false };
+/**
+ * A section the API deliberately turned off. `reason` is
+ * "ticketing_unavailable" on a region without ticketing; absent when
+ * the organiser simply hasn't enabled the feature.
+ */
+export interface DisabledSection {
+  enabled: false;
+  reason?: "ticketing_unavailable" | string;
+}
+
+export type ApiShowCars = ApiShowCarsSection | DisabledSection;
 
 /** Car clubs section in the /event-edit response. Single hidden
  *  ticket per event (vs. show cars' per-category tickets); ticket_id
@@ -460,11 +586,11 @@ export interface ApiCarClubsConfig {
  *  applications section); don't conflate the two. */
 export type ApiCarClubsConfigBlock =
   | { enabled: true; config: ApiCarClubsConfig }
-  | { enabled: false };
+  | DisabledSection;
 
 /** Dashboard /event clubs section - application counts + recent
  *  lists. */
-export type ApiCarClubs = ApiCarClubsSection | { enabled: false };
+export type ApiCarClubs = ApiCarClubsSection | DisabledSection;
 
 /** One trader category row from ce_event_trader_categories, as
  *  returned by /event-edit for editor hydration. */
@@ -497,12 +623,20 @@ export interface ApiTradersSection {
 }
 export type ApiTradersStub =
   | ApiTradersSection
-  | { enabled: false; counts?: ApiApplicationCounts }
+  | (DisabledSection & { counts?: ApiApplicationCounts })
   | ComingSoonStub;
 
 export interface EventResponse {
   success: true;
+  /** The region the API actually resolved this eid on. Authoritative -
+   *  prefer it over whatever `site` the page sent up. Optional for
+   *  back-compat with pre-multisite deployments. */
+  site?: EventSite;
   event: ApiEventCore;
+  /** Non-null ONLY when the eid resolves to a recurring series parent.
+   *  Switch the whole view on `occurrences !== null`. */
+  occurrences?: ApiOccurrences | null;
+  /** On a parent this is combined across every occurrence. */
   sales: ApiSales;
   show_cars: ApiShowCars;
   clubs: ApiCarClubs;

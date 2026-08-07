@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ClubCard } from "@/components/club/ClubCard";
 import { useMyClubs, type MyClub } from "@/lib/myClubs";
+import { clubEditPath } from "@/lib/siteRoutes";
 
 export default function MyClubsPage() {
   const router = useRouter();
@@ -19,7 +20,7 @@ export default function MyClubsPage() {
     // Owners and admins can edit (club-update allows both). Members and
     // followers can't, so they open the public club page instead.
     if (club.role === "owner" || club.role === "admin") {
-      router.push(`/club/${club.encrypted_id}/edit`);
+      router.push(clubEditPath(club.encrypted_id, club.site?.key));
     } else if (club.permalink) {
       window.open(club.permalink, "_blank", "noopener,noreferrer");
     }
@@ -63,7 +64,11 @@ export default function MyClubsPage() {
           }}
         >
           {clubs.map((club) => (
-            <ClubCard key={club.id} club={club} onClick={openClub} />
+            <ClubCard
+                key={`${club.site?.key ?? ""}:${club.id}`}
+                club={club}
+                onClick={openClub}
+              />
           ))}
         </div>
       )}

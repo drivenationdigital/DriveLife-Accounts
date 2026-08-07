@@ -8,12 +8,13 @@ import {
   useDeleteEvent,
 } from "@/lib/eventActions";
 import { useAction } from "@/context/ActionContext";
+import { eventEditorPath } from "@/lib/siteRoutes";
 
 /**
  * Event overview action toolbar: Edit Event / View / three-dot menu.
  *
  * Drop into the overview header:
- *   <EventActions eid={encryptedEid} permalink={event.permalink} />
+ *   <EventActions eid={encryptedEid} site={event.site} permalink={event.permalink} />
  *
  * - Edit  → the editor (/events/{eid}/edit)
  * - View  → the public carevents page (permalink), new tab
@@ -25,11 +26,16 @@ import { useAction } from "@/context/ActionContext";
  */
 export function EventActions({
   eid,
+  site,
   permalink,
   onAddManualOrder,
 }: {
   /** Encrypted event id (as used in the edit route). */
   eid: string;
+  /** Region the eid belongs to ("uk", "us", …). Encrypted ids repeat
+   *  across regions, so without this the destructive actions below can
+   *  resolve to a different event entirely. */
+  site?: string;
   /** Public carevents URL for the View button. */
   permalink?: string;
   /** Optional: opens the manual-order flow (built later). */
@@ -83,7 +89,7 @@ export function EventActions({
       successTitle: "Event duplicated",
       successMessage: "The copy has been created as a draft.",
       errorTitle: "Couldn't duplicate the event",
-      run: () => clone.mutateAsync({ eid }),
+      run: () => clone.mutateAsync({ eid, site }),
     });
     if (res) router.push(res.edit_url);
   };
@@ -103,7 +109,7 @@ export function EventActions({
       successTitle: "Event cancelled",
       successMessage: "It no longer accepts bookings.",
       errorTitle: "Couldn't cancel the event",
-      run: () => cancel.mutateAsync({ eid }),
+      run: () => cancel.mutateAsync({ eid, site }),
     });
     if (res) router.push("/events");
   };
@@ -123,7 +129,7 @@ export function EventActions({
       successTitle: "Event deleted",
       successMessage: "It's been removed from your events.",
       errorTitle: "Couldn't delete the event",
-      run: () => del.mutateAsync({ eid }),
+      run: () => del.mutateAsync({ eid, site }),
     });
     if (res) router.push("/events");
   };
@@ -133,7 +139,7 @@ export function EventActions({
       {/* Edit */}
       <button
         type="button"
-        onClick={() => router.push(`/events/${encodeURIComponent(eid)}/edit`)}
+        onClick={() => router.push(eventEditorPath(eid, site))}
         style={btnDark}
       >
         <PencilIcon /> Edit Event

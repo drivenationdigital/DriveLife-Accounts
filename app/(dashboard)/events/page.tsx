@@ -4,6 +4,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useOrganiserEvents } from "@/lib/queries";
 import type { EventRecord } from "@/lib/apiTypes";
+import { eventRowPath } from "@/lib/siteRoutes";
+import { eventKey } from "@/lib/eventKey";
 import { Pagination } from "@/components/ui/Pagination";
 import { EventCard } from "@/components/event/EventCard";
 import { EventsTableView } from "@/components/event/EventsTableView";
@@ -124,9 +126,11 @@ function EventsContent() {
   // The site travels in the URL so the detail page can send it back up
   // with every event-scoped request - encrypted ids are only unique
   // within a site, so `eid` alone doesn't identify the event.
+  //
+  // A recurring row opens its next occurrence (a real event view), not
+  // the series parent - see eventRowPath.
   const goToEvent = (ev: EventRecord) => {
-    const path = `/events/${ev.encrypted_id}`;
-    router.push(ev.site ? `${path}?site=${encodeURIComponent(ev.site.key)}` : path);
+    router.push(eventRowPath(ev));
   };
 
   // First-time loading (no data yet) - show skeleton matching the chosen view.
@@ -246,7 +250,7 @@ function EventsContent() {
               }}
             >
               {data.events.map((ev) => (
-                <EventCard key={ev.id} event={ev} onClick={goToEvent} />
+                <EventCard key={eventKey(ev)} event={ev} onClick={goToEvent} />
               ))}
             </div>
           ) : (

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
+import { eventDetailPath } from "@/lib/siteRoutes";
 import { useEditorSave } from "@/lib/useEditorSave";
 
 /**
@@ -37,7 +38,7 @@ export function EditorTopBar() {
       // Drafts stay in the editor; anything live/scheduled goes to the
       // event view. (post_status from the API: publish | future | draft.)
       if (res.post_status !== "draft") {
-        router.push(`/events/${res.encrypted_id}`);
+        router.push(eventDetailPath(res.encrypted_id, state.site));
       }
     } catch {
       // Error surfaces via `phase` on the status pill below.

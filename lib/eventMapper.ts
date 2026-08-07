@@ -3,6 +3,7 @@ import type {
   ApiCarClubRecord,
   ApiDiscount,
   ApiEventCore,
+  ApiOccurrences,
   ApiOrder,
   ApiSales,
   ApiShowCarRecord,
@@ -18,6 +19,7 @@ import type {
   EventData,
   EventDetail,
   EventFeatures,
+  EventOccurrences,
   FeatureSection,
   Order,
   OrderStatus,
@@ -112,6 +114,14 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     (v, i, arr) => v && arr.indexOf(v) === i, // de-dupe when name === address
   );
 
+  // A series parent is a `recurring_events` post: it holds the pattern
+  // and the child list, and has no single date of its own. Either
+  // signal is authoritative; we check both because `post_type` is the
+  // one the legacy page switched on and `is_parent` is the newer flag.
+  const isParent =
+    core.post_type === "recurring_events" || core.recurring?.is_parent === true;
+  const recurringDisplay = core.recurring?.display ?? "";
+
   return {
     id: String(core.id),
     title: core.title,
@@ -123,7 +133,12 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
           : core.post_status === "cancelled"
             ? "cancelled"
             : "published",
-    date: formatDateHuman(start),
+    // The parent has no date of its own, so the pattern stands in for
+    // one - same as the list row, which shows "Third Saturday Of Every
+    // Month" where a one-off event shows its date.
+    date: isParent
+      ? recurringDisplay || "Recurring"
+      : formatDateHuman(start),
     timeRange: formatTimeRange(startTime, endTime),
     location: locationParts.join(", ") || "-",
     url: core.link.replace(/^https?:\/\//, ""),
@@ -133,7 +148,65 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     // which blog it resolved the eid on.
     site: core.site?.key ?? fallbackSite ?? "",
     siteLabel: core.site?.label ?? "",
+    siteCountry: core.site?.country ?? "",
+    // Absent site block means a deployment that predates multisite,
+    // which was UK-only and had ticketing - so default to enabled
+    // rather than hiding tabs that used to work.
+    siteTicketing: core.site?.ticketing ?? true,
+    isRecurringParent: isParent,
+    // Keyed on parent_eid first: it's what the back-link actually
+    // needs, and it can be present on responses where parent_id isn't.
+    isRecurringChild:
+      !isParent &&
+      Boolean(core.recurring?.parent_eid || core.recurring?.parent_id),
+    recurringDisplay,
+    parentEid: core.recurring?.parent_eid ?? "",
+    recurringCount: core.recurring?.child_count ?? 0,
   };
+}
+
+/**
+ * Occurrence rows for a recurring series parent.
+ *
+ * Deliberately order-preserving: the API returns the organiser's stored
+ * ACF order, which is theirs to control and is what the legacy page
+ * rendered. Sorting by date here would silently override it.
+ *
+ * Deleted rows are kept rather than filtered - the parent view hides
+ * them behind a toggle, so it needs them in the list to reveal.
+ */
+function mapOccurrences(api: ApiOccurrences): EventOccurrences {
+  return {
+    items: api.items.map((o) => ({
+      id: String(o.id),
+      eid: o.eid,
+      title: o.title,
+      dateLabel: formatOccurrenceDate(o.start_date, o.end_date),
+      timeLabel: formatTimeRange(o.start_time, o.end_time),
+      location: o.location || "-",
+      statusSlug: o.status?.slug ?? "",
+      statusLabel: o.status?.label ?? "",
+      isDeleted: o.is_deleted,
+      canManage: o.can_manage,
+      link: o.link,
+    })),
+    total: api.total,
+    hasDeleted: api.has_deleted,
+    next: api.next ? { id: String(api.next.id), eid: api.next.eid } : null,
+    ticketed: api.ticketed,
+    registrationRequired: api.registration_required,
+  };
+}
+
+/** Single date, or "start - end" when the occurrence spans days. */
+function formatOccurrenceDate(
+  start: string | null,
+  end: string | null,
+): string {
+  const startLabel = formatDateHuman(start);
+  if (!end || end === start) return startLabel;
+  const endLabel = formatDateHuman(end);
+  return startLabel && endLabel ? `${startLabel} - ${endLabel}` : startLabel;
 }
 
 function mapTicket(t: ApiTicketType): Ticket {
@@ -416,7 +489,17 @@ export function mapEventResponse(
     : [];
 
   return {
-    event: mapEventDetail(resp.event, opts.fallbackSite),
+    // The region is echoed on the response root as well as on the event
+    // itself; either is the server's own answer for which blog it
+    // resolved the eid on, so take whichever is present.
+    event: mapEventDetail(
+      resp.event.site ? resp.event : { ...resp.event, site: resp.site },
+      opts.fallbackSite,
+    ),
+    // Non-null only for a series parent. `?? null` normalises the
+    // absent-key case from deployments that predate the field, so
+    // consumers can branch on a plain `!== null`.
+    occurrences: resp.occurrences ? mapOccurrences(resp.occurrences) : null,
     kpis: {
       totalOrders: sales.kpis.order_count,
       // Fall back to 0 so older API responses (without these fields) don't
