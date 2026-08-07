@@ -52,24 +52,33 @@ function EventDetailContent() {
     parseInt(searchParams?.get("ordersPage") ?? "1", 10) || 1
   );
 
-  const eventQuery = useEvent(eid, 5, 5);
+  // Which multisite blog the event lives on. Set by the events list when
+  // it navigates here (`/events/{eid}?site=us`); an eid alone is
+  // ambiguous across sites. Undefined on older links - the API then
+  // resolves against its default site, same as before multisite.
+  const site = searchParams?.get("site") || undefined;
+
+  const eventQuery = useEvent(eid, { site });
 
   const showCarsEnabled = eventQuery.data?.show_cars?.enabled === true;
   const carClubsEnabled = eventQuery.data?.clubs?.enabled === true;
 
   const ordersQuery = useEventOrders(eid, {
+    site,
     limit: ORDERS_PER_PAGE,
     offset: (ordersPage - 1) * ORDERS_PER_PAGE,
     enabled: activeTab === "orders",
   });
 
   const showCarsQuery = useEventShowCars(eid, {
+    site,
     limit: 100,
     offset: 0,
     enabled: activeTab === "showcars" && showCarsEnabled,
   });
 
   const carClubsQuery = useEventCarClubs(eid, {
+    site,
     limit: 100,
     offset: 0,
     enabled: activeTab === "clubs" && carClubsEnabled,
@@ -77,7 +86,7 @@ function EventDetailContent() {
 
   const eventData = useMemo(() => {
     if (!eventQuery.data) return null;
-    let mapped = mapEventResponse(eventQuery.data);
+    let mapped = mapEventResponse(eventQuery.data, { fallbackSite: site });
 
     if (activeTab === "orders" && ordersQuery.data) {
       const total = ordersQuery.data.total_count;
@@ -102,6 +111,7 @@ function EventDetailContent() {
     carClubsQuery.data,
     activeTab,
     ordersPage,
+    site,
   ]);
 
   if (!eid) {

@@ -2,6 +2,7 @@
 
 import type { EventRecord } from "@/lib/apiTypes";
 import { DEFAULT_EVENT_COVER } from "@/lib/eventDefaults";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 
 const STATUS_LABEL: Record<string, string> = {
   publish: "Published",
@@ -57,6 +58,15 @@ export function EventCard({ event, onClick }: Props) {
         {event.is_pinned && (
           <span className="ev-pinned-marker" aria-label="Pinned">
             ★
+          </span>
+        )}
+        {event.site && (
+          <span className="ev-site-badge">
+            <CountryFlag
+              country={event.site.country}
+              label={event.site.label}
+            />
+            {event.site.key.toUpperCase()}
           </span>
         )}
       </div>

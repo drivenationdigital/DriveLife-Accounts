@@ -99,7 +99,11 @@ function formatAppliedLabel(iso: string | null): string {
 // Field mappers - core event, tickets, orders, discounts
 // ─────────────────────────────────────────────────────────────────────────
 
-function mapEventDetail(core: ApiEventCore): EventDetail {
+/**
+ * @param fallbackSite site key from the page URL, used when the API
+ *   response doesn't echo a site back (pre-multisite deployments).
+ */
+function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail {
   const start = core.first_date?.start_date ?? null;
   const startTime = core.first_date?.start_time ?? null;
   const endTime = core.last_date?.end_time ?? core.first_date?.end_time ?? null;
@@ -125,6 +129,10 @@ function mapEventDetail(core: ApiEventCore): EventDetail {
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
     encryptedId: core.encrypted_id,
+    // The response wins over the URL - it's the server's own answer for
+    // which blog it resolved the eid on.
+    site: core.site?.key ?? fallbackSite ?? "",
+    siteLabel: core.site?.label ?? "",
   };
 }
 
@@ -393,7 +401,10 @@ function extractFeatures(resp: EventResponse): EventFeatures {
 // Top-level mapper - EventResponse → EventData
 // ─────────────────────────────────────────────────────────────────────────
 
-export function mapEventResponse(resp: EventResponse): EventData {
+export function mapEventResponse(
+  resp: EventResponse,
+  opts: { fallbackSite?: string } = {},
+): EventData {
   const sales: ApiSales = resp.sales;
 
   const showCars: ShowCar[] = resp.show_cars.enabled
@@ -405,7 +416,7 @@ export function mapEventResponse(resp: EventResponse): EventData {
     : [];
 
   return {
-    event: mapEventDetail(resp.event),
+    event: mapEventDetail(resp.event, opts.fallbackSite),
     kpis: {
       totalOrders: sales.kpis.order_count,
       // Fall back to 0 so older API responses (without these fields) don't

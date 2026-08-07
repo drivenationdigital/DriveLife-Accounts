@@ -30,6 +30,27 @@ export interface RecurringInfo {
 
 export type EventPricingType = "free" | "ticketed";
 
+/**
+ * The multisite blog an event lives on. Returned per-event on list
+ * responses and as the full available set on the response root, so the
+ * UI can label an event with its country without a second lookup.
+ */
+export interface EventSite {
+  /** Site slug used in URLs - "uk", "us", … */
+  key: string;
+  /** WP multisite blog id. */
+  blog_id: number;
+  /** Human label, e.g. "United Kingdom". */
+  label: string;
+  /** ISO 3166-1 alpha-2 code, e.g. "GB". Drives the flag icon. */
+  country: string;
+  /** ISO 4217 code, e.g. "GBP". */
+  currency: string;
+  currency_symbol: string;
+  /** False when the site can't sell tickets (US at time of writing). */
+  ticketing: boolean;
+}
+
 export interface EventRecord {
   id: number;
   encrypted_id: string;
@@ -46,7 +67,10 @@ export interface EventRecord {
   is_repeating: boolean;
   is_recurring: boolean;
   recurring: RecurringInfo | null;
-  can_manage: boolean;
+  /** Only sent on the endpoints that gate management (saved events,
+   * dashboard summary). Absent on /organiser-events, where everything
+   * returned is already the user's own. */
+  can_manage?: boolean;
   /** Added by the WP `dl_accounts_event_pricing_type()` helper. May be
    * absent on responses from older deployments - fall back to "free". */
   type?: EventPricingType;
@@ -56,6 +80,9 @@ export interface EventRecord {
     name: string | null;
     address: string | null;
   };
+  /** Which country site the event belongs to. Optional for
+   * back-compat with deployments that pre-date the multisite rollout. */
+  site?: EventSite;
 }
 
 export interface EmptyState {
@@ -91,9 +118,15 @@ export interface PaginationMeta {
 export interface OrganiserEventsResponse {
   success: true;
   events: EventRecord[];
+  /** Every site the user can organise on - the superset of the `site`
+   * values on `events`. Intended for a future site filter; optional so
+   * older deployments still parse. */
+  sites?: EventSite[];
   pagination: PaginationMeta;
   search?: string;
   empty_state: EmptyState;
+  /** Server-side diagnostics, null unless explicitly requested. */
+  debug?: unknown;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -115,6 +148,10 @@ export interface ApiOrganiser {
 export interface ApiEventCore {
   id: number;
   encrypted_id: string;
+  /** Which country site this event lives on. Echoed back so the page
+   *  doesn't have to trust the `site` it sent up; optional for
+   *  back-compat with pre-multisite deployments. */
+  site?: EventSite;
   title: string;
   slug: string;
   link: string;
@@ -472,8 +509,20 @@ export interface EventResponse {
   traders: ApiTradersStub;
 }
 
+/**
+ * Site key ("uk", "us", …) sent alongside an `eid` so the API knows
+ * which multisite blog to switch to before resolving it. Encrypted ids
+ * are only unique within a site, so every event-scoped route takes it.
+ *
+ * Optional everywhere: when omitted the API falls back to its default
+ * site, which keeps older links (and endpoints that don't yet return a
+ * site) working.
+ */
+export type SiteKey = string;
+
 export interface EventParams {
   eid: string;
+  site?: SiteKey;
   orders_limit?: number;
   apps_limit?: number;
 }
@@ -490,6 +539,7 @@ export interface EventOrdersResponse {
 
 export interface EventOrdersParams {
   eid: string;
+  site?: SiteKey;
   limit?: number;
   offset?: number;
 }
@@ -500,6 +550,7 @@ export interface EventOrdersParams {
 
 export interface EventShowCarsParams {
   eid: string;
+  site?: SiteKey;
   status?: ApplicationStatusApi;
   limit?: number;
   offset?: number;
@@ -517,6 +568,7 @@ export interface EventShowCarsResponse {
 
 export interface EventCarClubsParams {
   eid: string;
+  site?: SiteKey;
   status?: ApplicationStatusApi;
   limit?: number;
   offset?: number;

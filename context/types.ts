@@ -27,6 +27,13 @@ export interface EventDetail {
   url: string;
   slug: string;
   encryptedId: string;
+  /** Multisite blog key this event lives on ("uk", "us", …). Every
+   *  event-scoped API call needs it alongside `encryptedId`, since
+   *  encrypted ids are only unique within a site. Empty string when
+   *  unknown - the API then falls back to its default site. */
+  site: string;
+  /** Human label for `site`, e.g. "United Kingdom". Empty when unknown. */
+  siteLabel: string;
 }
 
 export interface Ticket {

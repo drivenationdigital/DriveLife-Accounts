@@ -67,6 +67,9 @@ interface OrdersResponse {
 
 export interface UseEventOrdersArgs {
   eid: string;
+  /** Multisite blog key the event lives on - see EventDetail.site.
+   *  Omitted falls back to the API's default site. */
+  site?: string;
   page: number;
   perPage?: number;
   search?: string;
@@ -74,6 +77,7 @@ export interface UseEventOrdersArgs {
 
 export function useEventOrders({
   eid,
+  site,
   page,
   perPage = 50,
   search = "",
@@ -81,10 +85,11 @@ export function useEventOrders({
   const trimmed = search.trim();
   return useQuery<OrdersResponse, Error>({
     // Filters in the key → changing search/page re-runs the query.
-    queryKey: ["event-orders", eid, page, perPage, trimmed],
+    queryKey: ["event-orders", eid, site, page, perPage, trimmed],
     queryFn: () =>
       apiPost<OrdersResponse, Record<string, unknown>>("/event/orders", {
         eid,
+        site: site || undefined,
         limit: perPage,
         offset: (Math.max(1, page) - 1) * perPage,
         search: trimmed || undefined,

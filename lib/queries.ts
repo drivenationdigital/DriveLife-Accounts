@@ -12,6 +12,7 @@ import type {
   EventCarClubsParams,
   EventCarClubsResponse,
   ApplicationStatusApi,
+  SiteKey,
 } from "./apiTypes";
 
 /** Shape returned by GET /event-categories. Mirrors the response from
@@ -23,25 +24,38 @@ export type EventCategoriesResponse = {
 };
 
 // Centralised query-key factory so invalidations stay in sync with keys.
+//
+// `site` sits inside the trailing options object rather than next to
+// `eid` so existing prefix invalidations (["event", eid]) keep matching.
 export const queryKeys = {
   organiserEvents: (params: OrganiserEventsParams) =>
     ["organiser-events", params] as const,
-  event: (eid: string, orders_limit: number, apps_limit: number) =>
-    ["event", eid, { orders_limit, apps_limit }] as const,
-  eventOrders: (eid: string, limit: number, offset: number) =>
-    ["event-orders", eid, { limit, offset }] as const,
+  event: (
+    eid: string,
+    site: SiteKey | undefined,
+    orders_limit: number,
+    apps_limit: number
+  ) => ["event", eid, { site, orders_limit, apps_limit }] as const,
+  eventOrders: (
+    eid: string,
+    site: SiteKey | undefined,
+    limit: number,
+    offset: number
+  ) => ["event-orders", eid, { site, limit, offset }] as const,
   eventShowCars: (
     eid: string,
+    site: SiteKey | undefined,
     status: ApplicationStatusApi | undefined,
     limit: number,
     offset: number
-  ) => ["event-show-cars", eid, { status, limit, offset }] as const,
+  ) => ["event-show-cars", eid, { site, status, limit, offset }] as const,
   eventCarClubs: (
     eid: string,
+    site: SiteKey | undefined,
     status: ApplicationStatusApi | undefined,
     limit: number,
     offset: number
-  ) => ["event-car-clubs", eid, { status, limit, offset }] as const,
+  ) => ["event-car-clubs", eid, { site, status, limit, offset }] as const,
   eventCategories: () => ["event-categories"] as const,
 };
 
@@ -64,17 +78,28 @@ export function useOrganiserEvents(params: OrganiserEventsParams = {}) {
   });
 }
 
-/** Loads a single event + first N orders + first N applications per status. */
+/**
+ * Loads a single event + first N orders + first N applications per status.
+ *
+ * `site` is the multisite blog key the event lives on ("uk", "us", …).
+ * It comes from the `?site=` query param on the event page, which the
+ * events list sets from `event.site.key`. Omitting it lets the API fall
+ * back to its default site, so pre-multisite links still resolve.
+ */
 export function useEvent(
   eid: string | undefined,
-  orders_limit = 5,
-  apps_limit = 5
+  {
+    site,
+    orders_limit = 5,
+    apps_limit = 5,
+  }: { site?: SiteKey; orders_limit?: number; apps_limit?: number } = {}
 ) {
   return useQuery<EventResponse>({
-    queryKey: queryKeys.event(eid ?? "", orders_limit, apps_limit),
+    queryKey: queryKeys.event(eid ?? "", site, orders_limit, apps_limit),
     queryFn: () =>
       apiPost<EventResponse, EventParams>("/event", {
         eid: eid as string,
+        site,
         orders_limit,
         apps_limit,
       }),
@@ -86,16 +111,23 @@ export function useEvent(
 export function useEventOrders(
   eid: string | undefined,
   {
+    site,
     limit = 50,
     offset = 0,
     enabled = false,
-  }: { limit?: number; offset?: number; enabled?: boolean } = {}
+  }: {
+    site?: SiteKey;
+    limit?: number;
+    offset?: number;
+    enabled?: boolean;
+  } = {}
 ) {
   return useQuery<EventOrdersResponse>({
-    queryKey: queryKeys.eventOrders(eid ?? "", limit, offset),
+    queryKey: queryKeys.eventOrders(eid ?? "", site, limit, offset),
     queryFn: () =>
       apiPost<EventOrdersResponse, EventOrdersParams>("/event/orders", {
         eid: eid as string,
+        site,
         limit,
         offset,
       }),
@@ -112,11 +144,13 @@ export function useEventOrders(
 export function useEventShowCars(
   eid: string | undefined,
   {
+    site,
     status,
     limit = 100,
     offset = 0,
     enabled = false,
   }: {
+    site?: SiteKey;
     status?: ApplicationStatusApi;
     limit?: number;
     offset?: number;
@@ -124,11 +158,11 @@ export function useEventShowCars(
   } = {}
 ) {
   return useQuery<EventShowCarsResponse>({
-    queryKey: queryKeys.eventShowCars(eid ?? "", status, limit, offset),
+    queryKey: queryKeys.eventShowCars(eid ?? "", site, status, limit, offset),
     queryFn: () =>
       apiPost<EventShowCarsResponse, EventShowCarsParams>(
         "/event/show-cars",
-        { eid: eid as string, status, limit, offset }
+        { eid: eid as string, site, status, limit, offset }
       ),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,
@@ -138,11 +172,13 @@ export function useEventShowCars(
 export function useEventCarClubs(
   eid: string | undefined,
   {
+    site,
     status,
     limit = 100,
     offset = 0,
     enabled = false,
   }: {
+    site?: SiteKey;
     status?: ApplicationStatusApi;
     limit?: number;
     offset?: number;
@@ -150,11 +186,11 @@ export function useEventCarClubs(
   } = {}
 ) {
   return useQuery<EventCarClubsResponse>({
-    queryKey: queryKeys.eventCarClubs(eid ?? "", status, limit, offset),
+    queryKey: queryKeys.eventCarClubs(eid ?? "", site, status, limit, offset),
     queryFn: () =>
       apiPost<EventCarClubsResponse, EventCarClubsParams>(
         "/event/car-clubs",
-        { eid: eid as string, status, limit, offset }
+        { eid: eid as string, site, status, limit, offset }
       ),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,

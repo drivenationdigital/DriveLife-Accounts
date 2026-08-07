@@ -121,8 +121,12 @@ function EventsContent() {
   const activeCount = tab === "active" ? settledTotal : undefined;
   const pastCount = tab === "past" ? settledTotal : undefined;
 
+  // The site travels in the URL so the detail page can send it back up
+  // with every event-scoped request - encrypted ids are only unique
+  // within a site, so `eid` alone doesn't identify the event.
   const goToEvent = (ev: EventRecord) => {
-    router.push(`/events/${ev.encrypted_id}`);
+    const path = `/events/${ev.encrypted_id}`;
+    router.push(ev.site ? `${path}?site=${encodeURIComponent(ev.site.key)}` : path);
   };
 
   // First-time loading (no data yet) - show skeleton matching the chosen view.

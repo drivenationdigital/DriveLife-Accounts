@@ -66,6 +66,7 @@ export function OrdersTab() {
   // ── Server-side fetch (search + pagination handled by the API) ──
   const { data, isLoading, isFetching, isPlaceholderData } = useEventOrders({
     eid: event.encryptedId,
+    site: event.site,
     page,
     perPage: PER_PAGE,
     search: debouncedSearch,
