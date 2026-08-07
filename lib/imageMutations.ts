@@ -16,6 +16,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiDelete } from "./apiClient";
+import type { SiteKey } from "./apiTypes";
 import {
   uploadEventImage,
   type ConfirmedImage,
@@ -37,11 +38,13 @@ export function useRemoveEventImage() {
   return useMutation<
     { success: true },
     Error,
-    { eid: string; mediaId: string }
+    { eid: string; site: SiteKey; mediaId: string }
   >({
-    mutationFn: ({ eid, mediaId }) => {
+    mutationFn: ({ eid, site, mediaId }) => {
       const params = new URLSearchParams({ eid, media_id: mediaId });
-      return apiDelete<{ success: true }>(`/event-image?${params.toString()}`);
+      return apiDelete<{ success: true }>(`/event-image?${params.toString()}`, {
+        site,
+      });
     },
     onSuccess: (_data, { eid }) => {
       qc.invalidateQueries({ queryKey: ["event-images", eid] });

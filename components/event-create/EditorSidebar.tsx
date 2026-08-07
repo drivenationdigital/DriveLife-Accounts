@@ -1,11 +1,10 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import {
-  EVENT_CREATE_STEPS,
-  EVENT_CREATE_STEP_COUNT,
   DEFAULT_STEP,
   type EventCreateStepKey,
 } from "@/lib/eventCreateSteps";
@@ -41,11 +40,16 @@ export function EditorSidebar() {
     router.push(`${pathname}?${params.toString()}`, { scroll: false });
   };
 
+  // Steps come from the hook rather than the module constant: a
+  // listing-only region has no ticketing steps, so both the list and
+  // the "N / M" progress count are shorter there.
+  const { steps, stepCount } = useEventSteps();
+
   // Progress display - for now, just the active step's number. Will be
   // replaced by completed-step count once validation lands.
   const activeStepNumber =
-    EVENT_CREATE_STEPS.find((s) => s.key === activeStep)?.number ?? 1;
-  const progressPct = (activeStepNumber / EVENT_CREATE_STEP_COUNT) * 100;
+    steps.find((s) => s.key === activeStep)?.number ?? 1;
+  const progressPct = (activeStepNumber / stepCount) * 100;
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white">
@@ -70,7 +74,7 @@ export function EditorSidebar() {
         aria-label="Event editor sections"
       >
         <ul className="space-y-0.5">
-          {EVENT_CREATE_STEPS.map((step) => {
+          {steps.map((step) => {
             const isActive = step.key === activeStep;
             // Completeness placeholder - always false until validation wired up.
             const isComplete = false;
@@ -108,7 +112,7 @@ export function EditorSidebar() {
         <div className="flex items-center justify-between text-xs mb-2">
           <span className="font-semibold text-ink-700">Progress</span>
           <span className="text-ink-500">
-            {activeStepNumber} / {EVENT_CREATE_STEP_COUNT}
+            {activeStepNumber} / {stepCount}
           </span>
         </div>
         <div className="h-1.5 bg-ink-200 rounded-full overflow-hidden">

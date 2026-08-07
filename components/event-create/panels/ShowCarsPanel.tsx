@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -8,7 +9,6 @@ import {
   type ShowCarCategory,
   type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 import {
@@ -41,7 +41,9 @@ export function ShowCarsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("show-cars");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("show-cars");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -186,8 +188,8 @@ export function ShowCarsPanel() {
   return (
     <section className="panel is-active" data-panel="show-cars" role="tabpanel">
       <PanelHeader
-        stepNumber={7}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("show-cars")}
+        totalSteps={stepCount}
         title="Show cars"
         subtitle="Let applicants apply to display their vehicle. Set application windows, categories and requirements."
       />

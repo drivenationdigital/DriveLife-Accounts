@@ -1,10 +1,10 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import {
-  EVENT_CREATE_STEPS,
   DEFAULT_STEP,
   type EventCreateStepKey,
 } from "@/lib/eventCreateSteps";
@@ -24,6 +24,8 @@ export function EditorTabBar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
+  // Region decides which steps exist - see useEventSteps.
+  const { steps } = useEventSteps();
 
   const activeStep =
     (searchParams.get("step") as EventCreateStepKey | null) ?? DEFAULT_STEP;
@@ -58,7 +60,7 @@ export function EditorTabBar() {
           role="tablist"
           aria-label="Event editor sections"
         >
-          {EVENT_CREATE_STEPS.map((step) => {
+          {steps.map((step) => {
             const isActive = step.key === activeStep;
             const classes = [
               "tab",

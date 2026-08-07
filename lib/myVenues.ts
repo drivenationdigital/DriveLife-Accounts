@@ -62,8 +62,8 @@ export function useMyVenues(page: number, perPage = 12, site?: SiteKey) {
     queryKey: ["my-venues", page, perPage, { site }],
     queryFn: () =>
       apiGet<MyVenuesResponse>(
-        `/my-venues?page=${page}&per_page=${perPage}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
+        `/my-venues?page=${page}&per_page=${perPage}`,
+        { site },
       ),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
@@ -90,9 +90,16 @@ export interface CreateVenueResponse {
  */
 export function useCreateVenue() {
   const qc = useQueryClient();
-  return useMutation<CreateVenueResponse, Error, CreateVenueBody>({
-    mutationFn: (body) =>
-      apiPost<CreateVenueResponse, CreateVenueBody>("/venue-create", body),
+  return useMutation<
+    CreateVenueResponse,
+    Error,
+    CreateVenueBody & { site: SiteKey }
+  >({
+    // Which blog the venue is created on - fixed from here on.
+    mutationFn: ({ site, ...body }) =>
+      apiPost<CreateVenueResponse, CreateVenueBody>("/venue-create", body, {
+        site,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-venues"] });
     },
@@ -110,6 +117,10 @@ export interface VenueImage {
 export interface VenueEditData {
   id: number;
   encrypted_id: string;
+  /** Region the vid belongs to, folded in from the `?site=` param on
+   *  the edit route. Not part of the /venue-edit payload - the editor
+   *  adds it on hydration so saving can send it back. */
+  site: SiteKey;
   title: string;
   location: string;
   latitude: string;
@@ -134,9 +145,9 @@ export interface VenueEditResponse {
 export interface VenueUpdateBody {
   vid: string;
   /** Multisite blog the venue lives on. Part of its identity, not a
-   *  filter - see useDeleteVenue. Optional so pre-multisite callers
-   *  still compile. */
-  site?: SiteKey;
+   *  filter - see useDeleteVenue. Stripped from the body and sent as a
+   *  client option so the guard in apiClient can enforce it. */
+  site: SiteKey;
   post_title?: string;
   venue_location?: string;
   latitude?: string;
@@ -166,14 +177,13 @@ export interface VenueUpdateResponse {
  * in the key so existing ["venue-edit", vid] prefix invalidations still
  * match both regions.
  */
-export function useVenueEditQuery(vid: string, site?: SiteKey) {
+export function useVenueEditQuery(vid: string, site: SiteKey) {
   return useQuery<VenueEditResponse, Error>({
     queryKey: ["venue-edit", vid, { site }],
     queryFn: () =>
-      apiGet<VenueEditResponse>(
-        `/venue-edit?vid=${encodeURIComponent(vid)}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
-      ),
+      apiGet<VenueEditResponse>(`/venue-edit?vid=${encodeURIComponent(vid)}`, {
+        site,
+      }),
     enabled: Boolean(vid),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
@@ -184,8 +194,12 @@ export function useVenueEditQuery(vid: string, site?: SiteKey) {
 export function useUpdateVenue() {
   const qc = useQueryClient();
   return useMutation<VenueUpdateResponse, Error, VenueUpdateBody>({
-    mutationFn: (body) =>
-      apiPost<VenueUpdateResponse, VenueUpdateBody>("/venue-update", body),
+    mutationFn: ({ site, ...body }) =>
+      apiPost<VenueUpdateResponse, Omit<VenueUpdateBody, "site">>(
+        "/venue-update",
+        body,
+        { site },
+      ),
     onSuccess: (_d, body) => {
       qc.invalidateQueries({ queryKey: ["venue-edit", body.vid] });
       qc.invalidateQueries({ queryKey: ["my-venues"] });
@@ -329,13 +343,13 @@ export interface DeleteVenueResponse {
  */
 export function useDeleteVenue() {
   const qc = useQueryClient();
-  return useMutation<DeleteVenueResponse, Error, { vid: string; site?: SiteKey }>({
+  return useMutation<DeleteVenueResponse, Error, { vid: string; site: SiteKey }>({
     // Region matters most here: without it a US vid resolves against
     // the UK blog, and this route trashes what it finds.
     mutationFn: ({ vid, site }) =>
       apiDelete<DeleteVenueResponse>(
-        `/venue-delete?vid=${encodeURIComponent(vid)}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
+        `/venue-delete?vid=${encodeURIComponent(vid)}`,
+        { site },
       ),
     onSuccess: (_d, { vid }) => {
       qc.invalidateQueries({ queryKey: ["my-venues"] });

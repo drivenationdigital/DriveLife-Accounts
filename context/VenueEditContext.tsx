@@ -38,6 +38,9 @@ import type { VenueEditStepKey } from "@/lib/venueEditSteps";
 export interface VenueForm {
   /** Encrypted id - the save payload's `vid`. */
   vid: string;
+  /** Region the vid belongs to ("uk" | "us"). Encrypted ids repeat
+   *  across regions, so the save has to carry it. */
+  site: string;
   /** Raw post id - the image upload endpoint wants this one. */
   rawId: number;
   title: string;
@@ -59,6 +62,7 @@ export type VenueFieldKey = keyof VenueForm;
 
 const EMPTY_VENUE: VenueForm = {
   vid: "",
+  site: "uk",
   rawId: 0,
   title: "",
   location: "",
@@ -171,6 +175,7 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
   const hydrate = useCallback((data: VenueEditData) => {
     const next: VenueForm = {
       vid: data.encrypted_id,
+      site: data.site,
       rawId: data.id,
       title: data.title,
       location: data.location,
@@ -232,6 +237,7 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
     try {
       await saveVenue({
         vid: venue.vid,
+        site: venue.site,
         post_title: venue.title.trim(),
         venue_location: venue.location,
         latitude: venue.latitude,

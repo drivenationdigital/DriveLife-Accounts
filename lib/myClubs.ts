@@ -62,10 +62,9 @@ export function useMyClubs(page: number, perPage = 12, site?: SiteKey) {
   return useQuery<MyClubsResponse, Error>({
     queryKey: ["my-clubs", page, perPage, { site }],
     queryFn: () =>
-      apiGet<MyClubsResponse>(
-        `/my-clubs?page=${page}&per_page=${perPage}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
-      ),
+      apiGet<MyClubsResponse>(`/my-clubs?page=${page}&per_page=${perPage}`, {
+        site,
+      }),
     placeholderData: keepPreviousData,
     staleTime: 30_000,
   });
@@ -85,14 +84,14 @@ export interface DeleteClubResponse {
  */
 export function useDeleteClub() {
   const qc = useQueryClient();
-  return useMutation<DeleteClubResponse, Error, { cid: string; site?: SiteKey }>({
-    // `site` is not optional in spirit: cids repeat across regions, so
-    // omitting it on a US club resolves the same id on the UK blog -
-    // and this is a delete.
+  return useMutation<DeleteClubResponse, Error, { cid: string; site: SiteKey }>({
+    // `site` is required: cids repeat across regions, so omitting it on
+    // a US club resolves the same id on the UK blog - and this is a
+    // delete. The API client rejects the call without it.
     mutationFn: ({ cid, site }) =>
       apiDelete<DeleteClubResponse>(
-        `/club-delete?cid=${encodeURIComponent(cid)}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
+        `/club-delete?cid=${encodeURIComponent(cid)}`,
+        { site },
       ),
     onSuccess: (_d, { cid }) => {
       qc.invalidateQueries({ queryKey: ["my-clubs"] });

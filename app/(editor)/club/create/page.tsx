@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCreateClub } from "@/lib/clubEdit";
+import { DEFAULT_REGION_KEY } from "@/lib/regions";
 
 /**
  * Create Club - entry flow (UI only).
@@ -51,6 +52,11 @@ export default function CreateClubPage() {
       const club = await createClub.mutateAsync({
         post_title: title.trim(),
         club_type: clubType === "private" ? "1" : "2",
+        // Clubs and venues have no region picker yet, so this pins
+        // creation to the default region - exactly what the API did
+        // itself before `site` became required. Add a selector here
+        // when clubs/venues get multi-region support.
+        site: DEFAULT_REGION_KEY,
       });
       // Straight into the wizard to finish the remaining steps.
       router.push(`/club/${club.encrypted_id}/edit`);

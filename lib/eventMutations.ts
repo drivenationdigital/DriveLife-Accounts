@@ -26,6 +26,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "./apiClient";
 import type { EventCreateState } from "@/context/EventCreateContext";
 import type { SiteKey } from "./apiTypes";
+import { resolveRegion } from "./regions";
 import type { CreateEventParams, CreateEventResponse } from "./queries";
 import {
   mapStateToUpdateRequest,
@@ -57,14 +58,12 @@ const HOST_TYPE_TO_EVENT_TYPE: Record<
 function postEventUpdate(
   eid: string,
   body: ApiEventUpdateRequest,
-  site?: SiteKey,
+  site: SiteKey,
 ) {
-  const qs =
-    `eid=${encodeURIComponent(eid)}` +
-    (site ? `&site=${encodeURIComponent(site)}` : "");
   return apiPost<ApiEventUpdateResponse, ApiEventUpdateRequest>(
-    `/event-update?${qs}`,
+    `/event-update?eid=${encodeURIComponent(eid)}`,
     body,
+    { site },
   );
 }
 
@@ -91,7 +90,7 @@ export function useUpdateEvent() {
   return useMutation<
     ApiEventUpdateResponse,
     Error,
-    { eid: string; body: ApiEventUpdateRequest; site?: SiteKey }
+    { eid: string; body: ApiEventUpdateRequest; site: SiteKey }
   >({
     mutationFn: ({ eid, body, site }) => postEventUpdate(eid, body, site),
     onSuccess: (_data, { eid }) => invalidateEventCaches(qc, eid),
@@ -108,6 +107,11 @@ export function useSaveEvent() {
   return useMutation<ApiEventUpdateResponse, Error, EventCreateState>({
     mutationFn: async (state) => {
       let eid = state.encryptedId;
+      // Resolved rather than raw: `state.site` is null on an event
+      // opened from a link that predates multisite, and every route
+      // below needs a concrete region. resolveRegion falls back to UK,
+      // which is the same blog the API would have picked itself.
+      const site = resolveRegion(state.site).key;
 
       // No server-side draft yet → create the shell first. Mirrors the
       // wizard's useCreateEvent call so a "save from a brand-new
@@ -122,15 +126,14 @@ export function useSaveEvent() {
             host_type: state.hostType,
             host_id: state.hostId,
           },
+          { site },
         );
         eid = created.encrypted_id;
-        // A freshly created draft lives on the API's default site, so
-        // there's no region to send back for it yet.
-        return postEventUpdate(eid, mapStateToUpdateRequest(state));
+        // Created and updated on the same blog - the draft doesn't move.
+        return postEventUpdate(eid, mapStateToUpdateRequest(state), site);
       }
 
-      const body = mapStateToUpdateRequest(state);
-      return postEventUpdate(eid, body, state.site ?? undefined);
+      return postEventUpdate(eid, mapStateToUpdateRequest(state), site);
     },
     onSuccess: (data) => invalidateEventCaches(qc, data.encrypted_id),
   });

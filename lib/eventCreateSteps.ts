@@ -106,19 +106,67 @@ export const EVENT_CREATE_STEP_COUNT = EVENT_CREATE_STEPS.length;
 /** Default step shown when no `?step=` is in the URL. */
 export const DEFAULT_STEP: EventCreateStepKey = "basics";
 
-/** Get a step by its key, with fallback to the default step. */
-export function getStep(key: string | null | undefined): EventCreateStep {
-  const match = EVENT_CREATE_STEPS.find((s) => s.key === key);
-  return match ?? EVENT_CREATE_STEPS[0]!;
+/**
+ * The steps that only make sense where the region can sell tickets.
+ * All five hang off ticketing: discounts price tickets, and the three
+ * application types are each backed by a hidden ticket.
+ */
+export const TICKETING_STEP_KEYS: EventCreateStepKey[] = [
+  "tickets",
+  "discounts",
+  "show-cars",
+  "car-clubs",
+  "traders",
+];
+
+/**
+ * The steps an event on this region actually has.
+ *
+ * A listing-only region (the US, for now) has no ticketing, so those
+ * five steps aren't shown at all rather than shown-and-broken. They're
+ * removed rather than disabled because a disabled step still implies
+ * "not yet" - here the answer is "not in this country".
+ *
+ * Numbering is recomputed so the wizard still reads 1..N with no gaps.
+ */
+export function visibleSteps(ticketing: boolean): EventCreateStep[] {
+  if (ticketing) return EVENT_CREATE_STEPS;
+  return EVENT_CREATE_STEPS.filter(
+    (s) => !TICKETING_STEP_KEYS.includes(s.key),
+  ).map((s, i) => ({ ...s, number: i + 1 }));
 }
 
-/** Get the previous/next step keys, or null at the boundary. */
+/** Whether a step key is reachable on this region. */
+export function isStepVisible(
+  key: string | null | undefined,
+  steps: EventCreateStep[] = EVENT_CREATE_STEPS,
+): boolean {
+  return steps.some((s) => s.key === key);
+}
+
+/** Get a step by its key, with fallback to the first visible step. */
+export function getStep(
+  key: string | null | undefined,
+  steps: EventCreateStep[] = EVENT_CREATE_STEPS,
+): EventCreateStep {
+  const match = steps.find((s) => s.key === key);
+  return match ?? steps[0]!;
+}
+
+/**
+ * Previous/next step keys, or null at the boundary.
+ *
+ * `steps` is the visible list, so on a listing-only region Gallery's
+ * "next" skips the five ticketing steps and lands on Publish rather
+ * than walking into a step that isn't rendered.
+ */
 export function adjacentSteps(
   key: EventCreateStepKey,
+  steps: EventCreateStep[] = EVENT_CREATE_STEPS,
 ): { prev: EventCreateStepKey | null; next: EventCreateStepKey | null } {
-  const idx = EVENT_CREATE_STEPS.findIndex((s) => s.key === key);
+  const idx = steps.findIndex((s) => s.key === key);
   return {
-    prev: idx > 0 ? EVENT_CREATE_STEPS[idx - 1]!.key : null,
-    next: idx >= 0 && idx < EVENT_CREATE_STEPS.length - 1 ? EVENT_CREATE_STEPS[idx + 1]!.key : null,
+    prev: idx > 0 ? steps[idx - 1]!.key : null,
+    next: idx >= 0 && idx < steps.length - 1 ? steps[idx + 1]!.key : null,
   };
 }

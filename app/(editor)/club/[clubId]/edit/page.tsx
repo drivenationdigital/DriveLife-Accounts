@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveRegion } from "@/lib/regions";
 import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -68,7 +69,9 @@ function EditClubEditor({ clubId }: { clubId: string }) {
   // Region the cid belongs to, carried in on the link that opened this
   // page. Encrypted ids repeat across regions, so it has to go up on
   // both the load and every save.
-  const site = useSearchParams().get("site") || undefined;
+  // resolveRegion falls back to UK - the same blog the API would
+  // have picked for an omitted site, so old links behave as before.
+  const site = resolveRegion(useSearchParams().get("site")).key;
   const { data, isLoading, error } = useClubEditQuery(clubId, site);
 
   useEffect(() => {
@@ -81,7 +84,7 @@ function EditClubEditor({ clubId }: { clubId: string }) {
         ...data.club,
         // Not in the payload - folded in from the URL so the save
         // payload can carry it back.
-        site: site ?? "",
+        site,
         terms: data.club.terms.trim() || defaultClubTerms(data.club.title),
       },
       data.options.categories,
@@ -158,7 +161,7 @@ function PanelFooter({
   const searchParams = useSearchParams();
   // Region the cid belongs to - the delete below resolves against the
   // API's default region without it.
-  const site = searchParams.get("site") || undefined;
+  const site = resolveRegion(searchParams.get("site")).key;
   const { isDirty } = useClubEdit();
   const { save, isSaving, error } = useClubSave();
 

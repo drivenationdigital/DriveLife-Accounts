@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -8,7 +9,6 @@ import {
   type Discount,
   type DiscountId,
 } from "@/context/EventCreateContext";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import {
   useSaveDiscount,
@@ -39,7 +39,9 @@ export function DiscountsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("discounts");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("discounts");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -204,8 +206,8 @@ export function DiscountsPanel() {
   return (
     <section className="panel is-active" data-panel="discounts" role="tabpanel">
       <PanelHeader
-        stepNumber={6}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("discounts")}
+        totalSteps={stepCount}
         title="Discounts & upsells"
         subtitle="Create promo codes and early-bird offers. Drag to reorder how they appear at checkout."
       />

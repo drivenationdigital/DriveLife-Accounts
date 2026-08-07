@@ -1,6 +1,7 @@
 "use client";
 
 import type { MyClub } from "@/lib/myClubs";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 
 interface Props {
   club: MyClub;
@@ -44,12 +45,26 @@ export function ClubCard({ club, onClick }: Props) {
           </div>
         )}
 
-        {/* Corner badge: Unpublished / role */}
-        <span
-          className={`club-badge${club.is_published ? " role" : " unpublished"}`}
-        >
-          {club.badge}
-        </span>
+        {/* Top-right cluster: Unpublished / role badge, plus the
+            region. /my-clubs merges both countries when no site filter
+            is given, so without the flag a US and a UK club look alike.
+            Account dashboard only - never the public site. */}
+        <div className="club-cover-corner">
+          <span
+            className={`club-badge${club.is_published ? " role" : " unpublished"}`}
+          >
+            {club.badge}
+          </span>
+          {club.site && (
+            <span className="card-site-badge">
+              <CountryFlag
+                country={club.site.country}
+                label={club.site.label}
+              />
+              {club.site.key.toUpperCase()}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="club-body">

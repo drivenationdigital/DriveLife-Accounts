@@ -6,7 +6,10 @@ import Link from "next/link";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { useCreateEvent } from "@/lib/queries";
+import { eventEditorPath } from "@/lib/siteRoutes";
 import { HostedByDropdown } from "@/components/event-create/HostedByDropdown";
+import { RegionSelector } from "@/components/event-create/RegionSelector";
+import { DEFAULT_REGION_KEY } from "@/lib/regions";
 
 /**
  * Create-event entry screen.
@@ -53,21 +56,27 @@ export default function CreateEventPage() {
     dispatch({ type: "SET_FIELD", key: "title", value: trimmed });
 
     try {
+      // Default rather than omit: the region drives locale, currency
+      // and whether the editor shows any ticketing at all, so the rest
+      // of the flow always wants a concrete answer.
+      const site = state.site ?? DEFAULT_REGION_KEY;
       const result = await createEvent.mutateAsync({
         title: trimmed,
         event_type: eventTypeFromHost(state.hostType),
         host_type: state.hostType,
         host_id: state.hostId,
+        site,
       });
       dispatch({
         type: "SET_FIELD",
         key: "encryptedId",
         value: result.encrypted_id,
       });
-      // `replace` so Back can't re-trigger a duplicate create.
-      router.replace(
-        `/events/new?eid=${encodeURIComponent(result.encrypted_id)}`,
-      );
+      dispatch({ type: "SET_FIELD", key: "site", value: site });
+      // `replace` so Back can't re-trigger a duplicate create. The
+      // region rides along so the editor loads and saves against the
+      // right blog.
+      router.replace(eventEditorPath(result.encrypted_id, site));
     } catch (err) {
       setError(
         err instanceof Error
@@ -121,8 +130,15 @@ export default function CreateEventPage() {
             />
           </div>
 
+          {/* Region first: clubs and venues are per-region, so the
+              country decides what "Hosted by" can offer. Choosing it
+              second would mean picking a host and then watching the
+              choice reset. Create-time only - see RegionSelector. */}
+          <RegionSelector />
+
           {/* Hosted-by dropdown - hides itself when "Me" is the only
-              option (a user with no clubs/venues never sees it). */}
+              option (a user with no clubs/venues in this region never
+              sees it). */}
           <HostedByDropdown />
 
           {error && (

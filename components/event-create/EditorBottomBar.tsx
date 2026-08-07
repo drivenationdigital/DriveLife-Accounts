@@ -1,12 +1,12 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
 import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
 import {
-  adjacentSteps,
   DEFAULT_STEP,
   type EventCreateStepKey,
 } from "@/lib/eventCreateSteps";
@@ -34,7 +34,8 @@ export function EditorBottomBar() {
 
   const activeStep =
     (searchParams.get("step") as EventCreateStepKey | null) ?? DEFAULT_STEP;
-  const { prev, next } = adjacentSteps(activeStep);
+  const { adjacent } = useEventSteps();
+  const { prev, next } = adjacent(activeStep);
 
   const goToStep = (key: EventCreateStepKey) => {
     const params = new URLSearchParams(searchParams.toString());

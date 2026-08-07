@@ -56,7 +56,8 @@ export const queryKeys = {
     limit: number,
     offset: number
   ) => ["event-car-clubs", eid, { site, status, limit, offset }] as const,
-  eventCategories: () => ["event-categories"] as const,
+  eventCategories: (site: SiteKey | undefined) =>
+    ["event-categories", { site }] as const,
   eventEdit: (eid: string, site: SiteKey | undefined) =>
     ["event-edit", eid, { site }] as const,
 };
@@ -102,12 +103,11 @@ export function useEvent(
   return useQuery<EventResponse>({
     queryKey: queryKeys.event(eid ?? "", site, orders_limit, apps_limit),
     queryFn: () =>
-      apiPost<EventResponse, EventParams>("/event", {
-        eid: eid as string,
-        site,
-        orders_limit,
-        apps_limit,
-      }),
+      apiPost<EventResponse, EventParams>(
+        "/event",
+        { eid: eid as string, orders_limit, apps_limit },
+        { site },
+      ),
     enabled: Boolean(eid),
     staleTime: 30_000,
   });
@@ -130,12 +130,11 @@ export function useEventOrders(
   return useQuery<EventOrdersResponse>({
     queryKey: queryKeys.eventOrders(eid ?? "", site, limit, offset),
     queryFn: () =>
-      apiPost<EventOrdersResponse, EventOrdersParams>("/event/orders", {
-        eid: eid as string,
-        site,
-        limit,
-        offset,
-      }),
+      apiPost<EventOrdersResponse, EventOrdersParams>(
+        "/event/orders",
+        { eid: eid as string, limit, offset },
+        { site },
+      ),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,
     placeholderData: (prev) => prev, // keep previous page visible while loading next
@@ -167,7 +166,8 @@ export function useEventShowCars(
     queryFn: () =>
       apiPost<EventShowCarsResponse, EventShowCarsParams>(
         "/event/show-cars",
-        { eid: eid as string, site, status, limit, offset }
+        { eid: eid as string, status, limit, offset },
+        { site },
       ),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,
@@ -195,7 +195,8 @@ export function useEventCarClubs(
     queryFn: () =>
       apiPost<EventCarClubsResponse, EventCarClubsParams>(
         "/event/car-clubs",
-        { eid: eid as string, site, status, limit, offset }
+        { eid: eid as string, status, limit, offset },
+        { site },
       ),
     enabled: enabled && Boolean(eid),
     staleTime: 30_000,
@@ -208,14 +209,18 @@ export function useEventCarClubs(
  * `get_categories(... orderby ID asc, exclude 1/9/10)` chunked at 7).
  *
  * Categories rarely change, so we use a generous staleTime - once
- * the page has them they're treated as fresh for 30 minutes. The
- * cache is keyed without parameters because the route returns a
- * single canonical list.
+ * the page has them they're treated as fresh for 30 minutes.
+ *
+ * `site` is required: the term lists are per-blog, so a US event has to
+ * be categorised against the US taxonomy. It's in the cache key too,
+ * or the first region loaded would be served to the other.
  */
-export function useEventCategories() {
+export function useEventCategories(site: SiteKey) {
   return useQuery({
-    queryKey: queryKeys.eventCategories(),
-    queryFn: () => apiGet<EventCategoriesResponse>("/event-categories"),
+    queryKey: queryKeys.eventCategories(site),
+    queryFn: () =>
+      apiGet<EventCategoriesResponse>("/event-categories", { site }),
+    enabled: Boolean(site),
     staleTime: 30 * 60_000, // 30 minutes
   });
 }
@@ -253,8 +258,13 @@ export type CreateEventResponse = {
  */
 export function useCreateEvent() {
   return useMutation({
-    mutationFn: (body: CreateEventParams) =>
-      apiPost<CreateEventResponse, CreateEventParams>("/events", body),
+    // `site` decides which blog the event is created on, so it's a
+    // required argument here rather than an optional body field - the
+    // client rejects the call without it.
+    mutationFn: ({ site, ...body }: CreateEventParams & { site: SiteKey }) =>
+      apiPost<CreateEventResponse, CreateEventParams>("/events", body, {
+        site,
+      }),
   });
 }
 
@@ -290,8 +300,8 @@ export function useEventForEdit(
     queryKey: queryKeys.eventEdit(safeEid, site),
     queryFn: () =>
       apiGet<import("./apiTypes").ApiEventEditResponse>(
-        `/event-edit?eid=${encodeURIComponent(safeEid)}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
+        `/event-edit?eid=${encodeURIComponent(safeEid)}`,
+        { site },
       ),
     enabled: safeEid.length > 0,
     staleTime: 0,

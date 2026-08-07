@@ -4,6 +4,12 @@ import type { EventRecord } from "@/lib/apiTypes";
 import { DEFAULT_EVENT_COVER } from "@/lib/eventDefaults";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { CountryFlag } from "@/components/ui/CountryFlag";
+import {
+  formatRegionDate,
+  formatRegionDateRange,
+  regionFromSite,
+  type Region,
+} from "@/lib/regions";
 import { eventKey } from "@/lib/eventKey";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -141,6 +147,7 @@ function mapStatus(postStatus: string): string {
 }
 
 function formatDateSubLabel(event: EventRecord): string {
+  const region = regionFromSite(event.site);
   if (event.is_recurring && event.recurring) {
     const pattern = event.recurring.display || "Recurring";
     // The card opens the next occurrence, not the series, so name the
@@ -152,7 +159,7 @@ function formatDateSubLabel(event: EventRecord): string {
     // would read as an upcoming event, so say what's actually true.
     return next.is_past
       ? `${pattern} · All dates passed`
-      : `${pattern} · Next ${formatSingleDate(next.start_date)}`;
+      : `${pattern} · Next ${formatSingleDate(next.start_date, region)}`;
   }
 
   const start = event.first_date?.start_date;
@@ -160,8 +167,8 @@ function formatDateSubLabel(event: EventRecord): string {
   if (!start) return "-";
 
   const dateLabel = !end || start === end
-    ? formatSingleDate(start)
-    : formatRange(start, end);
+    ? formatSingleDate(start, region)
+    : formatRange(start, end, region);
   const startTime = event.first_date?.start_time;
   const endTime = event.last_date?.end_time ?? event.first_date?.end_time;
   const timeLabel =
@@ -171,35 +178,18 @@ function formatDateSubLabel(event: EventRecord): string {
   return timeLabel ? `${dateLabel} · ${timeLabel}` : dateLabel;
 }
 
-function formatSingleDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+/** Dates follow the region the event lives on - a US event reads
+ *  "Sat, August 15, 2026" where a UK one reads "Sat, 15 August 2026". */
+function formatSingleDate(iso: string, region: Region): string {
+  return formatRegionDate(iso, region);
 }
 
-function formatRange(startIso: string, endIso: string): string {
-  try {
-    const start = new Date(startIso);
-    const end = new Date(endIso);
-    const sameMonth =
-      start.getMonth() === end.getMonth() &&
-      start.getFullYear() === end.getFullYear();
-    if (sameMonth) {
-      const month = start.toLocaleDateString("en-GB", { month: "long" });
-      const year = start.getFullYear();
-      return `${start.getDate()}-${end.getDate()} ${month} ${year}`;
-    }
-    return `${formatSingleDate(startIso)} - ${formatSingleDate(endIso)}`;
-  } catch {
-    return `${startIso} - ${endIso}`;
-  }
+function formatRange(
+  startIso: string,
+  endIso: string,
+  region: Region,
+): string {
+  return formatRegionDateRange(startIso, endIso, region);
 }
 
 function PinIcon() {

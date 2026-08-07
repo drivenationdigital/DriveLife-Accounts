@@ -1,13 +1,10 @@
 "use client";
 
+import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 
@@ -40,7 +37,9 @@ export function CarClubsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("car-clubs");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("car-clubs");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -52,6 +51,8 @@ export function CarClubsPanel() {
   // ---- Datepicker ----
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
+  const region = useEventRegion();
+
   const renderDateField = (target: DateTarget, value: string | null) => (
     <button
       type="button"
@@ -60,7 +61,7 @@ export function CarClubsPanel() {
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value) : "Select date"}
+        {value ? formatEditorDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
@@ -69,8 +70,8 @@ export function CarClubsPanel() {
   return (
     <section className="panel is-active" data-panel="car-clubs" role="tabpanel">
       <PanelHeader
-        stepNumber={8}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("car-clubs")}
+        totalSteps={stepCount}
         title="Car clubs"
         subtitle="Invite clubs to apply for a dedicated stand or group booking at your event."
       />

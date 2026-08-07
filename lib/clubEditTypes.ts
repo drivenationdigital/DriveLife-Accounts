@@ -112,11 +112,12 @@ export interface ClubEditResponse {
  */
 export interface ClubUpdateBody {
   cid: string; // encrypted club id
-  /** Multisite blog the club lives on ("uk", "us", …). Part of the
+  /** Multisite blog the club lives on ("uk" | "us"). Part of the
    *  club's identity, not a filter: cids repeat across regions, so
    *  without it a US club saves over whatever UK club shares its id.
-   *  Optional so pre-multisite callers still compile. */
-  site?: string;
+   *  Stripped from the body and sent as a client option, where the
+   *  guard in apiClient enforces it. */
+  site: string;
   post_title: string;
   post_status: ClubPostStatus;
   club_type: ClubTypeValue;
@@ -174,7 +175,9 @@ export const EMPTY_CLUB: ClubEditData = {
 export function toClubUpdateBody(club: ClubEditData): ClubUpdateBody {
   return {
     cid: club.encrypted_id,
-    site: club.site || undefined,
+    // Falls back to the default region rather than omitting: the
+    // API client requires a concrete region on /club-update.
+    site: club.site || "uk",
     post_title: club.title,
     post_status: club.status,
     club_type: club.clubType,

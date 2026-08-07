@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { currency, statusPillClass } from "@/lib/utils";
+import type { Region } from "@/lib/regions";
 import { useExportOrders } from "@/lib/ordersExport";
 import {
   useResendOrder,
@@ -74,7 +75,12 @@ export function OrdersTab() {
 
   // Map raw API orders to the row shape the table renders (same mapper
   // the event context uses, so the columns line up exactly).
-  const orders = useMemo(() => (data?.orders ?? []).map(mapOrder), [data]);
+  // Wrapped rather than passed bare: .map hands the index as the
+  // second argument, which would land in mapOrder's `region` slot.
+  const orders = useMemo(
+    () => (data?.orders ?? []).map((o) => mapOrder(o, event.region)),
+    [data, event.region],
+  );
 
   // Status dropdown options, from the statuses present on this page.
   const statusOptions = useMemo(() => {
@@ -157,6 +163,7 @@ export function OrdersTab() {
         title: "Refund this order?",
         message: `${currency(
           amount,
+          event.region,
         )} will be refunded to the customer via Stripe. This can't be undone.`,
         confirmLabel: "Refund",
         cancelLabel: "Keep order",
@@ -164,7 +171,7 @@ export function OrdersTab() {
       },
       loadingLabel: "Issuing refund...",
       successTitle: "Refund issued",
-      successMessage: `${currency(amount)} is on its way back to the customer.`,
+      successMessage: `${currency(amount, event.region)} is on its way back to the customer.`,
       errorTitle: "Refund failed",
       run: () => refund.mutateAsync({ oid }),
     });
@@ -182,6 +189,7 @@ export function OrdersTab() {
     isFirstLoad,
     orders.length,
     debouncedSearch.trim() !== "",
+    event.region,
   );
 
   return (
@@ -277,7 +285,7 @@ export function OrdersTab() {
                   </div>
                 </td>
                 <td className="mono">{o.quantity}</td>
-                <td className="amount">{currency(o.amount)}</td>
+                <td className="amount">{currency(o.amount, event.region)}</td>
                 <td>
                   <span
                     className={`pill ${statusPillClass(o.status)}`}
@@ -402,10 +410,11 @@ function buildSubtitle(
   isFirstLoad: boolean,
   fallbackLength: number,
   isSearching: boolean,
+  region: Region,
 ): string {
   if (isFirstLoad) {
     return fallbackLength > 0
-      ? `Loading orders · ${currency(netSales)} net sales`
+      ? `Loading orders · ${currency(netSales, region)} net sales`
       : `Loading orders…`;
   }
 
@@ -416,5 +425,5 @@ function buildSubtitle(
   const first = (page - 1) * perPage + 1;
   const last = Math.min(page * perPage, total);
   const scope = isSearching ? " matching" : "";
-  return `Showing ${first}-${last} of ${total}${scope} · ${currency(netSales)} net sales`;
+  return `Showing ${first}-${last} of ${total}${scope} · ${currency(netSales, region)} net sales`;
 }

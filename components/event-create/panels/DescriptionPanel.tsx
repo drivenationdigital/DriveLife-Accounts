@@ -1,10 +1,10 @@
 "use client";
 
+import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate, type EditorImage } from "@/context/EventCreateContext";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
 import { useUploadEventImage, useRemoveEventImage } from "@/lib/imageMutations";
 import { ApiError } from "@/lib/apiClient";
@@ -40,7 +40,9 @@ export function DescriptionPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("description");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("description");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -60,6 +62,9 @@ export function DescriptionPanel() {
   const upload = useUploadEventImage();
   const remover = useRemoveEventImage();
   const eid = state.encryptedId;
+  // The region the eid resolves against. The image confirm step
+  // writes this to the DB, so it has to match the event.
+  const site = useEventRegion().key;
   const [coverError, setCoverError] = useState<string | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
 
@@ -101,6 +106,7 @@ export function DescriptionPanel() {
     try {
       const image = await upload.mutateAsync({
         eid,
+        site,
         file,
         mediaGroup: "cover",
       });
@@ -130,7 +136,7 @@ export function DescriptionPanel() {
     if (current.kind === "remote" && current.cloudflareId && eid) {
       setCoverBusy(true);
       try {
-        await remover.mutateAsync({ eid, mediaId: current.cloudflareId });
+        await remover.mutateAsync({ eid, site, mediaId: current.cloudflareId });
       } catch (err) {
         setCoverError(`Couldn't remove image: ${errorText(err)}`);
         setCoverBusy(false);
@@ -150,8 +156,8 @@ export function DescriptionPanel() {
       role="tabpanel"
     >
       <PanelHeader
-        stepNumber={3}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("description")}
+        totalSteps={stepCount}
         title="Describe your event"
         subtitle="Sell the experience. Great events start with a great story."
       />

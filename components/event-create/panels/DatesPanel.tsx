@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -9,10 +10,6 @@ import {
   WEEKDAYS_LOWER,
 } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
 import { enumerateDays } from "@/lib/dateRange";
 import { makeLocalId } from "@/lib/makeLocalId";
 
@@ -62,7 +59,9 @@ export function DatesPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("dates");
+  const { region, stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("dates");
 
   // ---- Datepicker state ----
   // A single shared picker handles all four date fields (start, end,
@@ -214,8 +213,8 @@ export function DatesPanel() {
   return (
     <section className="panel is-active" data-panel="dates" role="tabpanel">
       <PanelHeader
-        stepNumber={2}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("dates")}
+        totalSteps={stepCount}
         title="Dates & times"
         subtitle="When will your event take place? Single day, multi-day, or a recurring series."
       />
@@ -496,7 +495,7 @@ export function DatesPanel() {
                       {state.recurringRepeatUntilCancelled
                         ? "Ongoing - no end date"
                         : state.recurringUntilDate
-                          ? formatEditorDate(state.recurringUntilDate)
+                          ? formatEditorDate(state.recurringUntilDate, region)
                           : "Pick a date"}
                     </span>
                     <i
@@ -670,7 +669,8 @@ function DateField({
   required?: boolean;
   onClick: () => void;
 }) {
-  const display = value ? formatEditorDate(value) : "Pick a date";
+  const region = useEventRegion();
+  const display = value ? formatEditorDate(value, region) : "Pick a date";
   return (
     <div>
       <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
@@ -737,7 +737,8 @@ function DateTimePair({
   onDateClick: () => void;
   onTimeChange: (value: string) => void;
 }) {
-  const display = date ? formatEditorDate(date) : "Pick a date";
+  const region = useEventRegion();
+  const display = date ? formatEditorDate(date, region) : "Pick a date";
   return (
     <div>
       <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
@@ -817,10 +818,11 @@ function PerDayTimeRow({
   onStartChange: (value: string) => void;
   onEndChange: (value: string) => void;
 }) {
+  const region = useEventRegion();
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[120px_1fr_1fr] gap-3 sm:items-center">
       <div className="text-sm font-semibold text-ink-900 sm:pr-2">
-        {formatEditorDate(date)}
+        {formatEditorDate(date, region)}
       </div>
       <div>
         <label className="block sm:hidden text-xs uppercase tracking-wider font-semibold text-ink-500 mb-1">
@@ -831,7 +833,7 @@ function PerDayTimeRow({
           className="input"
           value={startTime}
           onChange={(e) => onStartChange(e.target.value)}
-          aria-label={`Start time for ${formatEditorDate(date)}`}
+          aria-label={`Start time for ${formatEditorDate(date, region)}`}
         />
       </div>
       <div>
@@ -843,7 +845,7 @@ function PerDayTimeRow({
           className="input"
           value={endTime}
           onChange={(e) => onEndChange(e.target.value)}
-          aria-label={`End time for ${formatEditorDate(date)}`}
+          aria-label={`End time for ${formatEditorDate(date, region)}`}
         />
       </div>
     </div>

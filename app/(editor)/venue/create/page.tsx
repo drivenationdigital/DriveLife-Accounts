@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCreateVenue } from "@/lib/myVenues";
+import { DEFAULT_REGION_KEY } from "@/lib/regions";
 
 /**
  * Create Venue - entry step.
@@ -21,7 +22,14 @@ export default function CreateVenuePage() {
   const handleCreate = async () => {
     setError(null);
     try {
-      const venue = await createVenue.mutateAsync({ post_title: title.trim() });
+      const venue = await createVenue.mutateAsync({
+        post_title: title.trim(),
+        // Clubs and venues have no region picker yet, so this pins
+        // creation to the default region - exactly what the API did
+        // itself before `site` became required. Add a selector here
+        // when clubs/venues get multi-region support.
+        site: DEFAULT_REGION_KEY,
+      });
       router.push(`/venue/${venue.encrypted_id}/edit`);
     } catch (err) {
       setError(

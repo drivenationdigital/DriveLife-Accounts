@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -7,10 +8,6 @@ import {
   useEventCreate,
   type EditorImage,
 } from "@/context/EventCreateContext";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
 import {
   imageSrc,
   makeLocalImage,
@@ -53,7 +50,9 @@ export function GalleryPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("gallery");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("gallery");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -78,6 +77,9 @@ export function GalleryPanel() {
   const upload = useUploadEventImage();
   const remover = useRemoveEventImage();
   const eid = state.encryptedId;
+  // The region the eid resolves against. The image confirm step
+  // writes this to the DB, so it has to match the event.
+  const site = useEventRegion().key;
 
   const [uploadingKeys, setUploadingKeys] = useState<Set<string>>(new Set());
   const [uploadErrors, setUploadErrors] = useState<string[]>([]);
@@ -123,6 +125,7 @@ export function GalleryPanel() {
     try {
       const image = await upload.mutateAsync({
         eid,
+        site,
         file: local.file,
         mediaGroup: "gallery",
       });
@@ -235,7 +238,7 @@ export function GalleryPanel() {
     // message rather than silently vanishing.
     if (removed.kind === "remote" && removed.cloudflareId && eid) {
       try {
-        await remover.mutateAsync({ eid, mediaId: removed.cloudflareId });
+        await remover.mutateAsync({ eid, site, mediaId: removed.cloudflareId });
       } catch (err) {
         setUploadErrors((p) => [...p, `Couldn't remove image: ${errorText(err)}`]);
         return;
@@ -278,8 +281,8 @@ export function GalleryPanel() {
   return (
     <section className="panel is-active" data-panel="gallery" role="tabpanel">
       <PanelHeader
-        stepNumber={4}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("gallery")}
+        totalSteps={stepCount}
         title="Event gallery"
         subtitle="Showcase previous years or the atmosphere. Drag to reorder, click to remove."
       />

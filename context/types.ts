@@ -1,3 +1,5 @@
+import type { Region } from "@/lib/regions";
+
 export type EventStatus = "published" | "draft" | "cancelled";
 export type OrderStatus = "paid" | "pending" | "refunded" | "cancelled" | "free";
 export type ShowCarStatus =
@@ -32,16 +34,11 @@ export interface EventDetail {
    *  encrypted ids are only unique within a site. Empty string when
    *  unknown - the API then falls back to its default site. */
   site: string;
-  /** Human label for `site`, e.g. "United Kingdom". Empty when unknown. */
-  siteLabel: string;
-  /** ISO 3166-1 alpha-2 for the region flag ("GB" / "US"). Empty when
-   *  unknown. Dashboard only - never rendered on the public site. */
-  siteCountry: string;
-  /** False when the region can't sell tickets (US at time of writing).
-   *  The whole ticketing surface - Tickets, Orders, Attendees,
-   *  Applications - is hidden rather than shown empty. Defaults to true
-   *  so a response without a site block behaves as it always did. */
-  siteTicketing: boolean;
+  /** Everything the UI needs to present that region: label, flag
+   *  country, locale for dates, currency, and whether ticketing exists
+   *  there. Resolved from the API's site block where present, and from
+   *  the local region table otherwise, so it's never null. */
+  region: Region;
 
   // ---- Recurring series ----
   /** True when this eid resolves to the series PARENT rather than a

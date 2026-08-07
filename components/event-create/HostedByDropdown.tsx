@@ -2,34 +2,62 @@
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { useHostOptions, type HostOption } from "@/lib/hostOptions";
+import { useEventRegion } from "@/lib/useEventSteps";
 
 /**
  * "Hosted by" dropdown - sits under the event title.
  *
  * Replaces the old three-card "Choose Event Type" step. Defaults to
  * "Me"; auto-populates any clubs the user owns/admins and venues they
- * own. If "Me" is the only option, the whole control hides itself (a
- * plain user with no clubs/venues never sees it).
+ * own.
+ *
+ * The control always renders, even when "Me" is the only choice - a
+ * user with no clubs or venues should still see who their event is
+ * being created under, rather than have the field vanish and leave the
+ * host unstated.
+ *
+ * The options are region-scoped - a club you admin in the UK isn't a
+ * host you can pick for a US event - so the list reloads when the
+ * country changes, and the region picker resets the selection to "Me"
+ * rather than carrying a stale club id across.
  *
  * Writes hostType / hostId / hostName into the create-event context;
  * the save mapper turns hostType into the legacy event_type.
  */
+
+/** Fallback host, used until the API answers and if it comes back with
+ *  no "me" entry. The user can always host as themselves, so this is
+ *  never an invalid choice. */
+const ME_OPTION: HostOption = { type: "me", id: null, name: "Me", role: "" };
+
 export function HostedByDropdown() {
   const { state, dispatch } = useEventCreate();
-  const { data, isLoading } = useHostOptions();
+  // Clubs and venues are per-region, so this list changes with the
+  // country picker above it.
+  const region = useEventRegion();
+  const { data, isLoading } = useHostOptions(region.key);
 
-  const options = data?.options ?? [];
-
-  // Hide entirely when the only option is "Me" (or nothing loaded yet
-  // and there's no reason to show a single-choice control).
-  const hasRealChoice = options.some((o) => o.type !== "me");
-  if (!isLoading && !hasRealChoice) return null;
+  // "Me" is guaranteed present. The API is documented to return it
+  // first, but an empty list (a region with no host-options support, or
+  // a failed fetch) would otherwise leave the select with nothing in
+  // it, and the state defaults to hosting as "me" regardless.
+  const fetched = data?.options ?? [];
+  const options = fetched.some((o) => o.type === "me")
+    ? fetched
+    : [ME_OPTION, ...fetched];
 
   // Build a stable value string per option ("me", "club:123", …).
   const valueOf = (o: HostOption) =>
     o.type === "me" ? "me" : `${o.type}:${o.id}`;
-  const currentValue =
+  const storedValue =
     state.hostType === "me" ? "me" : `${state.hostType}:${state.hostId}`;
+  // A stored host that isn't in this region's list would leave the
+  // select showing its first option while state still held the old id.
+  // Region changes already reset the host, so this only covers the gap
+  // while the new region's options are in flight.
+  const currentValue = options.some((o) => valueOf(o) === storedValue)
+    ? storedValue
+    : "me";
 
   const onChange = (raw: string) => {
     const picked = options.find((o) => valueOf(o) === raw);

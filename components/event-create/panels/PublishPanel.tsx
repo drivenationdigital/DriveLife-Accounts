@@ -1,14 +1,12 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
+import type { Region } from "@/lib/regions";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
-import {
-  EVENT_CREATE_STEP_COUNT,
-  adjacentSteps,
-} from "@/lib/eventCreateSteps";
 import { useEditorSave } from "@/lib/useEditorSave";
 import { ApiError } from "@/lib/apiClient";
 import { formatEditorDate } from "@/lib/formatEditorDate";
@@ -47,7 +45,9 @@ export function PublishPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev } = adjacentSteps("publish");
+  const { region, stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev } = adjacent("publish");
 
   const [pickerOpen, setPickerOpen] = useState(false);
 
@@ -87,9 +87,9 @@ export function PublishPanel() {
   // JSX stays readable. All purely view-side; no side effects.
   const summaryDate =
     state.startDate && state.startTime
-      ? `${formatShort(state.startDate)}, ${state.startTime}`
+      ? `${formatShort(state.startDate, region)}, ${state.startTime}`
       : state.startDate
-        ? formatShort(state.startDate)
+        ? formatShort(state.startDate, region)
         : "Not set";
 
   // Count actual tickets (sections are dividers, not sellable rows).
@@ -116,8 +116,8 @@ export function PublishPanel() {
   return (
     <section className="panel is-active" data-panel="publish" role="tabpanel">
       <PanelHeader
-        stepNumber={10}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("publish")}
+        totalSteps={stepCount}
         title="Ready to go live?"
         subtitle="Review the basics and push your event out to the world."
       />
@@ -437,7 +437,7 @@ function SummaryItem({
 // ============================================================
 
 /** "2026-04-19" → "19 Apr 2026" - short variant for tight summary copy. */
-function formatShort(iso: string): string {
+function formatShort(iso: string, region: Region): string {
   const parts = iso.split("-");
   if (parts.length !== 3) return iso;
   const [yStr, mStr, dStr] = parts as [string, string, string];
@@ -446,7 +446,7 @@ function formatShort(iso: string): string {
   const d = Number(dStr);
   if (!y || !m || !d) return iso;
   const date = new Date(Date.UTC(y, m - 1, d));
-  return date.toLocaleDateString("en-GB", {
+  return date.toLocaleDateString(region.locale, {
     day: "numeric",
     month: "short",
     year: "numeric",

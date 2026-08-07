@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventRegion } from "@/lib/useEventSteps";
 import { useState } from "react";
 
 import {
@@ -173,6 +174,8 @@ export function DiscountDrawer({
   };
 
   const isPercent = kind === "percentage";
+  const region = useEventRegion();
+
   const renderDateField = (target: DateTarget, value: string | null) => (
     <button
       type="button"
@@ -181,7 +184,7 @@ export function DiscountDrawer({
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value) : "Select date"}
+        {value ? formatEditorDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>

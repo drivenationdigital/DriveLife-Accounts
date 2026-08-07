@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
+import { useEventRegion } from "@/lib/useEventSteps";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 import { useEditorSave } from "@/lib/useEditorSave";
 
 /**
@@ -24,6 +26,7 @@ export function EditorTopBar() {
   const { state } = useEventCreate();
   const router = useRouter();
   const { run, phase, isSaving } = useEditorSave();
+  const region = useEventRegion();
 
   // The topbar's rocket is an explicit "go live" - it publishes
   // regardless of the panel selection, except when the user has set up
@@ -82,6 +85,18 @@ export function EditorTopBar() {
 
         {/* Spacer for desktop - pushes actions to the right edge. */}
         <div className="hidden lg:block flex-1" />
+
+        {/* Region, read-only. Fixed when the event was created - a post
+            lives on one blog - so this is a marker, not a control. It
+            explains why dates and prices look the way they do, and why
+            a listing-only region shows no ticketing steps. */}
+        <span
+          className="hidden sm:inline-flex items-center gap-2 rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-600"
+          title={`This event is listed in ${region.label}. This can't be changed.`}
+        >
+          <CountryFlag country={region.country} label={region.label} />
+          {region.label}
+        </span>
 
         {/* Save status pill - md+ only (mobile keeps the bar uncluttered).
             Reflects the shared save mutation state. */}

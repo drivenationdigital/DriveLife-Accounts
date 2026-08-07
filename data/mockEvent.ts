@@ -1,4 +1,5 @@
 import type { EventData } from "@/context/types";
+import { REGIONS } from "@/lib/regions";
 
 export const mockEventData: EventData = {
   event: {
@@ -12,9 +13,7 @@ export const mockEventData: EventData = {
     url: "carevents.com/uk/events/porsche-ft-genome-design-25-04-26",
     slug: "porsche-ft-genome-design-25-04-26",
     site: "uk",
-    siteLabel: "United Kingdom",
-    siteCountry: "GB",
-    siteTicketing: true,
+    region: REGIONS.uk,
     isRecurringParent: false,
     isRecurringChild: false,
     recurringDisplay: "",

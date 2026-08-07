@@ -1,6 +1,7 @@
 "use client";
 
 import type { MyVenue } from "@/lib/myVenues";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 
 interface Props {
   venue: MyVenue;
@@ -42,7 +43,23 @@ export function VenueCard({ venue, onClick }: Props) {
           </div>
         )}
 
-        <span className={`venue-badge ${badgeClass}`}>{venue.badge}</span>
+        {/* Top-right cluster. The role badge already owned this corner,
+            so the region marker sits alongside it rather than on top.
+            /my-venues merges both countries when no site filter is
+            given, so without the flag a US and a UK venue look alike.
+            Account dashboard only - never the public site. */}
+        <div className="venue-cover-corner">
+          <span className={`venue-badge ${badgeClass}`}>{venue.badge}</span>
+          {venue.site && (
+            <span className="card-site-badge">
+              <CountryFlag
+                country={venue.site.country}
+                label={venue.site.label}
+              />
+              {venue.site.key.toUpperCase()}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="venue-body">

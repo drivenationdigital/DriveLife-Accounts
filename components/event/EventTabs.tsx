@@ -33,7 +33,7 @@ export function EventTabs() {
   // child, which is how the legacy page decided whether the parent had
   // any sales surface at all.
   const ticketingVisible =
-    event.siteTicketing &&
+    event.region.ticketing &&
     (occurrences === null ||
       occurrences.ticketed ||
       occurrences.registrationRequired);

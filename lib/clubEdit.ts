@@ -36,14 +36,13 @@ export interface ClubUpdateResponse {
  * It sits in a trailing options object in the key so existing prefix
  * invalidations (["club-edit", cid]) keep matching both regions.
  */
-export function useClubEditQuery(cid: string, site?: SiteKey) {
+export function useClubEditQuery(cid: string, site: SiteKey) {
   return useQuery<ClubEditResponse, Error>({
     queryKey: ["club-edit", cid, { site }],
     queryFn: () =>
-      apiGet<ClubEditResponse>(
-        `/club-edit?cid=${encodeURIComponent(cid)}` +
-          (site ? `&site=${encodeURIComponent(site)}` : ""),
-      ),
+      apiGet<ClubEditResponse>(`/club-edit?cid=${encodeURIComponent(cid)}`, {
+        site,
+      }),
     enabled: Boolean(cid),
     // The wizard holds its own working copy once hydrated, so don't
     // refetch underneath the user mid-edit.
@@ -56,8 +55,14 @@ export function useClubEditQuery(cid: string, site?: SiteKey) {
 export function useUpdateClub() {
   const qc = useQueryClient();
   return useMutation<ClubUpdateResponse, Error, ClubUpdateBody>({
-    mutationFn: (body) =>
-      apiPost<ClubUpdateResponse, ClubUpdateBody>("/club-update", body),
+    // `site` is carried on the body type for the editor's convenience,
+    // but goes to the client as an option so the guard sees it.
+    mutationFn: ({ site, ...body }) =>
+      apiPost<ClubUpdateResponse, Omit<ClubUpdateBody, "site">>(
+        "/club-update",
+        body,
+        { site },
+      ),
     onSuccess: (_data, body) => {
       qc.invalidateQueries({ queryKey: ["club-edit", body.cid] });
       qc.invalidateQueries({ queryKey: ["my-clubs"] });
@@ -88,9 +93,17 @@ export interface CreateClubResponse {
  */
 export function useCreateClub() {
   const qc = useQueryClient();
-  return useMutation<CreateClubResponse, Error, CreateClubBody>({
-    mutationFn: (body) =>
-      apiPost<CreateClubResponse, CreateClubBody>("/club-create", body),
+  return useMutation<
+    CreateClubResponse,
+    Error,
+    CreateClubBody & { site: SiteKey }
+  >({
+    // Which blog the club is created on - fixed from here on, same as
+    // events.
+    mutationFn: ({ site, ...body }) =>
+      apiPost<CreateClubResponse, CreateClubBody>("/club-create", body, {
+        site,
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-clubs"] });
     },

@@ -1,11 +1,11 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { EVENT_CATEGORIES } from "@/lib/eventCategories";
 import { useEventCategories } from "@/lib/queries";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 
 import { PanelHeader } from "../PanelHeader";
 import { LocationAutocomplete } from "../LocationAutocomplete";
@@ -41,11 +41,13 @@ export function BasicsPanel() {
   // Selection state (`state.categoryIds`) is keyed by id, not by
   // reference, so any checked categories survive the source swap
   // intact.
+  const { region, stepCount, adjacent, stepNumber } = useEventSteps();
+
   const {
     data: categoriesResponse,
     isLoading: categoriesLoading,
     isError: categoriesError,
-  } = useEventCategories();
+  } = useEventCategories(region.key);
 
   const liveCategories = categoriesResponse?.categories ?? [];
   const categories =
@@ -62,7 +64,7 @@ export function BasicsPanel() {
     );
   }
 
-  const { next } = adjacentSteps("basics");
+  const { next } = adjacent("basics");
 
   const goNext = () => {
     if (!next) return;
@@ -83,8 +85,8 @@ export function BasicsPanel() {
   return (
     <section className="panel is-active" data-panel="basics" role="tabpanel">
       <PanelHeader
-        stepNumber={1}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("basics")}
+        totalSteps={stepCount}
         title="Basic details"
         subtitle="The essentials - what your event is called, what type of event it is, and where it takes place."
       />

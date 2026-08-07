@@ -3,6 +3,12 @@
 import type { EventRecord } from "@/lib/apiTypes";
 import { DEFAULT_EVENT_COVER } from "@/lib/eventDefaults";
 import { CountryFlag } from "@/components/ui/CountryFlag";
+import {
+  formatRegionDate,
+  formatRegionDateRange,
+  regionFromSite,
+  type Region,
+} from "@/lib/regions";
 
 const STATUS_LABEL: Record<string, string> = {
   publish: "Published",
@@ -61,7 +67,7 @@ export function EventCard({ event, onClick }: Props) {
             </span>
           )}
           {event.site && (
-            <span className="ev-site-badge">
+            <span className="card-site-badge">
               <CountryFlag
                 country={event.site.country}
                 label={event.site.label}
@@ -121,6 +127,7 @@ function mapStatus(postStatus: string): string {
  * it, so the two facts get a line each instead of being run together.
  */
 function formatDateLabel(event: EventRecord): string {
+  const region = regionFromSite(event.site);
   if (event.is_recurring && event.recurring) {
     return event.recurring.display || "Recurring";
   }
@@ -130,9 +137,9 @@ function formatDateLabel(event: EventRecord): string {
   if (!start) return "";
 
   if (!end || start === end) {
-    return formatSingleDate(start);
+    return formatSingleDate(start, region);
   }
-  return formatRange(start, end);
+  return formatRange(start, end, region);
 }
 
 /**
@@ -143,6 +150,7 @@ function formatDateLabel(event: EventRecord): string {
  * not the series, and the pattern alone doesn't say which date that is.
  */
 function formatTimeLabel(event: EventRecord): string {
+  const region = regionFromSite(event.site);
   if (event.is_recurring && event.recurring) {
     const next = event.next_occurrence;
     if (!next?.start_date) return "";
@@ -151,7 +159,7 @@ function formatTimeLabel(event: EventRecord): string {
     // would read as an upcoming event, so say what's actually true.
     return next.is_past
       ? "All dates passed"
-      : `Next ${formatSingleDate(next.start_date)}`;
+      : `Next ${formatSingleDate(next.start_date, region)}`;
   }
 
   const startTime = event.first_date?.start_time;
@@ -162,37 +170,18 @@ function formatTimeLabel(event: EventRecord): string {
   return startTime ?? endTime ?? "";
 }
 
-function formatSingleDate(iso: string): string {
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+/** Dates follow the region the event lives on - a US event reads
+ *  "Sat, August 15, 2026" where a UK one reads "Sat, 15 August 2026". */
+function formatSingleDate(iso: string, region: Region): string {
+  return formatRegionDate(iso, region);
 }
 
-function formatRange(startIso: string, endIso: string): string {
-  try {
-    const start = new Date(startIso);
-    const end = new Date(endIso);
-    const sameMonth =
-      start.getMonth() === end.getMonth() &&
-      start.getFullYear() === end.getFullYear();
-    const startWeekday = start.toLocaleDateString("en-GB", { weekday: "short" });
-    const endWeekday = end.toLocaleDateString("en-GB", { weekday: "short" });
-    if (sameMonth) {
-      const month = start.toLocaleDateString("en-GB", { month: "long" });
-      const year = start.getFullYear();
-      return `${startWeekday}-${endWeekday}, ${start.getDate()}-${end.getDate()} ${month} ${year}`;
-    }
-    return `${formatSingleDate(startIso)} - ${formatSingleDate(endIso)}`;
-  } catch {
-    return `${startIso} - ${endIso}`;
-  }
+function formatRange(
+  startIso: string,
+  endIso: string,
+  region: Region,
+): string {
+  return formatRegionDateRange(startIso, endIso, region);
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────

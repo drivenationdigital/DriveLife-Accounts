@@ -33,16 +33,13 @@ export interface EventStatusResponse {
   status: string;
 }
 
-/** Args every one of these actions takes. `site` is optional only so
- *  pre-multisite callers still compile; always pass it when known. */
+/** Args every one of these actions takes. `site` is required - the API
+ *  client rejects these routes without it, because resolving the eid
+ *  against the wrong blog on a delete is unrecoverable. */
 export interface EventActionArgs {
   eid: string;
-  site?: SiteKey;
+  site: SiteKey;
 }
-
-/** Drop an undefined `site` rather than sending `site: undefined`. */
-const actionBody = ({ eid, site }: EventActionArgs) =>
-  site ? { eid, site } : { eid };
 
 /** Everything keyed on this event, across both the dashboard and the
  *  editor. `site` lives in a trailing options object in those keys, so
@@ -62,9 +59,10 @@ export function useCloneEvent() {
   const qc = useQueryClient();
   return useMutation<CloneEventResponse, Error, EventActionArgs>({
     mutationFn: (args) =>
-      apiPost<CloneEventResponse, EventActionArgs>(
+      apiPost<CloneEventResponse, { eid: string }>(
         "/event-clone",
-        actionBody(args),
+        { eid: args.eid },
+        { site: args.site },
       ),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-events"] });
@@ -78,9 +76,10 @@ export function useCancelEvent() {
   const qc = useQueryClient();
   return useMutation<EventStatusResponse, Error, EventActionArgs>({
     mutationFn: (args) =>
-      apiPost<EventStatusResponse, EventActionArgs>(
+      apiPost<EventStatusResponse, { eid: string }>(
         "/event-cancel",
-        actionBody(args),
+        { eid: args.eid },
+        { site: args.site },
       ),
     onSuccess: (_d, { eid }) => invalidateForEvent(qc, eid),
   });
@@ -91,9 +90,10 @@ export function useDeleteEvent() {
   const qc = useQueryClient();
   return useMutation<EventStatusResponse, Error, EventActionArgs>({
     mutationFn: (args) =>
-      apiPost<EventStatusResponse, EventActionArgs>(
+      apiPost<EventStatusResponse, { eid: string }>(
         "/event-delete",
-        actionBody(args),
+        { eid: args.eid },
+        { site: args.site },
       ),
     onSuccess: (_d, { eid }) => invalidateForEvent(qc, eid),
   });

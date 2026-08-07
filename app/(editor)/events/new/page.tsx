@@ -24,6 +24,8 @@ import {
 } from "@/lib/eventCreateSteps";
 import { mapEventEditResponse } from "@/lib/eventEditMapper";
 import { useEventForEdit } from "@/lib/queries";
+import { useEventSteps } from "@/lib/useEventSteps";
+import { isStepVisible } from "@/lib/eventCreateSteps";
 import { ApiError } from "@/lib/apiClient";
 
 /**
@@ -37,8 +39,17 @@ import { ApiError } from "@/lib/apiClient";
  */
 function ActivePanel() {
   const searchParams = useSearchParams();
-  const step =
+  const { steps } = useEventSteps();
+  const requested =
     (searchParams.get("step") as EventCreateStepKey | null) ?? DEFAULT_STEP;
+
+  // A step that doesn't exist on this event's region falls back to the
+  // first one. Reachable by hand-editing the URL, or by following a
+  // bookmark to ?step=tickets on an event that has since turned out to
+  // be listing-only - the sidebar and tab bar already hide these.
+  const step: EventCreateStepKey = isStepVisible(requested, steps)
+    ? requested
+    : DEFAULT_STEP;
 
   switch (step) {
     case "basics":

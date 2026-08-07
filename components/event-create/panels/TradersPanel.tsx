@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -8,7 +9,6 @@ import {
   type TraderCategory,
   type TraderCategoryId,
 } from "@/context/EventCreateContext";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import {
   useSaveTraderCategory,
   useDeleteTraderCategory,
@@ -42,7 +42,9 @@ export function TradersPanel() {
   const runAction = useAction();
   const eid = state.encryptedId;
 
-  const { prev, next } = adjacentSteps("traders");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("traders");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -177,8 +179,8 @@ export function TradersPanel() {
   return (
     <section className="panel is-active" data-panel="traders" role="tabpanel">
       <PanelHeader
-        stepNumber={9}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("traders")}
+        totalSteps={stepCount}
         title="Traders"
         subtitle="Invite vendors, exhibitors and sponsors to apply for a trade stand at your event."
       />

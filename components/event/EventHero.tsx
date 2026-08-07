@@ -71,7 +71,7 @@ export function EventHero() {
       successMessage: "The copy has been created as a draft.",
       errorTitle: "Couldn't duplicate the event",
       run: () =>
-        clone.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
+        clone.mutateAsync({ eid: event.encryptedId, site: event.region.key }),
     });
     // New draft -> straight into its editor. The clone is created on
     // the same blog as its source, so it keeps the same region.
@@ -93,7 +93,7 @@ export function EventHero() {
       successMessage: "It no longer accepts bookings.",
       errorTitle: "Couldn't cancel the event",
       run: () =>
-        cancel.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
+        cancel.mutateAsync({ eid: event.encryptedId, site: event.region.key }),
     });
     if (res) router.push("/events");
   };
@@ -113,7 +113,7 @@ export function EventHero() {
       successMessage: "It's been removed from your events.",
       errorTitle: "Couldn't delete the event",
       run: () =>
-        del.mutateAsync({ eid: event.encryptedId, site: event.site || undefined }),
+        del.mutateAsync({ eid: event.encryptedId, site: event.region.key }),
     });
     if (res) router.push("/events");
   };
@@ -130,15 +130,13 @@ export function EventHero() {
               </span>
               {/* Region marker. Account dashboard only - this must not
                   appear on the public carevents.com site. */}
-              {event.siteCountry && (
-                <span className="event-site-chip">
-                  <CountryFlag
-                    country={event.siteCountry}
-                    label={event.siteLabel}
-                  />
-                  {event.siteLabel || event.site.toUpperCase()}
-                </span>
-              )}
+              <span className="event-site-chip">
+                <CountryFlag
+                  country={event.region.country}
+                  label={event.region.label}
+                />
+                {event.region.label}
+              </span>
             </div>
 
             {/* One occurrence of a series - link back up to the parent,

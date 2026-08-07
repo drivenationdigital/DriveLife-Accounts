@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 
 export function OverviewTab() {
   const {
+    event,
     kpis,
     tickets,
     orders,
@@ -80,8 +81,8 @@ export function OverviewTab() {
           label="Net Sales"
           value={
             <>
-              <span className="currency">£</span>
-              {kpis.netSales.toLocaleString("en-GB", {
+              <span className="currency">{event.region.currencySymbol}</span>
+              {kpis.netSales.toLocaleString(event.region.locale, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}
@@ -89,7 +90,7 @@ export function OverviewTab() {
           }
           sub={
             <>
-              <b>{currency(kpis.fees)}</b> in fees
+              <b>{currency(kpis.fees, event.region)}</b> in fees
             </>
           }
         />
@@ -329,7 +330,7 @@ export function OverviewTab() {
                     </div>
                   </td>
                   <td className="mono">{o.quantity}</td>
-                  <td className="amount">{currency(o.amount)}</td>
+                  <td className="amount">{currency(o.amount, event.region)}</td>
                   <td>
                     <span className={`pill ${statusPillClass(o.status)}`}>
                       {o.status.charAt(0).toUpperCase() + o.status.slice(1)}

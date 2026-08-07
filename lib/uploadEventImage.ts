@@ -11,6 +11,12 @@
  *      height, mime_type } → server inserts the row in ce_cf_events_media
  *      and returns { id, url, … }.
  *
+ * Each of our two calls resolves the region independently, so BOTH
+ * need `site`. This is the flow that produced the live data bug: the
+ * mint step sent it and the confirm step didn't, so an image uploaded
+ * to a US event was written to ce_cf_events_media tagged blog_id 3
+ * (UK). Step 3 is the one that writes the region, and nothing errored.
+ *
  * Why a separate helper rather than two mutation hooks chained from
  * the panel: this needs to talk to a third-party URL (step 2) with
  * different fetch semantics - no auth header (Cloudflare rejects
@@ -20,6 +26,7 @@
  */
 
 import { apiPost } from "./apiClient";
+import type { SiteKey } from "./apiTypes";
 
 /**
  * Which slot the image fills. `ticket_logo` is the logo printed on
@@ -61,6 +68,9 @@ interface MintBody {
 export interface UploadEventImageArgs {
   /** Encrypted event id from state.encryptedId. */
   eid: string;
+  /** Region the eid belongs to. Required: the confirm step writes it to
+   *  the DB, so getting it wrong mislabels the row permanently. */
+  site: SiteKey;
   file: File;
   mediaGroup: EventMediaGroup;
   signal?: AbortSignal;
@@ -69,12 +79,13 @@ export interface UploadEventImageArgs {
 export async function uploadEventImage(
   args: UploadEventImageArgs,
 ): Promise<ConfirmedImage> {
-  const { eid, file, mediaGroup, signal } = args;
+  const { eid, site, file, mediaGroup, signal } = args;
 
   // Step 1 - mint.
   const mint = await apiPost<MintResponse, MintBody>(
     `/event-image-upload-url?eid=${encodeURIComponent(eid)}`,
     { media_group: mediaGroup },
+    { site },
   );
 
   if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
@@ -111,6 +122,7 @@ export async function uploadEventImage(
   // an exotic format), we send zeros and the server stores nulls.
   const dims = await readImageDimensions(file).catch(() => ({ width: 0, height: 0 }));
 
+  // The region goes up here too - this call writes the blog_id.
   const confirm = await apiPost<ConfirmResponse, ConfirmBody>(
     `/event-image-confirm?eid=${encodeURIComponent(eid)}`,
     {
@@ -120,6 +132,7 @@ export async function uploadEventImage(
       height: dims.height,
       mime_type: file.type || "image/jpeg",
     },
+    { site },
   );
 
   return confirm.image;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -11,7 +12,6 @@ import {
   type SectionId,
   type TicketSourceMode,
 } from "@/context/EventCreateContext";
-import { EVENT_CREATE_STEP_COUNT, adjacentSteps } from "@/lib/eventCreateSteps";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import {
   useSaveTicketRow,
@@ -58,7 +58,9 @@ export function TicketsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { prev, next } = adjacentSteps("tickets");
+  const { stepCount, adjacent, stepNumber } = useEventSteps();
+
+  const { prev, next } = adjacent("tickets");
 
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -313,8 +315,8 @@ export function TicketsPanel() {
   return (
     <section className="panel is-active" data-panel="tickets" role="tabpanel">
       <PanelHeader
-        stepNumber={5}
-        totalSteps={EVENT_CREATE_STEP_COUNT}
+        stepNumber={stepNumber("tickets")}
+        totalSteps={stepCount}
         title="Tickets & entry"
         subtitle="Choose how attendees get in - sell via CarEvents.com, link to an external site, or run a free event."
       />
@@ -1072,6 +1074,9 @@ function TicketLogoField() {
   const [error, setError] = useState<string | null>(null);
 
   const eid = state.encryptedId;
+  // The region the eid resolves against. The image confirm step writes
+  // this to the DB, so it has to match the event.
+  const site = useEventRegion().key;
   const logo = state.ticketLogo;
 
   const handlePick = async (file: File | undefined) => {
@@ -1092,6 +1097,7 @@ function TicketLogoField() {
     try {
       const image = await upload.mutateAsync({
         eid,
+        site,
         file,
         mediaGroup: "ticket_logo",
       });
@@ -1123,7 +1129,7 @@ function TicketLogoField() {
     // one that never uploaded is gone the moment we drop it.
     if (eid && current?.kind === "remote" && current.cloudflareId) {
       try {
-        await remove.mutateAsync({ eid, mediaId: current.cloudflareId });
+        await remove.mutateAsync({ eid, site, mediaId: current.cloudflareId });
       } catch {
         // The logo is already detached in the editor; a failed cleanup
         // just leaves an orphan in Cloudflare, which isn't worth

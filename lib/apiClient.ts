@@ -116,19 +116,133 @@ function extractErrorMessage(parsed: unknown, status: number): string {
 }
 
 // ============================================================
+// Region (`site`)
+// ============================================================
+
+/**
+ * The multisite blog a request addresses. Validated server-side -
+ * anything other than these two is a 400, so a typo surfaces at once
+ * rather than silently resolving to UK.
+ */
+export type ApiSite = "uk" | "us";
+
+/**
+ * Routes where `site` is part of the record's IDENTITY, not a filter.
+ *
+ * Each of these takes an eid / cid / vid, and post ids are only unique
+ * within a site. With `site` absent the API defaults to UK: a request
+ * for a US event decodes the eid to post 4821 and looks it up on blog
+ * 3. Usually that 404s - but if the organiser also owns a UK record
+ * with the same post id, the API returns (or writes) THAT one, with no
+ * error at any layer.
+ *
+ * This has already caused a live data bug: an image uploaded to a US
+ * event was written to the DB tagged as UK, because the confirm step of
+ * the three-call upload flow didn't send `site` while the mint step
+ * did. Nothing errored, and nothing could have.
+ *
+ * That's why the rule lives here rather than at each call site - a
+ * per-call convention is exactly what failed. Deliberately NOT
+ * including the list-style routes (`/organiser-events`, `/my-clubs`,
+ * `/my-venues`): there `site` narrows the results, and omitting it to
+ * merge both regions is the account view's correct default.
+ */
+export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
+  "/event",
+  "/event/show-cars",
+  "/event/car-clubs",
+  "/event-edit",
+  "/event-update",
+  "/events",
+  "/event-categories",
+  "/event-image-upload-url",
+  "/event-image-confirm",
+  "/event-image",
+  "/event-clone",
+  "/event-cancel",
+  "/event-delete",
+  "/pin-event",
+  "/club-create",
+  "/club-edit",
+  "/club-update",
+  "/club-delete",
+  "/venue-create",
+  "/venue-edit",
+  "/venue-update",
+  "/venue-delete",
+]);
+
+export interface RequestOptions {
+  skipAuthRedirect?: boolean;
+  /**
+   * Region this request addresses. Required on SITE_REQUIRED_ROUTES;
+   * accepted (and forwarded) on any route that takes it as a filter.
+   */
+  site?: string;
+}
+
+/** Path without its query string, normalised to a leading slash. */
+function routeKey(path: string): string {
+  const withSlash = path.startsWith("/") ? path : `/${path}`;
+  return withSlash.split("?")[0]!;
+}
+
+/**
+ * Guard for the bug class above.
+ *
+ * This throws rather than warning, in every environment. A thrown error
+ * is a visibly broken feature; the alternative is a request that
+ * succeeds against the wrong region's record, which is silent data
+ * corruption nobody finds until much later. The backend cannot flag
+ * this for us - an omitted `site` is a valid request - so the client is
+ * the only place it can be caught.
+ */
+function assertSite(path: string, site: string | undefined): void {
+  const route = routeKey(path);
+  if (site !== undefined && site !== "uk" && site !== "us") {
+    throw new ApiError(
+      `[apiClient] "${route}" got site="${site}"; expected "uk" or "us".`,
+      0,
+      null,
+    );
+  }
+  if (SITE_REQUIRED_ROUTES.has(route) && !site) {
+    throw new ApiError(
+      `[apiClient] "${route}" requires a site ("uk" | "us"). ` +
+        `Without it the API resolves the id against the UK blog and may ` +
+        `read or write a different region's record without erroring.`,
+      0,
+      null,
+    );
+  }
+}
+
+/** Append `site` to a URL's query string, for GET and DELETE. */
+function withSiteParam(path: string, site: string | undefined): string {
+  if (!site) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}site=${encodeURIComponent(site)}`;
+}
+
+// ============================================================
 // Public API
 // ============================================================
 
 export async function apiPost<TResponse, TBody = unknown>(
   path: string,
   body?: TBody,
-  opts: { skipAuthRedirect?: boolean } = {},
+  opts: RequestOptions = {},
 ): Promise<TResponse> {
+  assertSite(path, opts.site);
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
   const res = await safeFetch(url, {
     method: "POST",
     headers: buildHeaders(),
-    body: JSON.stringify(body ?? {}),
+    // `site` rides in the body for POST/PUT. Merged here rather than by
+    // the caller so no call site can forget it.
+    body: JSON.stringify(
+      opts.site ? { ...(body ?? {}), site: opts.site } : (body ?? {}),
+    ),
   });
 
   const parsed = await safeParseJson(res);
@@ -150,9 +264,12 @@ export async function apiPost<TResponse, TBody = unknown>(
 
 export async function apiGet<TResponse>(
   path: string,
-  opts: { skipAuthRedirect?: boolean } = {},
+  opts: RequestOptions = {},
 ): Promise<TResponse> {
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  assertSite(path, opts.site);
+  // GET has no body, so `site` goes in the query string.
+  const withSite = withSiteParam(path, opts.site);
+  const url = `${API_BASE}${withSite.startsWith("/") ? withSite : `/${withSite}`}`;
   const res = await safeFetch(url, { method: "GET", headers: buildHeaders() });
 
   const parsed = await safeParseJson(res);
@@ -180,9 +297,12 @@ export async function apiGet<TResponse>(
  */
 export async function apiDelete<TResponse>(
   path: string,
-  opts: { skipAuthRedirect?: boolean } = {},
+  opts: RequestOptions = {},
 ): Promise<TResponse> {
-  const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
+  assertSite(path, opts.site);
+  // Our DELETE routes take everything in the URL - see the note above.
+  const withSite = withSiteParam(path, opts.site);
+  const url = `${API_BASE}${withSite.startsWith("/") ? withSite : `/${withSite}`}`;
   const res = await safeFetch(url, {
     method: "DELETE",
     headers: buildHeaders(),

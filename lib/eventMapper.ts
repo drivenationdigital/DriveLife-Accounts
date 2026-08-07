@@ -27,23 +27,26 @@ import type {
   ShowCarStatus,
   Ticket,
 } from "@/context/types";
+import {
+  formatRegionDate,
+  regionFromSite,
+  resolveRegion,
+  type Region,
+} from "./regions";
 
 // ─────────────────────────────────────────────────────────────────────────
 // Date / time formatting
 // ─────────────────────────────────────────────────────────────────────────
 
-function formatDateHuman(iso: string | null | undefined): string {
-  if (!iso) return "";
-  try {
-    return new Date(iso).toLocaleDateString("en-GB", {
-      weekday: "short",
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-    });
-  } catch {
-    return iso;
-  }
+/**
+ * Long-form date in the event's own region. A US event reads
+ * "Sat, August 15, 2026" where a UK one reads "Sat, 15 August 2026".
+ */
+function formatDateHuman(
+  iso: string | null | undefined,
+  region: Region,
+): string {
+  return formatRegionDate(iso, region);
 }
 
 function formatTimeRange(
@@ -56,7 +59,7 @@ function formatTimeRange(
   return "";
 }
 
-function formatOrderDate(iso: string | null): string {
+function formatOrderDate(iso: string | null, region: Region): string {
   if (!iso) return "";
   try {
     const d = new Date(iso);
@@ -66,12 +69,12 @@ function formatOrderDate(iso: string | null): string {
       d.getMonth() === today.getMonth() &&
       d.getDate() === today.getDate();
     if (isToday) {
-      return `Today, ${d.toLocaleTimeString("en-GB", {
+      return `Today, ${d.toLocaleTimeString(region.locale, {
         hour: "2-digit",
         minute: "2-digit",
       })}`;
     }
-    return d.toLocaleDateString("en-GB", {
+    return d.toLocaleDateString(region.locale, {
       day: "numeric",
       month: "short",
       year: "numeric",
@@ -106,6 +109,11 @@ function formatAppliedLabel(iso: string | null): string {
  *   response doesn't echo a site back (pre-multisite deployments).
  */
 function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail {
+  // The response's own site block wins; the URL's `?site=` is only a
+  // fallback for deployments that don't echo one back.
+  const region = core.site
+    ? regionFromSite(core.site)
+    : resolveRegion(fallbackSite);
   const start = core.first_date?.start_date ?? null;
   const startTime = core.first_date?.start_time ?? null;
   const endTime = core.last_date?.end_time ?? core.first_date?.end_time ?? null;
@@ -138,7 +146,7 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     // Month" where a one-off event shows its date.
     date: isParent
       ? recurringDisplay || "Recurring"
-      : formatDateHuman(start),
+      : formatDateHuman(start, region),
     timeRange: formatTimeRange(startTime, endTime),
     location: locationParts.join(", ") || "-",
     url: core.link.replace(/^https?:\/\//, ""),
@@ -147,12 +155,7 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     // The response wins over the URL - it's the server's own answer for
     // which blog it resolved the eid on.
     site: core.site?.key ?? fallbackSite ?? "",
-    siteLabel: core.site?.label ?? "",
-    siteCountry: core.site?.country ?? "",
-    // Absent site block means a deployment that predates multisite,
-    // which was UK-only and had ticketing - so default to enabled
-    // rather than hiding tabs that used to work.
-    siteTicketing: core.site?.ticketing ?? true,
+    region,
     isRecurringParent: isParent,
     // Keyed on parent_eid first: it's what the back-link actually
     // needs, and it can be present on responses where parent_id isn't.
@@ -175,13 +178,16 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
  * Deleted rows are kept rather than filtered - the parent view hides
  * them behind a toggle, so it needs them in the list to reveal.
  */
-function mapOccurrences(api: ApiOccurrences): EventOccurrences {
+function mapOccurrences(
+  api: ApiOccurrences,
+  region: Region,
+): EventOccurrences {
   return {
     items: api.items.map((o) => ({
       id: String(o.id),
       eid: o.eid,
       title: o.title,
-      dateLabel: formatOccurrenceDate(o.start_date, o.end_date),
+      dateLabel: formatOccurrenceDate(o.start_date, o.end_date, region),
       timeLabel: formatTimeRange(o.start_time, o.end_time),
       location: o.location || "-",
       statusSlug: o.status?.slug ?? "",
@@ -202,10 +208,11 @@ function mapOccurrences(api: ApiOccurrences): EventOccurrences {
 function formatOccurrenceDate(
   start: string | null,
   end: string | null,
+  region: Region,
 ): string {
-  const startLabel = formatDateHuman(start);
+  const startLabel = formatDateHuman(start, region);
   if (!end || end === start) return startLabel;
-  const endLabel = formatDateHuman(end);
+  const endLabel = formatDateHuman(end, region);
   return startLabel && endLabel ? `${startLabel} - ${endLabel}` : startLabel;
 }
 
@@ -261,7 +268,15 @@ function mapOrderStatus(
   return "paid";
 }
 
-export function mapOrder(o: MappableOrder): Order {
+/**
+ * @param region formats the order date in the event's own region.
+ *   Defaults to UK, matching the API's own fallback, so a caller that
+ *   genuinely has no event context still renders a sensible date.
+ */
+export function mapOrder(
+  o: MappableOrder,
+  region: Region = resolveRegion(undefined),
+): Order {
   return {
     id: String(o.id),
     encryptedId: o.encrypted_id,
@@ -270,7 +285,7 @@ export function mapOrder(o: MappableOrder): Order {
     quantity: o.quantity,
     amount: o.total_amount,
     status: mapOrderStatus(o),
-    date: formatOrderDate(o.date_created),
+    date: formatOrderDate(o.date_created, region),
   };
 }
 
@@ -488,18 +503,25 @@ export function mapEventResponse(
     ? collectRecentCarClubs(resp.clubs)
     : [];
 
+  // The region is echoed on the response root as well as on the event
+  // itself; either is the server's own answer for which blog it
+  // resolved the eid on, so take whichever is present.
+  const core: ApiEventCore = resp.event.site
+    ? resp.event
+    : { ...resp.event, site: resp.site };
+  const event = mapEventDetail(core, opts.fallbackSite);
+  // Everything below formats in the event's own region - dates and
+  // money both move with it.
+  const region = event.region;
+
   return {
-    // The region is echoed on the response root as well as on the event
-    // itself; either is the server's own answer for which blog it
-    // resolved the eid on, so take whichever is present.
-    event: mapEventDetail(
-      resp.event.site ? resp.event : { ...resp.event, site: resp.site },
-      opts.fallbackSite,
-    ),
+    event,
     // Non-null only for a series parent. `?? null` normalises the
     // absent-key case from deployments that predate the field, so
     // consumers can branch on a plain `!== null`.
-    occurrences: resp.occurrences ? mapOccurrences(resp.occurrences) : null,
+    occurrences: resp.occurrences
+      ? mapOccurrences(resp.occurrences, region)
+      : null,
     kpis: {
       totalOrders: sales.kpis.order_count,
       // Fall back to 0 so older API responses (without these fields) don't
@@ -516,7 +538,7 @@ export function mapEventResponse(
     // as tickets - same mapper. Absent on older /event responses, so
     // default to [] to keep the contract stable.
     showCarTickets: (sales.show_car_tickets ?? []).map(mapTicket),
-    orders: sales.orders.map(mapOrder),
+    orders: sales.orders.map((o) => mapOrder(o, region)),
     // The initial /event response returns ~5 recent orders for the Overview
     // card - not a full page. Leave pagination null until the Orders tab
     // fires /event/orders and calls applyOrdersPage().
@@ -553,7 +575,9 @@ export function applyOrdersPage(
 ): EventData {
   return {
     ...existing,
-    orders: newOrders.map(mapOrder),
+    // Reuse the region already resolved on the loaded event rather than
+    // re-deriving it - this page of orders belongs to that event.
+    orders: newOrders.map((o) => mapOrder(o, existing.event.region)),
     ordersPagination: pagination,
   };
 }

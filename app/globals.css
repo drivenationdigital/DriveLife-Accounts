@@ -2699,10 +2699,12 @@
   backdrop-filter: blur(4px);
 }
 
-/* Country-site badge on cards - top-right of the cover, inside
-   .ev-cover-corner, which owns the positioning. Clears the status
-   pills, which sit top-left. */
-.ev-site-badge {
+/* Country-site badge over a card cover image. Shared by event and venue
+   cards, which is why it isn't named for either - the positioning comes
+   from whichever corner container it sits in. The glass treatment is
+   for sitting on top of a photo; the hero's inline chip uses
+   .event-site-chip instead. */
+.card-site-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -3977,7 +3979,16 @@
 
 /* .mes is a .section card now - box, border and bottom margin all come
    from that. Only the header's own tweaks live here. */
+/* flex-end bottom-aligns the title with the "View all" link while the
+   shared .section-header is a row. */
 .mes-header { align-items: flex-end; flex-wrap: wrap; }
+/* Below 900px .section-header switches to flex-direction: column, which
+   flips align-items to the horizontal axis - so the flex-end above
+   stopped meaning "bottom" and started meaning "right", pushing the
+   title over. Match the column layout's own flex-start. */
+@media (max-width: 900px) {
+  .mes-header { align-items: flex-start; }
+}
 /* Size/weight/colour come from the shared page-title rule at the
    bottom of this file - only the margin is local. */
 .mes-title { margin: 0; }
@@ -4040,7 +4051,11 @@
 .club-cover-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.35); }
 .club-logo-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 .club-logo { width: 96px; height: 96px; object-fit: contain; border-radius: 12px; }
-.club-badge { position: absolute; top: 10px; right: 10px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
+/* Top-right cluster on a club cover: role badge + region badge. Both
+   want the same corner, so they share a row rather than overlap - same
+   arrangement as .venue-cover-corner and .ev-cover-corner. */
+.club-cover-corner { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 6px; }
+.club-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
 .club-badge.unpublished { background: var(--gold-deep, #bd7420); }
 .club-badge.role { background: rgba(0,0,0,.55); }
 .club-body { padding: 16px 18px; }
@@ -4067,7 +4082,11 @@
 .venue-cover-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.3); }
 .venue-logo-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
 .venue-logo { width: 128px; height: 128px; object-fit: contain; border-radius: 12px; background: #fff; padding: 8px; }
-.venue-badge { position: absolute; top: 10px; right: 10px; font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
+/* Top-right cluster on a venue cover: role badge + region badge. Both
+   want the same corner, so they share a row rather than overlap - same
+   arrangement as .ev-cover-corner on event cards. */
+.venue-cover-corner { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 6px; }
+.venue-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
 .venue-badge.unpublished { background: var(--gold-deep, #bd7420); }
 .venue-badge.owner { background: #4a8a1e; }
 .venue-badge.following { background: rgba(0,0,0,.55); }

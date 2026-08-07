@@ -92,8 +92,8 @@ export function ClubsTab() {
           label="Total Club Sales"
           value={
             <>
-              <span className="currency">£</span>
-              {salesTotal.toLocaleString("en-GB", {
+              <span className="currency">{event.region.currencySymbol}</span>
+              {salesTotal.toLocaleString(event.region.locale, {
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2,
               })}

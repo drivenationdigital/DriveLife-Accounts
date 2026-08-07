@@ -9,6 +9,7 @@ import {
 } from "@/lib/eventActions";
 import { useAction } from "@/context/ActionContext";
 import { eventEditorPath } from "@/lib/siteRoutes";
+import type { SiteKey } from "@/lib/apiTypes";
 
 /**
  * Event overview action toolbar: Edit Event / View / three-dot menu.
@@ -32,10 +33,11 @@ export function EventActions({
 }: {
   /** Encrypted event id (as used in the edit route). */
   eid: string;
-  /** Region the eid belongs to ("uk", "us", …). Encrypted ids repeat
+  /** Region the eid belongs to ("uk" | "us"). Encrypted ids repeat
    *  across regions, so without this the destructive actions below can
-   *  resolve to a different event entirely. */
-  site?: string;
+   *  resolve to a different event entirely - the API client rejects the
+   *  call rather than let that happen. */
+  site: SiteKey;
   /** Public carevents URL for the View button. */
   permalink?: string;
   /** Optional: opens the manual-order flow (built later). */

@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveRegion } from "@/lib/regions";
 import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -62,7 +63,9 @@ function EditVenueEditor({ venueId }: { venueId: string }) {
   // Region the vid belongs to, carried in on the link that opened this
   // page. Encrypted ids repeat across regions, so it goes up on the
   // load and on every mutation below.
-  const site = useSearchParams().get("site") || undefined;
+  // resolveRegion falls back to UK - the same blog the API would
+  // have picked for an omitted site, so old links behave as before.
+  const site = resolveRegion(useSearchParams().get("site")).key;
   const { data, isLoading, error } = useVenueEditQuery(venueId, site);
 
   useEffect(() => {
@@ -211,7 +214,9 @@ function DeleteVenueButton() {
   // Read the region straight off the URL rather than threading it down
   // - this button is mounted several levels below the page component,
   // and the vid alone would resolve against the API's default region.
-  const site = useSearchParams().get("site") || undefined;
+  // resolveRegion falls back to UK - the same blog the API would
+  // have picked for an omitted site, so old links behave as before.
+  const site = resolveRegion(useSearchParams().get("site")).key;
 
   const handleDelete = async () => {
     const res = await runAction({

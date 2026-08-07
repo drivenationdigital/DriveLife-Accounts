@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import { useEventRegion } from "@/lib/useEventSteps";
 
 /**
  * Fullscreen datepicker overlay.
@@ -57,6 +58,8 @@ export function FullScreenDatePicker({
    *  are wired (e.g. "Start date" vs "End date"). */
   title?: string;
 }) {
+  // Locale for the month header and the per-day accessible labels.
+  const region = useEventRegion();
   // ---- Draft selection (internal). Resets to `value` whenever the
   // picker opens so reopening always starts from the committed state. ----
   const [draft, setDraft] = useState<string | null>(value);
@@ -98,9 +101,9 @@ export function FullScreenDatePicker({
   if (!open || typeof document === "undefined") return null;
 
   const todayIso = isoToday();
-  const cells = buildMonthGrid(view.year, view.month0);
+  const cells = buildMonthGrid(view.year, view.month0, region.locale);
   const monthLabel = new Date(Date.UTC(view.year, view.month0, 1))
-    .toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+    .toLocaleDateString(region.locale, { month: "long", year: "numeric", timeZone: "UTC" });
 
   const goPrev = () => setView(addMonths(view, -1));
   const goNext = () => setView(addMonths(view, 1));
@@ -207,7 +210,7 @@ export function FullScreenDatePicker({
 
           {/* Selected preview - small text for confirmation. */}
           <p className="text-xs text-ink-500 mt-4 text-center">
-            {draft ? formatEditorDate(draft) : "No date selected"}
+            {draft ? formatEditorDate(draft, region) : "No date selected"}
           </p>
         </div>
 
@@ -280,7 +283,7 @@ function addMonths({ year, month0 }: MonthView, delta: number): MonthView {
 
 /** Build a 6×7 = 42-cell grid for the given month, with leading/
  *  trailing days from adjacent months marked muted. Mon-first. */
-function buildMonthGrid(year: number, month0: number): Cell[] {
+function buildMonthGrid(year: number, month0: number, locale: string): Cell[] {
   const firstOfMonth = new Date(Date.UTC(year, month0, 1));
   // getUTCDay: 0=Sun, 1=Mon, ..., 6=Sat. We want Mon=0..Sun=6.
   const dowMonFirst = (firstOfMonth.getUTCDay() + 6) % 7;
@@ -295,19 +298,19 @@ function buildMonthGrid(year: number, month0: number): Cell[] {
   for (let i = dowMonFirst - 1; i >= 0; i--) {
     const day = lastDayOfPrev - i;
     const prev = addMonths({ year, month0 }, -1);
-    cells.push(makeCell(prev.year, prev.month0, day, true));
+    cells.push(makeCell(prev.year, prev.month0, day, true, locale));
   }
 
   // Days of this month.
   for (let day = 1; day <= lastDayOfMonth; day++) {
-    cells.push(makeCell(year, month0, day, false));
+    cells.push(makeCell(year, month0, day, false, locale));
   }
 
   // Trailing muted days from next month - fill to 42 cells.
   let trailingDay = 1;
   while (cells.length < 42) {
     const next = addMonths({ year, month0 }, 1);
-    cells.push(makeCell(next.year, next.month0, trailingDay, true));
+    cells.push(makeCell(next.year, next.month0, trailingDay, true, locale));
     trailingDay++;
   }
 
@@ -319,6 +322,7 @@ function makeCell(
   month0: number,
   day: number,
   muted: boolean,
+  locale: string,
 ): Cell {
   const m = String(month0 + 1).padStart(2, "0");
   const d = String(day).padStart(2, "0");
@@ -329,7 +333,7 @@ function makeCell(
     month0,
     day,
     muted,
-    label: new Date(Date.UTC(year, month0, day)).toLocaleDateString("en-GB", {
+    label: new Date(Date.UTC(year, month0, day)).toLocaleDateString(locale, {
       day: "numeric",
       month: "long",
       year: "numeric",
