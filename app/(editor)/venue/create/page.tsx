@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCreateVenue } from "@/lib/myVenues";
-import { DEFAULT_REGION_KEY } from "@/lib/regions";
+import { DEFAULT_REGION_KEY, type RegionKey } from "@/lib/regions";
+import { RegionSelect } from "@/components/ui/RegionSelect";
+import { venueEditPath } from "@/lib/siteRoutes";
 
 /**
  * Create Venue - entry step.
@@ -17,6 +19,8 @@ export default function CreateVenuePage() {
   const router = useRouter();
   const [title, setTitle] = useState("");
   const [error, setError] = useState<string | null>(null);
+  // Which WordPress site the venue is created on. Fixed once it exists.
+  const [site, setSite] = useState<RegionKey>(DEFAULT_REGION_KEY);
   const createVenue = useCreateVenue();
 
   const handleCreate = async () => {
@@ -24,13 +28,10 @@ export default function CreateVenuePage() {
     try {
       const venue = await createVenue.mutateAsync({
         post_title: title.trim(),
-        // Clubs and venues have no region picker yet, so this pins
-        // creation to the default region - exactly what the API did
-        // itself before `site` became required. Add a selector here
-        // when clubs/venues get multi-region support.
-        site: DEFAULT_REGION_KEY,
+        site,
       });
-      router.push(`/venue/${venue.encrypted_id}/edit`);
+      // The region rides along - a vid alone doesn't identify the venue.
+      router.push(venueEditPath(venue.encrypted_id, site));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Couldn't create the venue.",
@@ -70,6 +71,10 @@ export default function CreateVenuePage() {
                 <p className="mt-1 text-right text-xs text-ink-400">
                   Max 60 characters
                 </p>
+              </div>
+
+              <div className="mt-5">
+                <RegionSelect value={site} onChange={setSite} />
               </div>
 
               {/* Actions */}

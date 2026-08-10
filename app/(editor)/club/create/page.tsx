@@ -4,7 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCreateClub } from "@/lib/clubEdit";
-import { DEFAULT_REGION_KEY } from "@/lib/regions";
+import { DEFAULT_REGION_KEY, type RegionKey } from "@/lib/regions";
+import { RegionSelect } from "@/components/ui/RegionSelect";
+import { clubEditPath } from "@/lib/siteRoutes";
 
 /**
  * Create Club - entry flow (UI only).
@@ -42,6 +44,10 @@ export default function CreateClubPage() {
   const [step, setStep] = useState<Step>("type");
   const [clubType, setClubType] = useState<ClubType>("private");
   const [title, setTitle] = useState("");
+  // Which WordPress site the club is created on. Fixed once it exists -
+  // a post lives on one blog - so it's asked for here rather than in
+  // the edit wizard.
+  const [site, setSite] = useState<RegionKey>(DEFAULT_REGION_KEY);
 
   const createClub = useCreateClub();
   const [error, setError] = useState<string | null>(null);
@@ -52,14 +58,11 @@ export default function CreateClubPage() {
       const club = await createClub.mutateAsync({
         post_title: title.trim(),
         club_type: clubType === "private" ? "1" : "2",
-        // Clubs and venues have no region picker yet, so this pins
-        // creation to the default region - exactly what the API did
-        // itself before `site` became required. Add a selector here
-        // when clubs/venues get multi-region support.
-        site: DEFAULT_REGION_KEY,
+        site,
       });
-      // Straight into the wizard to finish the remaining steps.
-      router.push(`/club/${club.encrypted_id}/edit`);
+      // Straight into the wizard to finish the remaining steps. The
+      // region rides along - a cid alone doesn't identify the club.
+      router.push(clubEditPath(club.encrypted_id, site));
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Couldn't create the club.",
@@ -148,6 +151,10 @@ export default function CreateClubPage() {
                   <p className="mt-1 text-right text-xs text-ink-400">
                     Max 60 characters
                   </p>
+
+                  <div className="mt-5">
+                    <RegionSelect value={site} onChange={setSite} />
+                  </div>
                 </div>
               )}
 
