@@ -44,10 +44,11 @@ export interface Region {
   /** ISO 4217. */
   currency: string;
   currencySymbol: string;
-  /** False where the region can't sell tickets. The US site is
-   *  listing-only for now, which hides the entire ticketing surface -
-   *  tickets, discounts, orders, attendees and all three application
-   *  types. */
+  /** False where the region can't sell tickets, which hides the entire
+   *  ticketing surface - tickets, discounts, orders, attendees and all
+   *  three application types. Both live regions are ticketed now; the
+   *  flag stays because a new site can launch listing-only, exactly as
+   *  the US did. */
   ticketing: boolean;
 }
 
@@ -70,9 +71,29 @@ export const REGIONS: Record<RegionKey, Region> = {
     locale: "en-US",
     currency: "USD",
     currencySymbol: "$",
-    ticketing: false,
+    ticketing: true,
   },
 };
+
+/**
+ * Regions the dashboard treats as ticketed whatever the API says.
+ *
+ * The US site is switching from listing-only to ticketed and the
+ * dashboard goes first. The table above is only the bootstrap - on an
+ * event view the API's `site.ticketing` wins, so while that still
+ * reports false for the US it would overrule the flip and keep the
+ * whole ticketing surface hidden.
+ *
+ * Deliberately one-way: a `true` from the API is always honoured, so
+ * this only ever ignores a stale `false` on a region we've already
+ * switched on. Drop the entry once the API reports ticketing for the
+ * US - nothing else has to change with it.
+ */
+const TICKETING_FORCED_ON: readonly RegionKey[] = ["us"];
+
+function isTicketingForced(key: string | null | undefined): boolean {
+  return isRegionKey(key) && TICKETING_FORCED_ON.includes(key);
+}
 
 /** Ordered for display on the create screen. */
 export const REGION_LIST: Region[] = [REGIONS.uk, REGIONS.us];
@@ -118,8 +139,32 @@ export function regionFromSite(site: EventSite | null | undefined): Region {
     country: site.country || base.country,
     currency: site.currency || base.currency,
     currencySymbol: site.currency_symbol || base.currencySymbol,
-    ticketing: site.ticketing ?? base.ticketing,
+    ticketing: isTicketingForced(site.key) || (site.ticketing ?? base.ticketing),
   };
+}
+
+/**
+ * Whether an event should show its ticketing surface.
+ *
+ * Two separate flags have to agree: the region-level `site.ticketing`
+ * (can this blog sell tickets at all) and the per-event
+ * `sales.ticketing_available` (did the API build a real sales block for
+ * this event). Both default to true when absent, which is what a
+ * pre-multisite deployment sends - it was UK-only and ticketed.
+ *
+ * `fallbackKey` is the page's `?site=` param, used only when the
+ * response carries no site block of its own.
+ */
+export function ticketingEnabled(
+  site: EventSite | null | undefined,
+  salesAvailable?: boolean,
+  fallbackKey?: string | null,
+): boolean {
+  const region = site ? regionFromSite(site) : resolveRegion(fallbackKey);
+  // A forced-on region ignores the per-event flag too: the API sets it
+  // false for the same stale reason it sets `site.ticketing` false.
+  if (isTicketingForced(region.key)) return true;
+  return region.ticketing && (salesAvailable ?? true);
 }
 
 // ─────────────────────────────────────────────────────────────────────

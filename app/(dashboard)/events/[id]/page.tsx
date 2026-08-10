@@ -14,13 +14,13 @@ import {
   mergeAdditionalShowCars,
   mergeAdditionalCarClubs,
 } from "@/lib/eventMapper";
+import { ticketingEnabled } from "@/lib/regions";
 import { useUI } from "@/context/UIContext";
 import { EventProvider } from "@/context/EventContext";
 import { Breadcrumb } from "@/components/event/Breadcrumb";
 import { EventHero } from "@/components/event/EventHero";
 import { EventTabs } from "@/components/event/EventTabs";
 import { EventDetailSkeleton } from "@/components/event/EventDetailSkeleton";
-import { OccurrenceTable } from "@/components/event/OccurrenceTable";
 
 const ORDERS_PER_PAGE = 20;
 
@@ -61,17 +61,17 @@ function EventDetailContent() {
 
   const eventQuery = useEvent(eid, { site });
 
-  // Ticketing is a per-region capability: the US site is listing-only
-  // for now. The API returns shape-identical zero payloads there rather
-  // than erroring, so this gating is about not firing pointless
-  // requests and not rendering empty states - nothing would crash
-  // without it. Absent flags mean a pre-multisite deployment, which was
-  // UK-only and ticketed, so both default to available.
-  const ticketingAvailable =
-    (eventQuery.data?.site?.ticketing ??
-      eventQuery.data?.event?.site?.ticketing ??
-      true) &&
-    (eventQuery.data?.sales?.ticketing_available ?? true);
+  // Ticketing is a per-region capability - a listing-only region has no
+  // orders, attendees or applications. The API returns shape-identical
+  // zero payloads there rather than erroring, so this gating is about
+  // not firing pointless requests and not rendering empty states -
+  // nothing would crash without it. Both live regions are ticketed now,
+  // so this is only load-bearing for a future listing-only site.
+  const ticketingAvailable = ticketingEnabled(
+    eventQuery.data?.site ?? eventQuery.data?.event?.site,
+    eventQuery.data?.sales?.ticketing_available,
+    site,
+  );
 
   const showCarsEnabled =
     ticketingAvailable && eventQuery.data?.show_cars?.enabled === true;
@@ -174,25 +174,16 @@ function EventDetailContent() {
   }
 
   // A recurring series parent holds the pattern and the child list, not
-  // a date or any sales of its own, so it renders the occurrence table
-  // where a normal event renders its dashboard. There's no separate
+  // a date or any sales of its own. EventTabs handles the difference:
+  // the parent's date lists take the place of Overview, and the
+  // ticketing tabs come or go with the series. There's no separate
   // occurrence endpoint - /event returns one shape or the other, and
   // `occurrences !== null` is the switch.
-  const isSeriesParent = eventData.occurrences !== null;
-
-  // The legacy page decided from the first child whether a parent had
-  // any sales surface worth showing at all.
-  const parentHasSales =
-    eventData.occurrences === null ||
-    eventData.occurrences.ticketed ||
-    eventData.occurrences.registrationRequired;
-
   return (
     <EventProvider initialData={eventData}>
       <Breadcrumb />
       <EventHero />
-      {isSeriesParent && <OccurrenceTable />}
-      {(!isSeriesParent || parentHasSales) && <EventTabs />}
+      <EventTabs />
     </EventProvider>
   );
 }

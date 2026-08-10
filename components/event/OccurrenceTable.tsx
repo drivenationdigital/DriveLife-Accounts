@@ -4,6 +4,10 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
+import {
+  occurrencesInScope,
+  type OccurrenceScope,
+} from "@/lib/occurrenceScope";
 import { ExternalLinkIcon } from "@/components/ui/Icons";
 
 /**
@@ -11,14 +15,18 @@ import { ExternalLinkIcon } from "@/components/ui/Icons";
  *
  * A `recurring_events` post has no date of its own - it holds the
  * pattern and a list of child events, each a real dated event with its
- * own eid. So the parent view replaces the sales dashboard with this
- * table, and each row links through to that child's own event view.
+ * own eid. So the parent view replaces the sales dashboard with these
+ * tables, and each row links through to that child's own event view.
+ *
+ * One instance renders per tab: the parent's Upcoming and Past tabs are
+ * both this component with a different `scope`.
  *
  * Three behaviours carried over from the legacy view/?eid= page:
  *
  *  1. Rows render in the order the API returned them, which is the
  *     organiser's stored ACF order rather than date order. It's theirs
- *     to control, so there is deliberately no client-side sort here.
+ *     to control, so there is deliberately no client-side sort here -
+ *     the Upcoming / Past split decides membership only.
  *  2. Deleted occurrences are part of the list, not filtered out of it.
  *     They're hidden by default behind a toggle that only appears when
  *     there's something to reveal, and a revealed deleted row shows its
@@ -29,17 +37,37 @@ import { ExternalLinkIcon } from "@/components/ui/Icons";
  * Per-occurrence Delete / Duplicate aren't built server-side yet, so
  * the only wired action is opening the child event.
  */
-export function OccurrenceTable() {
+export function OccurrenceTable({
+  scope = "upcoming",
+}: {
+  scope?: OccurrenceScope;
+}) {
   const { event, occurrences } = useEventData();
   const router = useRouter();
   const [showDeleted, setShowDeleted] = useState(false);
 
-  const visible = useMemo(() => {
-    if (!occurrences) return [];
-    return showDeleted
-      ? occurrences.items
-      : occurrences.items.filter((o) => !o.isDeleted);
-  }, [occurrences, showDeleted]);
+  const items = occurrences?.items;
+
+  const visible = useMemo(
+    () =>
+      items ? occurrencesInScope(items, scope, { includeDeleted: showDeleted }) : [],
+    [items, scope, showDeleted],
+  );
+
+  // The toggle is offered per tab, so it has to ask whether *this*
+  // scope has anything hidden. The series-level `hasDeleted` would
+  // offer a toggle on Upcoming for a deleted date that's in the past.
+  const hasDeletedInScope = useMemo(
+    () =>
+      items
+        ? occurrencesInScope(items, scope, { includeDeleted: true }).some(
+            (o) => o.isDeleted,
+          )
+        : false,
+    [items, scope],
+  );
+
+  const isPastScope = scope === "past";
 
   // Rendered only from the parent branch of the event page, but the
   // guard keeps the component safe to mount anywhere.
@@ -55,22 +83,23 @@ export function OccurrenceTable() {
     <section className="section occurrences">
       <div className="section-header">
         <div>
-          <h2 className="section-title">Event Dates</h2>
+          <h2 className="section-title">
+            {isPastScope ? "Past Events" : "Upcoming Events"}
+          </h2>
           <p className="section-subtitle">
             {event.recurringDisplay || "Recurring event"}
-            {occurrences.total > 0 && (
+            {visible.length > 0 && (
               <>
                 {" · "}
-                {occurrences.total}{" "}
-                {occurrences.total === 1 ? "date" : "dates"}
+                {visible.length} {visible.length === 1 ? "date" : "dates"}
               </>
             )}
           </p>
         </div>
 
-        {/* Only offered when the list actually contains deleted rows -
+        {/* Only offered when this tab actually contains deleted rows -
             otherwise the toggle would do nothing. */}
-        {occurrences.hasDeleted && (
+        {hasDeletedInScope && (
           <label className="occ-toggle">
             <input
               type="checkbox"
@@ -85,7 +114,11 @@ export function OccurrenceTable() {
       <div className="occ-body">
         {visible.length === 0 ? (
           <div className="occ-empty">
-            No dates have been added to this series yet.
+            {occurrences.total === 0
+              ? "No dates have been added to this series yet."
+              : isPastScope
+                ? "None of this series' dates have happened yet."
+                : "Every date in this series has already happened."}
           </div>
         ) : (
           <div className="occ-table-wrap">

@@ -70,7 +70,9 @@ export interface EventSite {
   /** ISO 4217 code, e.g. "GBP". */
   currency: string;
   currency_symbol: string;
-  /** False when the site can't sell tickets (US at time of writing). */
+  /** False when the site can't sell tickets. The UK and US sites are
+   *  both ticketed; see TICKETING_FORCED_ON in lib/regions.ts for how a
+   *  stale false is handled while the API catches up. */
   ticketing: boolean;
 }
 
@@ -370,7 +372,7 @@ export interface ApiOrdersMeta {
 }
 
 export interface ApiSales {
-  /** False on a region without ticketing (US at time of writing). The
+  /** False on a region without ticketing. The
    *  block is still shape-identical - every count 0, every list empty -
    *  so nothing crashes; the UI hides the sales surfaces instead of
    *  rendering zeroes. Optional for back-compat: absent means true. */

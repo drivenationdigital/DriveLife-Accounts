@@ -188,6 +188,8 @@ function mapOccurrences(
       eid: o.eid,
       title: o.title,
       dateLabel: formatOccurrenceDate(o.start_date, o.end_date, region),
+      startDate: o.start_date,
+      endDate: o.end_date,
       timeLabel: formatTimeRange(o.start_time, o.end_time),
       location: o.location || "-",
       statusSlug: o.status?.slug ?? "",

@@ -1,8 +1,9 @@
 "use client";
 
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { useUI } from "@/context/UIContext";
 import { useEventData } from "@/context/EventContext";
+import { occurrencesInScope } from "@/lib/occurrenceScope";
 import { cx } from "@/lib/utils";
 import type { TabKey } from "@/context/types";
 
@@ -11,6 +12,7 @@ import { OrdersTab } from "@/components/tabs/OrdersTab";
 import { ShowCarsTab } from "@/components/tabs/ShowCarsTab";
 import { ClubsTab } from "@/components/tabs/ClubsTab";
 import { TradersTab } from "@/components/tabs/TradersTab";
+import { OccurrenceTable } from "@/components/event/OccurrenceTable";
 
 interface TabDef {
   key: TabKey;
@@ -24,10 +26,30 @@ export function EventTabs() {
     useEventData();
   const tabsRef = useRef<HTMLDivElement | null>(null);
 
+  // A series parent has no sales dashboard of its own - the KPIs,
+  // tickets and recent orders on Overview all belong to the individual
+  // dates. So the parent trades Overview for its two date lists, and
+  // keeps whichever ticketing tabs apply across the series.
+  const isSeriesParent = occurrences !== null;
+
+  const occurrenceCounts = useMemo(
+    () => ({
+      upcoming: occurrences
+        ? occurrencesInScope(occurrences.items, "upcoming").length
+        : 0,
+      past: occurrences
+        ? occurrencesInScope(occurrences.items, "past").length
+        : 0,
+    }),
+    [occurrences],
+  );
+
   // Ticketing - orders, attendees and all three application types -
-  // exists on the UK site only for now. The API returns shape-identical
-  // zero payloads for a US event rather than erroring, so these tabs
-  // would render as a row of empty states; hide them instead.
+  // is a per-region capability. The API returns shape-identical zero
+  // payloads on a listing-only region rather than erroring, so these
+  // tabs would render as a row of empty states; hide them instead.
+  // Both live regions are ticketed now, so in practice this only bites
+  // a series with no sales, below.
   //
   // On a series parent the same question is answered by the first
   // child, which is how the legacy page decided whether the parent had
@@ -41,7 +63,12 @@ export function EventTabs() {
   // Orders tab shows the *total* order count (from KPIs, not the loaded page).
   // Other tabs show entity count, or nothing when coming-soon stubbed.
   const tabs: TabDef[] = [
-    { key: "overview",  label: "Overview" },
+    ...(isSeriesParent
+      ? ([
+          { key: "upcoming", label: "Upcoming Events", count: occurrenceCounts.upcoming },
+          { key: "past",     label: "Past Events",     count: occurrenceCounts.past },
+        ] as TabDef[])
+      : ([{ key: "overview", label: "Overview" }] as TabDef[])),
     ...(ticketingVisible
       ? ([
           { key: "orders",   label: "Orders",    count: kpis.totalOrders || orders.length },
@@ -52,11 +79,14 @@ export function EventTabs() {
       : []),
   ];
 
-  // A US event opened while the UI still remembers a ticketing tab from
-  // the last (UK) event would otherwise render a panel with no tab to
-  // match it.
-  const currentTab: TabKey =
-    tabs.some((t) => t.key === activeTab) ? activeTab : "overview";
+  // The active tab is remembered across events, so it can name a tab
+  // this event doesn't have - a listing-only event opened after a
+  // ticketed one, or a parent (no Overview) after a normal event (no
+  // Upcoming). Fall back to whichever tab this event leads with rather
+  // than rendering a panel with no tab to match it.
+  const currentTab: TabKey = tabs.some((t) => t.key === activeTab)
+    ? activeTab
+    : tabs[0]!.key;
 
   const handleTabClick = (key: TabKey) => {
     setActiveTab(key);
@@ -83,6 +113,8 @@ export function EventTabs() {
 
       <div className="tab-panel">
         {currentTab === "overview" && <OverviewTab />}
+        {currentTab === "upcoming" && <OccurrenceTable scope="upcoming" />}
+        {currentTab === "past" && <OccurrenceTable scope="past" />}
         {currentTab === "orders" && <OrdersTab />}
         {currentTab === "showcars" && <ShowCarsTab />}
         {currentTab === "clubs" && <ClubsTab />}

@@ -122,8 +122,10 @@ export const TICKETING_STEP_KEYS: EventCreateStepKey[] = [
 /**
  * The steps an event on this region actually has.
  *
- * A listing-only region (the US, for now) has no ticketing, so those
- * five steps aren't shown at all rather than shown-and-broken. They're
+ * A listing-only region has no ticketing, so those five steps aren't
+ * shown at all rather than shown-and-broken. Both live regions are
+ * ticketed now, so every event currently gets all ten steps - this
+ * still matters for a site that launches listing-only. They're
  * removed rather than disabled because a disabled step still implies
  * "not yet" - here the answer is "not in this country".
  *

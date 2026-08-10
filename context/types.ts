@@ -184,6 +184,11 @@ export interface Occurrence {
   title: string;
   /** Formatted date, or a range when the occurrence spans days. */
   dateLabel: string;
+  /** Raw ISO dates behind `dateLabel`. Kept alongside the formatted
+   *  string because the parent's Upcoming / Past split has to compare
+   *  them against today, which a localised label can't do. */
+  startDate: string | null;
+  endDate: string | null;
   timeLabel: string;
   location: string;
   statusSlug: string;
@@ -273,7 +278,17 @@ export interface EventData {
   features: EventFeatures;
 }
 
-export type TabKey = "overview" | "orders" | "showcars" | "clubs" | "traders";
+/** "overview" is the lead tab on a normal event; a series parent has no
+ *  sales dashboard of its own and leads with "upcoming" / "past"
+ *  instead. The two sets never appear together. */
+export type TabKey =
+  | "overview"
+  | "upcoming"
+  | "past"
+  | "orders"
+  | "showcars"
+  | "clubs"
+  | "traders";
 
 export type DetailType = "showcar" | "club" | "trader";
 export type DetailPayload =
