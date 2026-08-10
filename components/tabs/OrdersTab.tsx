@@ -67,7 +67,10 @@ export function OrdersTab() {
   // ── Server-side fetch (search + pagination handled by the API) ──
   const { data, isLoading, isFetching, isPlaceholderData } = useEventOrders({
     eid: event.encryptedId,
-    site: event.site,
+    // region.key rather than the raw `site` string, which is "" when
+    // the API echoed no site block. resolveRegion has already applied
+    // the UK fallback here, so this is always a concrete region.
+    site: event.region.key,
     page,
     perPage: PER_PAGE,
     search: debouncedSearch,

@@ -15,7 +15,7 @@ import type { SiteKey } from "@/lib/apiTypes";
  * Event overview action toolbar: Edit Event / View / three-dot menu.
  *
  * Drop into the overview header:
- *   <EventActions eid={encryptedEid} site={event.site} permalink={event.permalink} />
+ *   <EventActions eid={encryptedEid} site={event.region.key} permalink={event.permalink} />
  *
  * - Edit  → the editor (/events/{eid}/edit)
  * - View  → the public carevents page (permalink), new tab
