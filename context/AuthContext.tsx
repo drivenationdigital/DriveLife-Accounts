@@ -21,11 +21,28 @@ import {
 import type { AuthUser, LoginParams, LoginResponse } from "@/lib/apiTypes";
 import { useQueryClient } from "@tanstack/react-query";
 
+/** The three fields every authenticating route returns. */
+export interface Session {
+  token: string;
+  expires_at: number;
+  user: AuthUser;
+}
+
 interface AuthContextValue {
   user: AuthUser | null;
   isAuthenticated: boolean;
   isInitialised: boolean;
   signIn: (params: LoginParams) => Promise<AuthUser>;
+  /**
+   * Adopt a session issued by a route other than sign-in.
+   *
+   * Registration returns the same token envelope as /next-dash-login,
+   * so a new account is already signed in by the time the response
+   * lands - re-posting the credentials to sign in would be a second
+   * round trip that can independently fail, leaving a created account
+   * stranded on the signup form.
+   */
+  adoptSession: (session: Session) => AuthUser;
   signOut: () => void;
 }
 
@@ -66,6 +83,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Writing the cookies and context state is identical however the
+  // token was obtained, so sign-in and registration share this.
+  const adoptSession = useCallback((session: Session): AuthUser => {
+    writeTokenClient(session.token, session.expires_at);
+    writeUserClient(session.user, session.expires_at);
+    setUser(session.user);
+    return session.user;
+  }, []);
+
   const signIn = useCallback(async (params: LoginParams): Promise<AuthUser> => {
     // Skip auth-redirect during login so a 401 surfaces as an error here
     // instead of bouncing to /login mid-login.
@@ -75,11 +101,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       { skipAuthRedirect: true },
     );
 
-    writeTokenClient(res.token, res.expires_at);
-    writeUserClient(res.user, res.expires_at);
-    setUser(res.user);
-    return res.user;
-  }, []);
+    return adoptSession(res);
+  }, [adoptSession]);
 
   const signOut = useCallback(() => {
     clearTokenClient();
@@ -94,9 +117,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: user !== null,
       isInitialised,
       signIn,
+      adoptSession,
       signOut,
     }),
-    [user, isInitialised, signIn, signOut],
+    [user, isInitialised, signIn, adoptSession, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

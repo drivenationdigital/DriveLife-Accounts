@@ -8,11 +8,20 @@ import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
  */
 const PUBLIC_PATHS = [
   "/login",
+  // The two other signed-out entry points. Both are reached from the
+  // sign-in page by someone who by definition has no token, so gating
+  // them would bounce straight back to /login and make them unreachable.
+  "/register",
+  "/forgot-password",
   // Embeddable forms are anonymous and framed by third-party sites. The auth
   // cookie is SameSite=Lax so it never arrives in a cross-site iframe anyway -
   // gating these would 302 to /login, which sends frame-ancestors 'none'.
   "/embed",
 ];
+
+/** Signed-out pages that make no sense once you have a token - all of
+ *  them bounce an authenticated user to the dashboard. */
+const SIGNED_OUT_ONLY = ["/login", "/register", "/forgot-password"];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -41,8 +50,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Authenticated user trying to reach /login → bounce them to root.
-  if (token && pathname === "/login") {
+  // Authenticated user trying to reach a signed-out page → bounce to root.
+  if (token && SIGNED_OUT_ONLY.includes(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     url.search = "";

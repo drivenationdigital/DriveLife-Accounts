@@ -4653,3 +4653,175 @@
     padding-right: 16px;
   }
 }
+
+/* ============ SIGNED-OUT PAGES (sign in / register / reset) ============ */
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 32px 20px;
+}
+.auth-wrap {
+  width: 100%;
+  max-width: 440px;
+}
+
+.auth-logo {
+  display: block;
+  margin: 0 auto 24px;
+  width: fit-content;
+}
+.auth-logo img {
+  /* Width auto against a fixed height - the asset is a wide wordmark
+     and its intrinsic dimensions would otherwise dominate the column. */
+  height: 34px;
+  width: auto;
+  display: block;
+}
+
+.auth-card {
+  margin-bottom: 0;
+}
+.auth-card-header {
+  justify-content: center;
+  text-align: center;
+}
+.auth-title {
+  font-size: 26px;
+}
+
+.auth-field {
+  margin-bottom: 14px;
+}
+/* Two fields side by side (first / last name), stacking on narrow
+   screens rather than squeezing. */
+.auth-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+@media (max-width: 420px) {
+  .auth-row {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.auth-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.auth-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  font-family: inherit;
+}
+.auth-input:focus {
+  outline: none;
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15);
+}
+.auth-input:disabled {
+  opacity: 0.6;
+}
+
+.auth-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 6px 0 0;
+}
+
+/* A failure the server tied to one field (taken email, weak password).
+   Shown against the input rather than in the banner, so it's obvious
+   which box to fix. */
+.auth-field-error {
+  font-size: 12px;
+  color: var(--danger);
+  margin: 6px 0 0;
+}
+.auth-input.has-error {
+  border-color: var(--danger);
+}
+.auth-input.has-error:focus {
+  box-shadow: 0 0 0 3px rgba(192, 73, 47, 0.15);
+}
+
+.auth-inline-link {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-deep, #bd7420);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.auth-inline-link:hover {
+  text-decoration: underline;
+}
+
+.auth-error {
+  background: var(--danger-soft);
+  color: var(--danger);
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+.auth-notice {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.auth-submit {
+  width: 100%;
+  justify-content: center;
+  padding: 12px;
+  margin-top: 4px;
+}
+
+/* "Forgot password?" - under the submit button, centred, so the form
+   reads as one column top to bottom. */
+.auth-below-submit {
+  margin-top: 14px;
+  text-align: center;
+}
+
+/* The alternative path - register from sign-in, sign-in from register.
+   A bordered panel rather than a bare link so it's as findable as the
+   form above it. */
+.auth-alt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.auth-alt-prompt {
+  font-size: 14px;
+  color: var(--muted);
+}
+.auth-alt-btn {
+  text-decoration: none;
+}
