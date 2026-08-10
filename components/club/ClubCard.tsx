@@ -2,6 +2,7 @@
 
 import type { MyClub } from "@/lib/myClubs";
 import { CountryFlag } from "@/components/ui/CountryFlag";
+import { regionFromSite } from "@/lib/regions";
 
 interface Props {
   club: MyClub;
@@ -61,7 +62,7 @@ export function ClubCard({ club, onClick }: Props) {
                 country={club.site.country}
                 label={club.site.label}
               />
-              {club.site.key.toUpperCase()}
+              {regionFromSite(club.site).abbr}
             </span>
           )}
         </div>

@@ -8,6 +8,7 @@ import { EVENT_CATEGORIES } from "@/lib/eventCategories";
 import { useEventCategories } from "@/lib/queries";
 
 import { PanelHeader } from "../PanelHeader";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 import { LocationAutocomplete } from "../LocationAutocomplete";
 import { MapPreview } from "../MapPreview";
 
@@ -128,6 +129,28 @@ export function BasicsPanel() {
             {state.title.length}/{TITLE_MAX}
           </span>
         </div>
+      </div>
+
+      {/* Country - read-only. Chosen on the create screen and fixed
+          from then on: a WordPress post lives on one blog, so changing
+          it would be a migration rather than a field edit. Shown rather
+          than hidden because it explains why dates and prices are
+          formatted the way they are, and why a listing-only region has
+          no ticketing steps. */}
+      <div className="mb-8">
+        <p
+          id="f-country-label"
+          className="block text-sm font-semibold text-ink-900 mb-2"
+        >
+          Country
+        </p>
+        <div className="input input-readonly" aria-labelledby="f-country-label">
+          <CountryFlag country={region.country} label={region.label} />
+          <span>{region.label}</span>
+        </div>
+        <p className="mt-2 text-xs text-ink-500">
+          Country cannot be changed.
+        </p>
       </div>
 
       {/* Categories grid. */}

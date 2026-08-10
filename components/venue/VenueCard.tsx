@@ -2,6 +2,7 @@
 
 import type { MyVenue } from "@/lib/myVenues";
 import { CountryFlag } from "@/components/ui/CountryFlag";
+import { regionFromSite } from "@/lib/regions";
 
 interface Props {
   venue: MyVenue;
@@ -56,7 +57,7 @@ export function VenueCard({ venue, onClick }: Props) {
                 country={venue.site.country}
                 label={venue.site.label}
               />
-              {venue.site.key.toUpperCase()}
+              {regionFromSite(venue.site).abbr}
             </span>
           )}
         </div>

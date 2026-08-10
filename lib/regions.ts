@@ -26,8 +26,15 @@ export type RegionKey = "uk" | "us";
 export interface Region {
   /** Site slug, and the value sent as `site` on every API call. */
   key: RegionKey;
-  /** Human name, e.g. "United Kingdom". */
+  /** Human name, e.g. "United Kingdom". Used where there's room - the
+   *  country picker, the read-only Country field. */
   label: string;
+  /** Short form for badges and chips, e.g. "UK" / "USA".
+   *
+   *  Spelled out per region rather than derived: uppercasing `key`
+   *  gives "US" where the house style is "USA", and `country` is "GB"
+   *  for the UK. Neither produces the wanted pair on its own. */
+  abbr: string;
   /** ISO 3166-1 alpha-2, drives the flag icon. Note this differs from
    *  `key` for the UK: the site slug is "uk", the country code "GB". */
   country: string;
@@ -48,6 +55,7 @@ export const REGIONS: Record<RegionKey, Region> = {
   uk: {
     key: "uk",
     label: "United Kingdom",
+    abbr: "UK",
     country: "GB",
     locale: "en-GB",
     currency: "GBP",
@@ -57,6 +65,7 @@ export const REGIONS: Record<RegionKey, Region> = {
   us: {
     key: "us",
     label: "United States",
+    abbr: "USA",
     country: "US",
     locale: "en-US",
     currency: "USD",
@@ -102,6 +111,10 @@ export function regionFromSite(site: EventSite | null | undefined): Region {
     // this region still address the right blog.
     key: (isRegionKey(site.key) ? site.key : base.key) as RegionKey,
     label: site.label || base.label,
+    // An unknown region falls back to its own key rather than
+    // inheriting the default region's abbreviation, which would
+    // mislabel a third site as "UK".
+    abbr: isRegionKey(site.key) ? base.abbr : site.key.toUpperCase(),
     country: site.country || base.country,
     currency: site.currency || base.currency,
     currencySymbol: site.currency_symbol || base.currencySymbol,

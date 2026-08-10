@@ -72,7 +72,7 @@ export function EventCard({ event, onClick }: Props) {
                 country={event.site.country}
                 label={event.site.label}
               />
-              {event.site.key.toUpperCase()}
+              {regionFromSite(event.site).abbr}
             </span>
           )}
         </div>

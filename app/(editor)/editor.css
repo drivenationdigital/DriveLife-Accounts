@@ -84,6 +84,21 @@
   padding: 14px;
   resize: vertical;
 }
+
+/* A field that shows a value the user can't change - currently the
+   event's country, which is fixed when the event is created because a
+   post lives on one blog. Same box as .input so it sits in the form
+   naturally, but muted and non-interactive so it doesn't invite a click
+   that would do nothing. Not a disabled <input>: the value carries a
+   flag, and an <option> can only hold text. */
+.input-readonly {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #faf9f7;
+  color: #4a4a4a;
+  cursor: default;
+}
 .input::placeholder,
 .textarea::placeholder {
   color: #8a8a8a;

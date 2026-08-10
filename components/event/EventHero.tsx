@@ -135,7 +135,7 @@ export function EventHero() {
                   country={event.region.country}
                   label={event.region.label}
                 />
-                {event.region.label}
+                {event.region.abbr}
               </span>
             </div>
 

@@ -95,7 +95,7 @@ export function EditorTopBar() {
           title={`This event is listed in ${region.label}. This can't be changed.`}
         >
           <CountryFlag country={region.country} label={region.label} />
-          {region.label}
+          {region.abbr}
         </span>
 
         {/* Save status pill - md+ only (mobile keeps the bar uncluttered).
