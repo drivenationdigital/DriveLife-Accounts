@@ -29,6 +29,7 @@ import {
 import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
 
 import { PanelHeader } from "../PanelHeader";
+import { PerDateNotice } from "../PerDateNotice";
 import { TicketDrawer } from "../TicketDrawer";
 import { SectionDrawer } from "../SectionDrawer";
 import { EditorTextarea } from "../EditorTextarea";
@@ -312,6 +313,15 @@ export function TicketsPanel() {
   const isExternal = state.ticketSource === "external";
   const isNone = state.ticketSource === "none";
 
+  // A recurring event publishes one listing per date, and a ticket
+  // belongs to a date - it has its own allocation, its own sale window
+  // and its own sales. So the series keeps the choice of *how* people
+  // get in (this mode picker, which is genuinely series-wide) and hands
+  // the ticket list itself to the per-date editors. External and free
+  // entry are a URL and a paragraph, which do apply to every date, so
+  // those two modes keep their fields.
+  const perDateTickets = state.dateType === "recurring" && isCE;
+
   return (
     <section className="panel is-active" data-panel="tickets" role="tabpanel">
       <PanelHeader
@@ -444,8 +454,11 @@ export function TicketsPanel() {
         </div>
       )}
 
+      {/* ---- CE mode on a recurring event: per-date notice ---- */}
+      {perDateTickets && <PerDateNotice feature="tickets" />}
+
       {/* ---- CE mode: ticket list ---- */}
-      {isCE && (
+      {isCE && !perDateTickets && (
         <>
           <div className="mb-6">
             <div className="flex items-center justify-between mb-3 flex-wrap gap-2">

@@ -12,6 +12,7 @@ import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
 import { FullScreenDatePicker } from "../FullScreenDatePicker";
 import { PanelHeader } from "../PanelHeader";
+import { PerDatePanel } from "../PerDateNotice";
 
 /**
  * Step 8 - Car Clubs.
@@ -66,6 +67,20 @@ export function CarClubsPanel() {
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
   );
+
+  // One application window, one vehicle limit, one ticket cost - all of
+  // it describes a single meet. A recurring event sets these up on each
+  // date instead, so the series shows the notice in place of the form.
+  if (state.dateType === "recurring") {
+    return (
+      <PerDatePanel
+        step="car-clubs"
+        title="Car clubs"
+        subtitle="Invite clubs to apply for a dedicated stand or group booking at your event."
+        feature="carClubs"
+      />
+    );
+  }
 
   return (
     <section className="panel is-active" data-panel="car-clubs" role="tabpanel">

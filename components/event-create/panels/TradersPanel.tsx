@@ -21,6 +21,7 @@ import { slugify } from "@/lib/slugify";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { PanelHeader } from "../PanelHeader";
+import { PerDatePanel } from "../PerDateNotice";
 import { TraderCategoryDrawer } from "../TraderCategoryDrawer";
 
 /**
@@ -175,6 +176,21 @@ export function TradersPanel() {
     reordered[target] = a;
     dispatch({ type: "REORDER_TRADER_CATEGORIES", items: reordered });
   };
+
+  // Each trader category carries its own application window and stand
+  // cost, which belong to a single meet rather than to the series. A
+  // recurring event sets them up on each date, so the series shows the
+  // notice in place of the form.
+  if (state.dateType === "recurring") {
+    return (
+      <PerDatePanel
+        step="traders"
+        title="Traders"
+        subtitle="Invite vendors, exhibitors and sponsors to apply for a trade stand at your event."
+        feature="traders"
+      />
+    );
+  }
 
   return (
     <section className="panel is-active" data-panel="traders" role="tabpanel">

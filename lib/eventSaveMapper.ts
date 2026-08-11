@@ -19,11 +19,20 @@
  *     they're dropped from the payload rather than sent as `NaN`
  *     (which JSON.stringify would turn into `null`).
  *
- *   - RECURRING: the /event-update endpoint refuses recurring
- *     conversion (it's destructive in the legacy flow). So when
- *     `dateType === 'recurring'` we OMIT the dates section entirely
- *     and expose `canSaveDates()` for the UI to surface a notice.
- *     Single-event date edits save normally.
+ *   - RECURRING: the dates section is sent for recurring events too.
+ *     It used to be omitted entirely, because the endpoint refused
+ *     recurring conversion, which meant a schedule the editor happily
+ *     collected was silently dropped on save. Now both shapes go up:
+ *     a single event sends one `date_rows` entry per calendar day, a
+ *     recurring one sends `is_recurring`, the `recurring` pattern
+ *     block, and the rows that define the series' span.
+ *
+ *     The mapping is the exact inverse of what /event-edit returns
+ *     (see mapDatesSection in lib/eventEditMapper.ts), so a saved
+ *     schedule reloads into the same editor state it was saved from.
+ *     That symmetry is the contract worth protecting here: if the two
+ *     ever disagree, an edit-then-save round trip quietly rewrites the
+ *     user's schedule.
  *
  *   - SHOW CARS: the editor models show-cars per *category* (each with
  *     its own window + ticket cost), but the API/endpoint is
@@ -49,13 +58,32 @@ export interface ApiEventUpdateBasics {
   location_coords?: { lat: number; lng: number } | null;
 }
 
+/**
+ * The repeat pattern, mirroring `ApiEventRecurring` on the read side.
+ *
+ * `week` and `month` are always sent, whatever the type: the WP form
+ * stores them as independent ACF fields, so a series switched from
+ * weekly to monthly and back keeps the weekday the organiser picked
+ * rather than falling back to the default.
+ */
+export interface ApiEventUpdateRecurring {
+  type: "week" | "month" | "custom";
+  /** Lowercase weekday, e.g. "sunday". Used when type is "week". */
+  week: string;
+  /** Nth-weekday slug, e.g. "first_sunday". Used when type is "month". */
+  month: string;
+  /** True when the series has no end date. */
+  repeat_until_cancelled: boolean;
+}
+
 export interface ApiEventUpdateDates {
   timezone?: string;
   exclude_time?: boolean;
   is_multi_timeslot?: boolean;
   date_rows?: ApiEventDateRow[];
-  // `is_recurring` is intentionally absent - the endpoint rejects
-  // recurring conversion, and this mapper never sends it.
+  /** Only sent for a recurring event, alongside `recurring` below. */
+  is_recurring?: boolean;
+  recurring?: ApiEventUpdateRecurring;
 }
 
 export interface ApiEventUpdateDescription {
@@ -125,16 +153,6 @@ export interface ApiEventUpdateResponse {
 // Public API
 // ============================================================
 
-/**
- * Whether the dates section can be saved through /event-update.
- * Returns false for recurring events (conversion is unsupported by
- * this endpoint). The UI can use this to show a "recurring schedules
- * are saved elsewhere" notice instead of silently dropping changes.
- */
-export function canSaveDates(state: EventCreateState): boolean {
-  return state.dateType === "single";
-}
-
 export function mapStateToUpdateRequest(
   state: EventCreateState,
 ): ApiEventUpdateRequest {
@@ -148,7 +166,8 @@ export function mapStateToUpdateRequest(
     publish: mapPublish(state),
   };
 
-  // Dates only when not recurring (see file header).
+  // Omitted only when the user hasn't picked enough of a schedule to
+  // describe one yet - never because of the schedule's shape.
   const dates = mapDates(state);
   if (dates) request.dates = dates;
 
@@ -169,6 +188,13 @@ function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
   };
 }
 
+/** Route to the single-event or recurring shape. */
+function mapDates(state: EventCreateState): ApiEventUpdateDates | undefined {
+  return state.dateType === "recurring"
+    ? mapRecurringDates(state)
+    : mapSingleDates(state);
+}
+
 /**
  * Build the date_rows array from the editor's flat date fields.
  *
@@ -179,11 +205,10 @@ function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
  *   - single day              → 1 row
  *   - multi-day, per-day times → 1 row per perDayTimes entry
  *   - multi-day, shared times  → 1 row per day, all same start/end
- *
- * Returns `undefined` (omit the section) for recurring events.
  */
-function mapDates(state: EventCreateState): ApiEventUpdateDates | undefined {
-  if (state.dateType !== "single") return undefined;
+function mapSingleDates(
+  state: EventCreateState,
+): ApiEventUpdateDates | undefined {
   if (!state.startDate) return undefined;
 
   const start = state.startDate;
@@ -210,6 +235,93 @@ function mapDates(state: EventCreateState): ApiEventUpdateDates | undefined {
     is_multi_timeslot: state.uniqueTimesPerDay,
     date_rows: dateRows,
   };
+}
+
+/**
+ * The recurring shape: a pattern plus the rows that anchor it.
+ *
+ * `date_rows` carries the span rather than an expansion of it - the
+ * server generates the occurrences from the pattern, so sending every
+ * computed date would both duplicate that work and disagree with it
+ * the moment the pattern changes. What goes up is exactly what
+ * /event-edit reads back out:
+ *
+ *   - weekly / monthly → ONE row, first date to until date. The read
+ *     mapper takes `date_rows[0].start_date` as the first date and the
+ *     last row's `end_date` as the until date.
+ *   - custom           → one row per custom date, each with its own
+ *     times, which is how the read mapper rebuilds the custom list.
+ *
+ * Returns `undefined` when the schedule isn't answerable yet (no first
+ * date, or custom mode with no dated rows). That matches the
+ * single-event branch: an incomplete schedule is omitted rather than
+ * sent half-built, so a partial save can't overwrite a good schedule
+ * with a broken one.
+ */
+function mapRecurringDates(
+  state: EventCreateState,
+): ApiEventUpdateDates | undefined {
+  const type = recurringType(state.recurringFrequency);
+  const dateRows =
+    type === "custom" ? customDateRows(state) : patternDateRows(state);
+  if (!dateRows) return undefined;
+
+  return {
+    timezone: state.timezone,
+    exclude_time: state.hideTimes,
+    // Per-day timeslots are a single-event feature; for a series the
+    // only rows carrying times of their own are the custom ones.
+    // `state.uniqueTimesPerDay` is stale here - the recurring form
+    // never touches it - so it's derived rather than passed through.
+    is_multi_timeslot: type === "custom",
+    is_recurring: true,
+    date_rows: dateRows,
+    recurring: {
+      type,
+      week: state.recurringWeek,
+      month: state.recurringMonth,
+      repeat_until_cancelled: state.recurringRepeatUntilCancelled,
+    },
+  };
+}
+
+/** Editor frequency → the WP `recurring_type` vocabulary. */
+function recurringType(
+  frequency: EventCreateState["recurringFrequency"],
+): ApiEventUpdateRecurring["type"] {
+  if (frequency === "monthly") return "month";
+  if (frequency === "custom") return "custom";
+  return "week";
+}
+
+/**
+ * The single span row for a weekly / monthly series.
+ *
+ * "Repeat until cancelled" has no end date to send, so the row ends on
+ * the day it starts. The read mapper ignores that end date entirely
+ * when the flag is set (it nulls the until-date), so the two agree.
+ */
+function patternDateRows(state: EventCreateState): ApiEventDateRow[] | null {
+  const first = state.recurringFirstDate;
+  if (!first) return null;
+  const last = state.recurringRepeatUntilCancelled
+    ? first
+    : state.recurringUntilDate || first;
+  return [row(first, last, state.startTime, state.endTime, state.hideTimes)];
+}
+
+/**
+ * One row per custom date.
+ *
+ * Undated rows are dropped rather than sent as empty strings - the
+ * editor seeds a blank row the moment the user clicks "add date", so
+ * an in-progress row would otherwise save as a garbage occurrence.
+ */
+function customDateRows(state: EventCreateState): ApiEventDateRow[] | null {
+  const rows = state.recurringCustomDates
+    .filter((r): r is typeof r & { date: string } => Boolean(r.date))
+    .map((r) => row(r.date, r.date, r.startTime, r.endTime, state.hideTimes));
+  return rows.length > 0 ? rows : null;
 }
 
 function mapDescription(state: EventCreateState): ApiEventUpdateDescription {

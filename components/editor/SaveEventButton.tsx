@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
 import { useSaveEvent } from "@/lib/eventMutations";
-import { canSaveDates } from "@/lib/eventSaveMapper";
 import { ApiError } from "@/lib/apiClient";
 
 /**
@@ -27,8 +26,6 @@ export function SaveEventButton({
   const { state } = useEventCreate();
   const save = useSaveEvent();
 
-  const recurringBlocked = !canSaveDates(state);
-
   const handleSave = () => {
     if (save.isPending) return;
     save.mutate(state, {
@@ -42,13 +39,6 @@ export function SaveEventButton({
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      {recurringBlocked && (
-        <span style={{ fontSize: 12.5, color: "var(--muted)" }}>
-          Recurring schedules are saved separately - date changes won’t
-          be included.
-        </span>
-      )}
-
       {save.isError && (
         <span style={{ fontSize: 12.5, color: "var(--danger)" }}>
           {save.error instanceof ApiError

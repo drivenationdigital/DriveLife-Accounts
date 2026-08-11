@@ -22,6 +22,7 @@ import { useAction } from "@/context/ActionContext";
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
 import { PanelHeader } from "../PanelHeader";
+import { PerDatePanel } from "../PerDateNotice";
 import { ShowCarCategoryDrawer } from "../ShowCarCategoryDrawer";
 
 /**
@@ -184,6 +185,21 @@ export function ShowCarsPanel() {
     next[target] = a;
     dispatch({ type: "REORDER_SHOW_CAR_CATEGORIES", items: next });
   };
+
+  // Applications belong to a date, not to the series: the window, the
+  // capacity and the categories are all things a single meet has. A
+  // recurring event gets the notice in place of the whole form, and
+  // sets these up on each date instead.
+  if (state.dateType === "recurring") {
+    return (
+      <PerDatePanel
+        step="show-cars"
+        title="Show cars"
+        subtitle="Let applicants apply to display their vehicle. Set application windows, categories and requirements."
+        feature="showCars"
+      />
+    );
+  }
 
   return (
     <section className="panel is-active" data-panel="show-cars" role="tabpanel">
