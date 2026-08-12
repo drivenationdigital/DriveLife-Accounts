@@ -1,35 +1,21 @@
-import { resolveRegion, type Region } from "./regions";
+import { DATE_STYLES, formatRegionDate, type Region } from "./regions";
 
 /**
- * Format a yyyy-mm-dd date string as "19 April 2026" - matching the
- * style used throughout the event editor's date fields. We construct
- * the Date manually from parts (rather than `new Date(iso)`) because
- * `new Date('2026-04-19')` is interpreted as midnight UTC, which can
- * land on April 18 in negative-offset timezones. Splitting + Date.UTC
- * keeps the formatted output consistent with what the user picked.
+ * A date in the editor's date-field style - "19 April 2026" in the UK,
+ * "April 19, 2026" in the US.
  *
- * `region` decides the ordering - "19 April 2026" in the UK,
- * "April 19, 2026" in the US. It defaults to UK, matching the API's own
- * fallback, so a caller with no event in scope still renders sensibly.
+ * `region` is REQUIRED, and deliberately so. It used to default to UK,
+ * which meant any call site that forgot to pass one compiled fine and
+ * then quietly rendered a US event's dates in British order - the exact
+ * bug this whole layer exists to prevent, made invisible. Making it
+ * required turns every such omission into a build error instead.
+ *
+ * Inside the editor the region comes from `useEventRegion()`; panels
+ * that already call `useEventSteps()` can take it from there.
  */
 export function formatEditorDate(
   iso: string | null | undefined,
-  region: Region = resolveRegion(undefined),
+  region: Region,
 ): string {
-  if (!iso) return "";
-  const parts = iso.split("-");
-  if (parts.length !== 3) return iso;
-  const [yStr, mStr, dStr] = parts as [string, string, string];
-  const y = Number(yStr);
-  const m = Number(mStr);
-  const d = Number(dStr);
-  if (!y || !m || !d) return iso;
-  // Use UTC so the day doesn't shift across the user's local zone.
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.toLocaleDateString(region.locale, {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  });
+  return formatRegionDate(iso, region, DATE_STYLES.full);
 }

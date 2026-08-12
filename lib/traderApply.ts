@@ -9,6 +9,8 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
+import type { EventSite } from "./apiTypes";
+import { formatRegionCurrency, type Region } from "./regions";
 
 export interface TraderPublicCategory {
   encrypted_id: string;
@@ -28,6 +30,9 @@ export interface TraderPublicCategory {
 export interface TraderPublicResponse {
   event_id: number;
   event_title: string;
+  /** The blog this event lives on - see the note in carClubApply.ts.
+   *  Optional until the public endpoints echo one back. */
+  site?: EventSite;
   traders_enabled: boolean;
   categories?: TraderPublicCategory[];
 }
@@ -87,10 +92,11 @@ export function isTraderCategoryOpenToday(c: TraderPublicCategory): boolean {
 /** "£25 · in person · 3 left" style suffix for the dropdown label. */
 export function traderCategoryAvailabilityLabel(
   c: TraderPublicCategory,
+  region: Region,
 ): string {
   const bits: string[] = [];
   if (c.ticket_cost > 0) {
-    bits.push(`£${c.ticket_cost.toFixed(2)}`);
+    bits.push(formatRegionCurrency(c.ticket_cost, region));
   }
   if (c.payment_mode === "in_person") {
     bits.push("pay in person");

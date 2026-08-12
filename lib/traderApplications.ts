@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
 import type { Trader, ApplicationStatus } from "@/context/types";
+import { formatRelativeDate, type Region } from "./regions";
 
 export interface ApiTraderRecord {
   id: number;
@@ -43,21 +44,6 @@ export interface TraderApplicationsResponse {
   applications: ApiTraderRecord[];
 }
 
-function appliedLabel(iso: string | null): string {
-  if (!iso) return "Applied recently";
-  try {
-    const d = new Date(iso);
-    const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-    if (days <= 0) return "Applied today";
-    if (days === 1) return "Applied 1 day ago";
-    if (days < 7) return `Applied ${days} days ago`;
-    if (days < 30) return `Applied ${Math.floor(days / 7)}w ago`;
-    return `Applied ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-  } catch {
-    return "Applied recently";
-  }
-}
-
 /** "Required · 2kW" / "Required" / "Not required" - the power line
  *  the card shows. */
 function powerLabel(required: boolean, details: string): string {
@@ -65,7 +51,7 @@ function powerLabel(required: boolean, details: string): string {
   return details.trim() ? `Required · ${details.trim()}` : "Required";
 }
 
-export function mapTrader(r: ApiTraderRecord): Trader {
+export function mapTrader(r: ApiTraderRecord, region: Region): Trader {
   return {
     id: String(r.id),
     name: r.business_name || "Unnamed trader",
@@ -77,12 +63,18 @@ export function mapTrader(r: ApiTraderRecord): Trader {
     contactPhone: r.contact_phone,
     instagram: r.instagram,
     tiktok: r.tiktok,
-    appliedLabel: appliedLabel(r.created_at),
+    appliedLabel: formatRelativeDate(
+      r.created_at,
+      region,
+      "Applied",
+      "Applied recently",
+    ),
     status: r.status,
   };
 }
 
-export function useTraderApplications(eid: string | undefined) {
+/** @param region the event's region - see useClubApplications. */
+export function useTraderApplications(eid: string | undefined, region: Region) {
   return useQuery<TraderApplicationsResponse, Error, Trader[]>({
     queryKey: ["event-trader-applications", eid],
     queryFn: () =>
@@ -91,7 +83,7 @@ export function useTraderApplications(eid: string | undefined) {
       ),
     enabled: !!eid,
     staleTime: 30_000,
-    select: (data) => data.applications.map(mapTrader),
+    select: (data) => data.applications.map((r) => mapTrader(r, region)),
   });
 }
 

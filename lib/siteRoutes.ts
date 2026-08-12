@@ -53,6 +53,19 @@ export function eventRowPath(
   );
 }
 
+/**
+ * The order detail view.
+ *
+ * Orders are WooCommerce posts, so an encrypted order id is only unique
+ * within a blog for the same reason an eid is - and the order page has
+ * no event in scope to infer a region from. Without the site it renders
+ * a US order's money and dates in the UK's, so the region has to travel
+ * with the link from whichever list minted it.
+ */
+export function orderDetailPath(oid: string, site?: string | null): string {
+  return withSite(`/orders/${encodeURIComponent(oid)}`, site);
+}
+
 /** The editor. `eid` rides in the query string here, not the path. */
 export function eventEditorPath(eid: string, site?: string | null): string {
   return withSite(`/events/new?eid=${encodeURIComponent(eid)}`, site);

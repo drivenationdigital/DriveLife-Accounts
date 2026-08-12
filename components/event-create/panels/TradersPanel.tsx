@@ -1,6 +1,6 @@
 "use client";
 
-import { useEventSteps } from "@/lib/useEventSteps";
+import { useEventRegion, useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -16,7 +16,11 @@ import {
 } from "@/lib/traderMutations";
 import { ApiError } from "@/lib/apiClient";
 import { useAction } from "@/context/ActionContext";
-import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  formatRegionAmount,
+  formatRegionShortDate,
+  type Region,
+} from "@/lib/regions";
 import { slugify } from "@/lib/slugify";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
@@ -361,7 +365,9 @@ function TraderCategoryRow({
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
-  const subtitle = subtitleForCategory(category);
+  // Read straight off the context rather than threading a prop down.
+  const region = useEventRegion();
+  const subtitle = subtitleForCategory(category, region);
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
       <button
@@ -420,7 +426,7 @@ function TraderCategoryRow({
   );
 }
 
-function subtitleForCategory(c: TraderCategory): string {
+function subtitleForCategory(c: TraderCategory, region: Region): string {
   const bits: string[] = [];
   // Payment mode + fee
   if (c.paymentMode === "in_person") {
@@ -429,28 +435,22 @@ function subtitleForCategory(c: TraderCategory): string {
     bits.push("Online");
   }
   if (Number.isFinite(c.ticketCost) && c.ticketCost > 0) {
-    bits.push(`£${c.ticketCost}`);
+    bits.push(formatRegionAmount(c.ticketCost, region));
   }
   // Window
   if (c.applicationsOpen || c.applicationsClose) {
     const win = [
-      c.applicationsOpen ? formatShort(c.applicationsOpen) : "",
+      c.applicationsOpen
+        ? formatRegionShortDate(c.applicationsOpen, region)
+        : "",
       "-",
-      c.applicationsClose ? formatShort(c.applicationsClose) : "",
+      c.applicationsClose
+        ? formatRegionShortDate(c.applicationsClose, region)
+        : "",
     ]
       .join(" ")
       .trim();
     bits.push(win);
   }
   return bits.join(" · ");
-}
-
-function formatShort(iso: string): string {
-  const full = formatEditorDate(iso);
-  return full
-    .replace(
-      /(January|February|March|April|May|June|July|August|September|October|November|December)/,
-      (m) => m.slice(0, 3),
-    )
-    .replace(/\s\d{4}$/, "");
 }

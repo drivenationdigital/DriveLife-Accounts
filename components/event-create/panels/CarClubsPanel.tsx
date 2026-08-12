@@ -250,7 +250,7 @@ export function CarClubsPanel() {
             {state.carClubsRequireTicket && (
               <div className="mt-4 pt-4 border-t border-ink-200">
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                  Club vehicle ticket cost (£)
+                  Club vehicle ticket cost ({region.currencySymbol})
                 </label>
                 <input
                   type="number"

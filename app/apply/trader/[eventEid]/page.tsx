@@ -12,6 +12,7 @@ import {
 import { ConfettiBurst } from "@/components/apply/ConfettiBurst";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
+import { regionFromSite } from "@/lib/regions";
 import {
   useTraderPublic,
   useSubmitTraderApplication,
@@ -55,6 +56,10 @@ export default function TraderApplyPage({
 }) {
   const { eventEid } = use(params);
   const { data, isLoading, error } = useTraderPublic(eventEid);
+  // Currency for the event's own site - see the note on the show-car
+  // apply page; resolves to the default region until the public
+  // endpoint echoes a site block.
+  const region = regionFromSite(data?.site);
   const submit = useSubmitTraderApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
 
@@ -208,7 +213,7 @@ export default function TraderApplyPage({
                     disabled={disabled}
                   >
                     {c.name}
-                    {traderCategoryAvailabilityLabel(c)}
+                    {traderCategoryAvailabilityLabel(c, region)}
                     {!open ? " · closed" : ""}
                   </option>
                 );

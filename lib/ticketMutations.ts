@@ -12,6 +12,14 @@
  *   useReorderTicketRows()- writes display_order on every ticket in
  *                            the given order.
  *
+ * Every hook takes the event's `site` and sends it with the request -
+ * in the body for the POSTs, in the query string for the DELETE (see
+ * apiClient). A ticket is addressed by its event's eid plus its own
+ * tid, and neither id is unique across the multisite blogs: without a
+ * site the API resolves both against the UK blog, so a US ticket save
+ * either 404s or, if the organiser happens to own a UK post with the
+ * same id, writes to that one instead. Nothing errors when it does.
+ *
  * On success each invalidates the /event-edit cache so a later
  * re-entry to the editor pulls fresh state. The editor session itself
  * keeps using its local reducer state - the HYDRATE guard in the
@@ -25,6 +33,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiPost, apiDelete } from "./apiClient";
+import type { SiteKey } from "./apiTypes";
 import type {
   Ticket,
   TicketSection,
@@ -131,9 +140,15 @@ export function useSaveTicketRow() {
   return useMutation<
     ApiTicketSaveResponse,
     Error,
-    { eid: string; id: TicketId | SectionId; body: ApiTicketSaveBody }
+    {
+      eid: string;
+      id: TicketId | SectionId;
+      body: ApiTicketSaveBody;
+      /** The event's blog. apiPost merges it into the body. */
+      site: SiteKey;
+    }
   >({
-    mutationFn: ({ eid, id, body }) => {
+    mutationFn: ({ eid, id, body, site }) => {
       const params = new URLSearchParams({ eid });
       // Existing rows include tid for an update; new rows omit it so
       // the endpoint takes the create path.
@@ -143,6 +158,7 @@ export function useSaveTicketRow() {
       return apiPost<ApiTicketSaveResponse, ApiTicketSaveBody>(
         `/event-ticket?${params.toString()}`,
         body,
+        { site },
       );
     },
     onSuccess: (_data, { eid }) => {
@@ -156,11 +172,16 @@ export function useDeleteTicketRow() {
   return useMutation<
     { success: true },
     Error,
-    { eid: string; id: TicketId | SectionId }
+    { eid: string; id: TicketId | SectionId; site: SiteKey }
   >({
-    mutationFn: ({ eid, id }) => {
+    mutationFn: ({ eid, id, site }) => {
       const params = new URLSearchParams({ eid, tid: id });
-      return apiDelete<{ success: true }>(`/event-ticket?${params.toString()}`);
+      // DELETE carries no body, so apiDelete puts `site` in the query
+      // string. Deleting is the one that must not resolve against the
+      // wrong blog - there's no undo.
+      return apiDelete<{ success: true }>(`/event-ticket?${params.toString()}`, {
+        site,
+      });
     },
     onSuccess: (_data, { eid }) => {
       qc.invalidateQueries({ queryKey: ["event-edit", eid] });
@@ -173,12 +194,13 @@ export function useReorderTicketRows() {
   return useMutation<
     ApiTicketReorderResponse,
     Error,
-    { eid: string; ids: string[] }
+    { eid: string; ids: string[]; site: SiteKey }
   >({
-    mutationFn: ({ eid, ids }) =>
+    mutationFn: ({ eid, ids, site }) =>
       apiPost<ApiTicketReorderResponse, { ids: string[] }>(
         `/event-ticket-reorder?eid=${encodeURIComponent(eid)}`,
         { ids },
+        { site },
       ),
     onSuccess: (_data, { eid }) => {
       qc.invalidateQueries({ queryKey: ["event-edit", eid] });

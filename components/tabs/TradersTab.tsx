@@ -63,7 +63,7 @@ export function TradersTab() {
     error,
     refetch,
     isFetching,
-  } = useTraderApplications(eid);
+  } = useTraderApplications(eid, event.region);
 
   // First load: shimmer the card grid rather than showing an empty
   // KPI strip that snaps into content a moment later.

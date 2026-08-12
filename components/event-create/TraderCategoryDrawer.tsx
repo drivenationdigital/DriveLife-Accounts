@@ -10,6 +10,7 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { makeLocalId } from "@/lib/makeLocalId";
 import { generateSecretCode } from "@/lib/generateSecretCode";
+import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
 import { EditorTextarea } from "./EditorTextarea";
@@ -45,6 +46,8 @@ export function TraderCategoryDrawer({
   onSave: (category: TraderCategory) => void;
   onRemove: (id: TraderCategoryId) => void;
 }) {
+  // Drives the fee field's currency symbol and the date fields' order.
+  const region = useEventRegion();
   const [name, setName] = useState(() => editing?.name ?? "");
   // Icon is no longer pickable in the UI; existing values are preserved
   // and new categories fall back to the generic default.
@@ -108,7 +111,7 @@ export function TraderCategoryDrawer({
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value) : "Select date"}
+        {value ? formatEditorDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
@@ -217,7 +220,7 @@ export function TraderCategoryDrawer({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                Pitch fee (£)
+                Pitch fee ({region.currencySymbol})
               </label>
               <input
                 type="number"

@@ -10,6 +10,8 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
+import type { EventSite } from "./apiTypes";
+import { formatRegionCurrency, type Region } from "./regions";
 
 // ============================================================
 // Types
@@ -41,6 +43,9 @@ export interface ShowCarPublicCategory {
 export interface ShowCarPublicResponse {
   event_id: number;
   event_title: string;
+  /** The blog this event lives on - see the note in carClubApply.ts.
+   *  Optional until the public endpoints echo one back. */
+  site?: EventSite;
   show_cars_enabled: boolean;
   categories: ShowCarPublicCategory[];
 }
@@ -221,9 +226,14 @@ export function isCategoryOpenToday(c: ShowCarPublicCategory): boolean {
  * Captures the three signals the user cares about: price, capacity,
  * window state.
  */
-export function categoryAvailabilityLabel(c: ShowCarPublicCategory): string {
+export function categoryAvailabilityLabel(
+  c: ShowCarPublicCategory,
+  region: Region,
+): string {
   const bits: string[] = [];
-  bits.push(c.require_ticket ? `£${c.ticket_cost.toFixed(2)}` : "Free");
+  bits.push(
+    c.require_ticket ? formatRegionCurrency(c.ticket_cost, region) : "Free",
+  );
   if (c.is_full) bits.push("full");
   else if (!isCategoryOpenToday(c)) bits.push("closed");
   else if (

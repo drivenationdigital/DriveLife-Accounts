@@ -12,6 +12,7 @@ import {
   type TicketId,
 } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import { formatRegionCurrency } from "@/lib/regions";
 import { makeLocalId } from "@/lib/makeLocalId";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -296,7 +297,7 @@ export function DiscountDrawer({
               className={`seg-btn ${!isPercent ? "is-active" : ""}`}
               onClick={() => setKind("fixed")}
             >
-              <i className="fa-solid fa-sterling-sign mr-2" aria-hidden />
+              <i className={`${region.currencyIcon} mr-2`} aria-hidden />
               Fixed amount
             </button>
           </div>
@@ -308,12 +309,13 @@ export function DiscountDrawer({
             Amount <span className="text-gold-600">*</span>
           </label>
           <div className="relative">
-            {/* Prefix shows £ for fixed; suffix shows % for percentage.
-                We swap them rather than rendering both - avoids a
-                hidden-but-occupying-space layout shift bug. */}
+            {/* Prefix shows the region's currency symbol for fixed;
+                suffix shows % for percentage. We swap them rather than
+                rendering both - avoids a hidden-but-occupying-space
+                layout shift bug. */}
             {!isPercent && (
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-400 font-semibold pointer-events-none">
-                £
+                {region.currencySymbol}
               </span>
             )}
             {isPercent && (
@@ -414,7 +416,7 @@ export function DiscountDrawer({
                     {Number.isFinite(t.price) && (
                       <span className="text-ink-400">
                         {" "}
-                        · £{t.price.toFixed(2)}
+                        · {formatRegionCurrency(t.price, region)}
                       </span>
                     )}
                   </span>

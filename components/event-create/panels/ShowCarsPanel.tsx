@@ -1,6 +1,6 @@
 "use client";
 
-import { useEventSteps } from "@/lib/useEventSteps";
+import { useEventRegion, useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -9,7 +9,11 @@ import {
   type ShowCarCategory,
   type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
-import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  formatRegionAmount,
+  formatRegionShortDate,
+  type Region,
+} from "@/lib/regions";
 import { slugify } from "@/lib/slugify";
 import {
   useSaveShowCarCategory,
@@ -392,8 +396,12 @@ function ShowCarCategoryRow({
   canMoveUp: boolean;
   canMoveDown: boolean;
 }) {
-  const ticketBadge = badgeForCategory(category);
-  const subtitle = subtitleForCategory(category);
+  // Read straight off the context rather than threading a prop down -
+  // the row is several levels below the panel and only needs the region
+  // to format its own fee and dates.
+  const region = useEventRegion();
+  const ticketBadge = badgeForCategory(category, region);
+  const subtitle = subtitleForCategory(category, region);
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
       <button
@@ -459,7 +467,10 @@ function ShowCarCategoryRow({
 // Helpers
 // ============================================================
 
-function badgeForCategory(c: ShowCarCategory): {
+function badgeForCategory(
+  c: ShowCarCategory,
+  region: Region,
+): {
   text: string;
   cls: string;
 } {
@@ -471,7 +482,7 @@ function badgeForCategory(c: ShowCarCategory): {
   }
   const cost =
     Number.isFinite(c.ticketCost) && c.ticketCost > 0
-      ? `£${stripZero(c.ticketCost)}`
+      ? formatRegionAmount(c.ticketCost, region)
       : "Free";
   return {
     text: `${cost} ticket`,
@@ -479,27 +490,15 @@ function badgeForCategory(c: ShowCarCategory): {
   };
 }
 
-function subtitleForCategory(c: ShowCarCategory): string {
+function subtitleForCategory(c: ShowCarCategory, region: Region): string {
   if (!c.applicationsOpen && !c.applicationsClose) return "";
   const parts: string[] = ["Applications"];
-  if (c.applicationsOpen) parts.push(formatShort(c.applicationsOpen));
+  if (c.applicationsOpen) {
+    parts.push(formatRegionShortDate(c.applicationsOpen, region));
+  }
   parts.push("-");
-  if (c.applicationsClose) parts.push(formatShort(c.applicationsClose));
+  if (c.applicationsClose) {
+    parts.push(formatRegionShortDate(c.applicationsClose, region));
+  }
   return parts.join(" ").replace("Applications  - ", "Applications ");
-}
-
-function formatShort(iso: string): string {
-  // "15 April 2026" → "15 Apr"
-  const full = formatEditorDate(iso);
-  return full
-    .replace(
-      /(January|February|March|April|May|June|July|August|September|October|November|December)/,
-      (m) => m.slice(0, 3),
-    )
-    .replace(/\s\d{4}$/, "");
-}
-
-function stripZero(n: number): string {
-  if (!Number.isFinite(n)) return "0";
-  return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
 }

@@ -13,6 +13,12 @@ import {
 
 import { ApiError } from "@/lib/apiClient";
 import {
+  formatRegionCurrency,
+  formatRegionShortDate,
+  regionFromSite,
+  type Region,
+} from "@/lib/regions";
+import {
   useShowCarPublic,
   useSubmitShowCarApplication,
   isCategoryOpenToday,
@@ -79,6 +85,10 @@ export default function ShowCarApplyPage({
 }) {
   const { eventEid } = use(params);
   const { data, isLoading, error } = useShowCarPublic(eventEid);
+  // Currency and date order for the event's own site. The public
+  // endpoint doesn't send a site block yet, so this resolves to the
+  // API's default region until it does.
+  const region = regionFromSite(data?.site);
   const submit = useSubmitShowCarApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
 
@@ -283,12 +293,14 @@ export default function ShowCarApplyPage({
                   value={c.encrypted_id}
                   disabled={c.is_full || !isCategoryOpenToday(c)}
                 >
-                  {c.name} - {categoryAvailabilityLabel(c)}
+                  {c.name} - {categoryAvailabilityLabel(c, region)}
                 </option>
               ))}
             </select>
           </Field>
-          {selected && <SelectedCategoryDetails category={selected} />}
+          {selected && (
+            <SelectedCategoryDetails category={selected} region={region} />
+          )}
         </Section>
 
         <Section step={2} title="Your details">
@@ -776,21 +788,12 @@ function Field({
   );
 }
 
-/** "2026-04-15" → "15/04/26". Parsed by hand rather than through Date
- *  so the value isn't shifted a day by the viewer's timezone - the API
- *  sends a plain calendar date with no time attached. Anything that
- *  isn't the expected shape falls through unchanged. */
-function formatShortDate(iso: string): string {
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
-  if (!m) return iso;
-  const [, year, month, day] = m;
-  return `${day}/${month}/${year!.slice(2)}`;
-}
-
 function SelectedCategoryDetails({
   category,
+  region,
 }: {
   category: ShowCarPublicCategory;
+  region: Region;
 }) {
   return (
     <div className="mt-3 p-3 bg-ink-50 border border-ink-100 rounded-lg space-y-1.5">
@@ -800,7 +803,7 @@ function SelectedCategoryDetails({
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
         <span>
           {category.require_ticket
-            ? `£${category.ticket_cost.toFixed(2)} on approval`
+            ? `${formatRegionCurrency(category.ticket_cost, region)} on approval`
             : "Free entry on approval"}
         </span>
         {category.spaces_remaining !== null && (
@@ -808,7 +811,8 @@ function SelectedCategoryDetails({
         )}
         {category.applications_close && (
           <span>
-            Applications close {formatShortDate(category.applications_close)}
+            Applications close{" "}
+            {formatRegionShortDate(category.applications_close, region, true)}
           </span>
         )}
       </div>

@@ -9,6 +9,7 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
+import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
 import { FullScreenDatePicker } from "./FullScreenDatePicker";
@@ -48,6 +49,8 @@ export function ShowCarCategoryDrawer({
   isDeleting?: boolean;
   errorMessage?: string | null;
 }) {
+  // Drives the cost field's currency symbol and the date fields' order.
+  const region = useEventRegion();
   const [name, setName] = useState(() => editing?.name ?? "");
   const [description, setDescription] = useState(
     () => editing?.description ?? "",
@@ -118,7 +121,7 @@ export function ShowCarCategoryDrawer({
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value) : "Select date"}
+        {value ? formatEditorDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
@@ -272,7 +275,7 @@ export function ShowCarCategoryDrawer({
           {requireTicket && (
             <div className="mt-4 pt-4 border-t border-ink-200">
               <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                Ticket cost (£)
+                Ticket cost ({region.currencySymbol})
               </label>
               <input
                 type="number"

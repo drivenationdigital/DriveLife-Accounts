@@ -29,6 +29,9 @@ import type {
 } from "@/context/types";
 import {
   formatRegionDate,
+  formatRegionShortDate,
+  formatRegionTime,
+  formatRelativeDate,
   regionFromSite,
   resolveRegion,
   type Region,
@@ -49,55 +52,47 @@ function formatDateHuman(
   return formatRegionDate(iso, region);
 }
 
+/**
+ * "10:00 - 16:00" in the UK, "10:00 AM - 4:00 PM" in the US. The API
+ * sends a 24h clock string either way; the region decides how it reads.
+ */
 function formatTimeRange(
   startTime: string | null | undefined,
   endTime: string | null | undefined,
+  region: Region,
 ): string {
-  if (startTime && endTime) return `${startTime} - ${endTime}`;
-  if (startTime) return startTime;
-  if (endTime) return endTime;
-  return "";
+  const start = formatRegionTime(startTime, region);
+  const end = formatRegionTime(endTime, region);
+  if (start && end) return `${start} - ${end}`;
+  return start || end;
 }
 
 function formatOrderDate(iso: string | null, region: Region): string {
   if (!iso) return "";
   try {
     const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
     const today = new Date();
     const isToday =
       d.getFullYear() === today.getFullYear() &&
       d.getMonth() === today.getMonth() &&
       d.getDate() === today.getDate();
     if (isToday) {
+      // Today's orders show the clock instead of the date - 24h in the
+      // UK, "2:30 PM" in the US.
       return `Today, ${d.toLocaleTimeString(region.locale, {
-        hour: "2-digit",
+        hour: "numeric",
         minute: "2-digit",
       })}`;
     }
-    return d.toLocaleDateString(region.locale, {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
+    return formatRegionShortDate(iso, region, true);
   } catch {
     return iso;
   }
 }
 
-function formatAppliedLabel(iso: string | null): string {
-  if (!iso) return "Applied recently";
-  try {
-    const d = new Date(iso);
-    const now = new Date();
-    const days = Math.floor((now.getTime() - d.getTime()) / 86_400_000);
-    if (days <= 0) return "Applied today";
-    if (days === 1) return "Applied 1d ago";
-    if (days < 7) return `Applied ${days}d ago`;
-    if (days < 30) return `Applied ${Math.floor(days / 7)}w ago`;
-    return `Applied on ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-  } catch {
-    return "Applied recently";
-  }
+function formatAppliedLabel(iso: string | null, region: Region): string {
+  return formatRelativeDate(iso, region, "Applied", "Applied recently");
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -147,7 +142,7 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     date: isParent
       ? recurringDisplay || "Recurring"
       : formatDateHuman(start, region),
-    timeRange: formatTimeRange(startTime, endTime),
+    timeRange: formatTimeRange(startTime, endTime, region),
     location: locationParts.join(", ") || "-",
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
@@ -190,7 +185,7 @@ function mapOccurrences(
       dateLabel: formatOccurrenceDate(o.start_date, o.end_date, region),
       startDate: o.start_date,
       endDate: o.end_date,
-      timeLabel: formatTimeRange(o.start_time, o.end_time),
+      timeLabel: formatTimeRange(o.start_time, o.end_time, region),
       location: o.location || "-",
       statusSlug: o.status?.slug ?? "",
       statusLabel: o.status?.label ?? "",
@@ -328,7 +323,7 @@ function pickPhotoClass(id: number): CarPhotoClass {
   return classes[id % classes.length];
 }
 
-export function mapShowCar(r: ApiShowCarRecord): ShowCar {
+export function mapShowCar(r: ApiShowCarRecord, region: Region): ShowCar {
   const make = r.car.make ?? "";
   const model = r.car.model ?? "";
   const reg = r.car.registration ?? "";
@@ -372,8 +367,8 @@ export function mapShowCar(r: ApiShowCarRecord): ShowCar {
     // the application was submitted.
     category: r.category || "",
     status: SHOW_CAR_STATUS_MAP[r.status],
-    appliedLabel: formatAppliedLabel(r.created_at),
-    updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at),
+    appliedLabel: formatAppliedLabel(r.created_at, region),
+    updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at, region),
   };
 }
 
@@ -385,14 +380,14 @@ function collectRecentShowCars(section: {
     confirmed: ApiShowCarRecord[];
     rejected: ApiShowCarRecord[];
   };
-}): ShowCar[] {
+}, region: Region): ShowCar[] {
   // `recent` is only present on the dashboard /event endpoint, not on
   // the editor's /event-edit. Return an empty list when absent so
   // both surfaces share the same mapper without a runtime crash.
   const r = section.recent;
   if (!r) return [];
   return [...r.applied, ...r.approved, ...r.confirmed, ...r.rejected].map(
-    mapShowCar,
+    (rec) => mapShowCar(rec, region),
   );
 }
 
@@ -407,7 +402,7 @@ const CLUB_STATUS_MAP: Record<ApplicationStatusApi, ApplicationStatus> = {
   rejected: "rejected",
 };
 
-export function mapCarClub(r: ApiCarClubRecord): Club {
+export function mapCarClub(r: ApiCarClubRecord, region: Region): Club {
   return {
     id: String(r.id),
     name: r.club_name ?? "Unnamed club",
@@ -416,8 +411,8 @@ export function mapCarClub(r: ApiCarClubRecord): Club {
     contactEmail: r.contact_email ?? "",
     contactPhone: r.contact_phone ?? "",
     description: r.notes ?? "",
-    appliedLabel: formatAppliedLabel(r.created_at),
-    updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at),
+    appliedLabel: formatAppliedLabel(r.created_at, region),
+    updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at, region),
     status: CLUB_STATUS_MAP[r.status],
     // Per-club ticket sales aren't carried on this /event-embedded
     // record (the Clubs tab fetches them via useClubApplications).
@@ -434,13 +429,13 @@ function collectRecentCarClubs(section: {
     confirmed: ApiCarClubRecord[];
     rejected: ApiCarClubRecord[];
   };
-}): Club[] {
+}, region: Region): Club[] {
   return [
     ...section.recent.applied,
     ...section.recent.approved,
     ...section.recent.confirmed,
     ...section.recent.rejected,
-  ].map(mapCarClub);
+  ].map((rec) => mapCarClub(rec, region));
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -497,14 +492,6 @@ export function mapEventResponse(
 ): EventData {
   const sales: ApiSales = resp.sales;
 
-  const showCars: ShowCar[] = resp.show_cars.enabled
-    ? collectRecentShowCars(resp.show_cars)
-    : [];
-
-  const clubs: Club[] = resp.clubs.enabled
-    ? collectRecentCarClubs(resp.clubs)
-    : [];
-
   // The region is echoed on the response root as well as on the event
   // itself; either is the server's own answer for which blog it
   // resolved the eid on, so take whichever is present.
@@ -513,8 +500,17 @@ export function mapEventResponse(
     : { ...resp.event, site: resp.site };
   const event = mapEventDetail(core, opts.fallbackSite);
   // Everything below formats in the event's own region - dates and
-  // money both move with it.
+  // money both move with it. Resolved before the application lists
+  // because their "Applied" labels need it too.
   const region = event.region;
+
+  const showCars: ShowCar[] = resp.show_cars.enabled
+    ? collectRecentShowCars(resp.show_cars, region)
+    : [];
+
+  const clubs: Club[] = resp.clubs.enabled
+    ? collectRecentCarClubs(resp.clubs, region)
+    : [];
 
   return {
     event,
@@ -589,7 +585,7 @@ export function mergeAdditionalShowCars(
   existing: EventData,
   newItems: ApiShowCarRecord[],
 ): EventData {
-  const mapped = newItems.map(mapShowCar);
+  const mapped = newItems.map((r) => mapShowCar(r, existing.event.region));
   const seen = new Set(existing.showCars.map((c) => c.id));
   const merged = [...existing.showCars];
   for (const c of mapped) {
@@ -606,7 +602,7 @@ export function mergeAdditionalCarClubs(
   existing: EventData,
   newItems: ApiCarClubRecord[],
 ): EventData {
-  const mapped = newItems.map(mapCarClub);
+  const mapped = newItems.map((r) => mapCarClub(r, existing.event.region));
   const seen = new Set(existing.clubs.map((c) => c.id));
   const merged = [...existing.clubs];
   for (const c of mapped) {

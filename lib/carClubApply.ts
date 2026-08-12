@@ -9,10 +9,17 @@
 
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
+import type { EventSite } from "./apiTypes";
 
 export interface CarClubPublicResponse {
   event_id: number;
   event_title: string;
+  /** The blog this event lives on, and therefore the currency and date
+   *  order the page should use. Optional because the public endpoints
+   *  don't echo one yet - until they do, `regionFromSite(undefined)`
+   *  resolves to the API's own default region, which is what the page
+   *  showed before. Nothing here needs changing when it lands. */
+  site?: EventSite;
   event_location?: string;
   event_info?: string;
   car_clubs_enabled: boolean;

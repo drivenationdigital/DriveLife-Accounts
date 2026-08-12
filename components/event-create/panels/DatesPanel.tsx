@@ -891,6 +891,7 @@ function CustomDateList({
   onRemove: (id: string) => void;
   onPickDate: (rowId: string) => void;
 }) {
+  const region = useEventRegion();
   return (
     <div className="space-y-3 pt-2">
       {rows.length === 0 ? (
@@ -918,7 +919,9 @@ function CustomDateList({
                     aria-hidden
                   />
                   <span className="df-display">
-                    {row.date ? formatEditorDate(row.date) : "Pick a date"}
+                    {row.date
+                      ? formatEditorDate(row.date, region)
+                      : "Pick a date"}
                   </span>
                   <i
                     className="fa-solid fa-chevron-down df-chev"

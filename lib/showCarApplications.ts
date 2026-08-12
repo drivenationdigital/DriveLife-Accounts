@@ -12,6 +12,7 @@ import { apiGet, apiPost } from "./apiClient";
 import { mapShowCar } from "./eventMapper";
 import type { ApiShowCarRecord } from "./apiTypes";
 import type { ShowCar } from "@/context/types";
+import type { Region } from "./regions";
 
 export interface ShowCarApplicationsResponse {
   success: true;
@@ -19,7 +20,12 @@ export interface ShowCarApplicationsResponse {
   applications: ApiShowCarRecord[];
 }
 
-export function useShowCarApplications(eid: string | undefined) {
+/** @param region the event's region - dates in the "Applied" labels
+ *  are rendered in it. Pass `event.region` from the tab. */
+export function useShowCarApplications(
+  eid: string | undefined,
+  region: Region,
+) {
   return useQuery<ShowCarApplicationsResponse, Error, ShowCar[]>({
     queryKey: ["event-show-car-applications", eid],
     queryFn: () =>
@@ -28,7 +34,7 @@ export function useShowCarApplications(eid: string | undefined) {
       ),
     enabled: !!eid,
     staleTime: 30_000,
-    select: (data) => data.applications.map(mapShowCar),
+    select: (data) => data.applications.map((r) => mapShowCar(r, region)),
   });
 }
 

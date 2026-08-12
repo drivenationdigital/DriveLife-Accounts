@@ -11,6 +11,7 @@ import { ShowCarTable } from "@/components/tables/ShowCarTable";
 import { ClubTable } from "@/components/tables/ClubTable";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
+import { orderDetailPath } from "@/lib/siteRoutes";
 import { useRouter } from "next/navigation";
 
 export function OverviewTab() {
@@ -314,7 +315,7 @@ export function OverviewTab() {
                 <tr
                   key={o.id}
                   {...clickableRow(
-                    () => router.push(`/orders/${o.encryptedId}`),
+                    () => router.push(orderDetailPath(o.encryptedId, event.region.key)),
                     { label: `Open order #${o.id}` },
                   )}
                 >

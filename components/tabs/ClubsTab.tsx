@@ -26,7 +26,7 @@ export function ClubsTab() {
   const { event } = useEventData();
   const eid = event.encryptedId;
   const { data, isLoading, error, refetch, isFetching } =
-    useClubApplications(eid);
+    useClubApplications(eid, event.region);
 
   const exportApps = useExportApplications();
   const runAction = useAction();

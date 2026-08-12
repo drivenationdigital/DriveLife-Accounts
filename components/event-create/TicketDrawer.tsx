@@ -6,6 +6,7 @@ import { type Ticket, type TicketId } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
+import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
 import { FullScreenDatePicker } from "./FullScreenDatePicker";
@@ -48,6 +49,9 @@ export function TicketDrawer({
   /** Server-side failure to surface inline above the footer. */
   errorMessage?: string | null;
 }) {
+  // The event's region - drives the price field's currency symbol and
+  // the date fields' day/month ordering.
+  const region = useEventRegion();
   // Numeric inputs are stored as strings so the user can clear them
   // without React turning empty into NaN. We parse on save.
   const [name, setName] = useState(() => editing?.name ?? "");
@@ -145,7 +149,7 @@ export function TicketDrawer({
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value) : "Select date"}
+        {value ? formatEditorDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
@@ -258,7 +262,7 @@ export function TicketDrawer({
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-              Price (£)
+              Price ({region.currencySymbol})
             </label>
             <input
               type="number"

@@ -44,6 +44,11 @@ export interface Region {
   /** ISO 4217. */
   currency: string;
   currencySymbol: string;
+  /** Font Awesome class for the currency glyph, for the few places that
+   *  show an icon rather than a character (the discount type picker).
+   *  Lives here so a new region declares its icon alongside its symbol
+   *  instead of a component switching on the key. */
+  currencyIcon: string;
   /** False where the region can't sell tickets, which hides the entire
    *  ticketing surface - tickets, discounts, orders, attendees and all
    *  three application types. Both live regions are ticketed now; the
@@ -61,6 +66,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     locale: "en-GB",
     currency: "GBP",
     currencySymbol: "£",
+    currencyIcon: "fa-solid fa-sterling-sign",
     ticketing: true,
   },
   us: {
@@ -71,6 +77,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     locale: "en-US",
     currency: "USD",
     currencySymbol: "$",
+    currencyIcon: "fa-solid fa-dollar-sign",
     ticketing: true,
   },
 };
@@ -172,6 +179,32 @@ export function ticketingEnabled(
 // ─────────────────────────────────────────────────────────────────────
 
 /**
+ * The date shapes the dashboard uses, in one place.
+ *
+ * Named rather than spelled out at each call site so "the short date"
+ * means the same thing everywhere, and so widening one (adding the year
+ * to subtitles, say) is a single edit. Intl turns each of these into the
+ * region's own ordering - `short` is "15 Apr" in the UK and "Apr 15" in
+ * the US - which is exactly why call sites must not hand-assemble them
+ * from parts or post-process the string.
+ */
+export const DATE_STYLES = {
+  /** "Sat, 15 August 2026" / "Sat, August 15, 2026" - headline dates. */
+  long: {
+    weekday: "short",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  },
+  /** "15 August 2026" / "August 15, 2026" - editor date fields. */
+  full: { day: "numeric", month: "long", year: "numeric" },
+  /** "15 Apr" / "Apr 15" - tight subtitles where the year is implied. */
+  short: { day: "numeric", month: "short" },
+  /** "15 Apr 2026" / "Apr 15, 2026" - subtitles that need the year. */
+  shortWithYear: { day: "numeric", month: "short", year: "numeric" },
+} as const satisfies Record<string, Intl.DateTimeFormatOptions>;
+
+/**
  * Format an ISO date in the region's locale.
  *
  * The whole point is ordering: en-GB renders 8 August 2026 as
@@ -186,12 +219,7 @@ export function ticketingEnabled(
 export function formatRegionDate(
   iso: string | null | undefined,
   region: Region,
-  options: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  },
+  options: Intl.DateTimeFormatOptions = DATE_STYLES.long,
 ): string {
   if (!iso) return "";
   try {
@@ -222,12 +250,7 @@ export function formatRegionDateRange(
   startIso: string | null | undefined,
   endIso: string | null | undefined,
   region: Region,
-  options: Intl.DateTimeFormatOptions = {
-    weekday: "short",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  },
+  options: Intl.DateTimeFormatOptions = DATE_STYLES.long,
 ): string {
   if (!startIso) return formatRegionDate(endIso, region, options);
   if (!endIso || endIso === startIso) {
@@ -257,6 +280,108 @@ export function formatRegionDateRange(
 }
 
 /**
+ * "15 Apr" / "Apr 15" - the tight form used in list subtitles.
+ *
+ * Replaces the hand-rolled "format long, then regex the month down to
+ * three letters and strip the year" that had been copied into four
+ * panels. That trick only ever produced the UK shape: it left the US
+ * comma behind ("Apr 15,") and its month regex matched English month
+ * names only, so it silently no-opped on any other locale.
+ *
+ * Pass `withYear` where the date could be more than a year out and the
+ * bare day/month would be ambiguous.
+ */
+export function formatRegionShortDate(
+  iso: string | null | undefined,
+  region: Region,
+  withYear = false,
+): string {
+  return formatRegionDate(
+    iso,
+    region,
+    withYear ? DATE_STYLES.shortWithYear : DATE_STYLES.short,
+  );
+}
+
+/**
+ * "Applied today" / "Applied 3 days ago" / "Applied 15 Apr".
+ *
+ * Relative for the first month, then an absolute short date. Only that
+ * tail is region-dependent, but it's the part that was hardcoded to
+ * en-GB in three separate copies of this function - so there is one
+ * copy now and it takes a region.
+ *
+ * `verb` is the leading word ("Applied", "Confirmed", "Rejected"), so
+ * the status-change labels share the same shape as the applied ones.
+ */
+export function formatRelativeDate(
+  iso: string | null | undefined,
+  region: Region,
+  verb: string,
+  fallback = "",
+): string {
+  if (!iso) return fallback;
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return fallback;
+    const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+    if (days <= 0) return `${verb} today`;
+    if (days === 1) return `${verb} 1 day ago`;
+    if (days < 7) return `${verb} ${days} days ago`;
+    if (days < 30) return `${verb} ${Math.floor(days / 7)}w ago`;
+    return `${verb} ${formatRegionShortDate(iso, region)}`;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * A time of day in the region's clock - "14:30" in the UK, "2:30 PM" in
+ * the US.
+ *
+ * Accepts the "HH:MM" / "HH:MM:SS" the editor and API deal in, as well
+ * as a full ISO timestamp. Anything it can't read is returned unchanged
+ * rather than blanked, so a server string in some other shape still
+ * reaches the page.
+ */
+export function formatRegionTime(
+  value: string | null | undefined,
+  region: Region,
+): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  // Pull the clock time out of either shape. Pinned to a fixed UTC date
+  // so only the hour/minute matter - we're formatting a time of day, not
+  // an instant, and must not let the viewer's zone shift it.
+  const match = /^(\d{1,2}):(\d{2})/.exec(
+    trimmed.includes("T") ? (trimmed.split("T")[1] ?? "") : trimmed,
+  );
+  if (!match) return trimmed;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (hour > 23 || minute > 59) return trimmed;
+  try {
+    // A 24-hour locale pads the hour ("09:00"); a 12-hour one doesn't
+    // ("9:00 AM", never "09:00 AM"). Asked from the locale rather than
+    // hardcoded per region, so a third site gets its own convention.
+    const cycle = new Intl.DateTimeFormat(region.locale, {
+      hour: "numeric",
+    }).resolvedOptions().hourCycle;
+    const is24Hour = cycle === "h23" || cycle === "h24";
+    return new Date(Date.UTC(2000, 0, 1, hour, minute)).toLocaleTimeString(
+      region.locale,
+      {
+        hour: is24Hour ? "2-digit" : "numeric",
+        minute: "2-digit",
+        timeZone: "UTC",
+      },
+    );
+  } catch {
+    return trimmed;
+  }
+}
+
+/**
  * Money in the region's currency and locale.
  *
  * Symbol placement and grouping both move with the region, so this
@@ -280,4 +405,91 @@ export function formatRegionCurrency(
     // bare symbol rather than losing the number entirely.
     return `${region.currencySymbol}${amount.toFixed(2)}`;
   }
+}
+
+/**
+ * Money with the trailing ".00" dropped - "£1,234", "$15", "£12.50".
+ *
+ * The compact form the editor uses for badges and summary figures,
+ * where a column of ".00"s is noise. Grouping and symbol placement
+ * still come from the region, so this is `formatRegionCurrency` with a
+ * variable number of decimals rather than a separate implementation.
+ */
+export function formatRegionAmount(amount: number, region: Region): string {
+  const n = Number.isFinite(amount) ? amount : 0;
+  return formatRegionCurrency(n, region, {
+    minimumFractionDigits: Number.isInteger(n) ? 0 : 2,
+  });
+}
+
+/**
+ * Re-format a money string the server already rendered.
+ *
+ * Some endpoints (order detail, most visibly) hand back display strings
+ * rather than numbers - "£55.00", "-£5.00". Those are formatted by
+ * WooCommerce against whichever blog answered the request, so a US order
+ * fetched without a region comes back in pounds. Parsing the number back
+ * out and re-rendering it in the region we know we're showing is the
+ * only fix available on this side of the API.
+ *
+ * Deliberately conservative: anything that isn't a plain symbol-and-
+ * digits amount is passed through untouched, because a wrong guess here
+ * would misstate a price. Grouping separators are read per region -
+ * "1.234,56" is twelve hundred in de-DE and one-point-two in en-GB - so
+ * we only strip separators we can identify from the string's own shape.
+ */
+export function formatRegionMoneyString(
+  value: string | null | undefined,
+  region: Region,
+): string {
+  if (!value) return value ?? "";
+  const trimmed = value.trim();
+  // Strip currency symbols/codes and whitespace, keeping sign, digits
+  // and separators. Anything left over that isn't numeric means we
+  // didn't understand the string, and we bail.
+  const stripped = trimmed.replace(/[^\d.,\-+]/g, "");
+  if (!/^[-+]?[\d.,]+$/.test(stripped) || !/\d/.test(stripped)) return trimmed;
+
+  const negative = stripped.startsWith("-") || /^\(.*\)$/.test(trimmed);
+  const digits = stripped.replace(/^[-+]/, "");
+  const lastDot = digits.lastIndexOf(".");
+  const lastComma = digits.lastIndexOf(",");
+  // The LAST separator is the decimal one - but only if it leaves 1-2
+  // digits behind it. "1,234" and "1.234" are both whole thousands.
+  const sepIdx = Math.max(lastDot, lastComma);
+  const tail = sepIdx >= 0 ? digits.length - sepIdx - 1 : 0;
+  const isDecimal = sepIdx >= 0 && tail >= 1 && tail <= 2;
+  const whole = (isDecimal ? digits.slice(0, sepIdx) : digits).replace(
+    /[.,]/g,
+    "",
+  );
+  const frac = isDecimal ? digits.slice(sepIdx + 1) : "";
+  const amount = Number(`${whole}.${frac || "0"}`);
+  if (!Number.isFinite(amount)) return trimmed;
+
+  return formatRegionCurrency(negative ? -amount : amount, region);
+}
+
+/**
+ * Re-format a date string the server already rendered, where we can.
+ *
+ * Same problem as `formatRegionMoneyString`: some endpoints send display
+ * text. A machine-readable date ("2026-08-15" or a full ISO timestamp)
+ * is reformatted into the region; anything else is passed through
+ * unchanged. We deliberately do NOT try to read "08/09/2026" - that is
+ * two different days depending on which region wrote it, and guessing
+ * would put the wrong day on a ticket.
+ */
+export function formatRegionDateString(
+  value: string | null | undefined,
+  region: Region,
+  options: Intl.DateTimeFormatOptions = DATE_STYLES.full,
+): string {
+  if (!value) return value ?? "";
+  const trimmed = value.trim();
+  const machineReadable =
+    /^\d{4}-\d{2}-\d{2}$/.test(trimmed) ||
+    /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(trimmed);
+  if (!machineReadable) return trimmed;
+  return formatRegionDate(trimmed.replace(" ", "T"), region, options);
 }

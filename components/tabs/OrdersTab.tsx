@@ -11,6 +11,7 @@ import {
   useCancelOrder,
   orderTicketsUrl,
 } from "@/lib/orderActions";
+import { orderDetailPath } from "@/lib/siteRoutes";
 import { useRefundOrder } from "@/lib/refundOrder";
 import { useAction } from "@/context/ActionContext";
 import { useEventOrders } from "@/lib/eventOrders";
@@ -272,7 +273,7 @@ export function OrdersTab() {
               <tr
                 key={o.id}
                 {...clickableRow(
-                  () => router.push(`/orders/${o.encryptedId}`),
+                  () => router.push(orderDetailPath(o.encryptedId, event.region.key)),
                   { label: `Open order #${o.id}` },
                 )}
               >
@@ -310,7 +311,7 @@ export function OrdersTab() {
                     </DropdownTrigger>
                     <DropdownMenu>
                       <DropdownItem
-                        onClick={() => router.push(`/orders/${o.encryptedId}`)}
+                        onClick={() => router.push(orderDetailPath(o.encryptedId, event.region.key))}
                       >
                         View &amp; edit
                       </DropdownItem>

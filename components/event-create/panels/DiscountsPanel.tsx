@@ -9,7 +9,11 @@ import {
   type Discount,
   type DiscountId,
 } from "@/context/EventCreateContext";
-import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  formatRegionAmount,
+  formatRegionShortDate,
+  type Region,
+} from "@/lib/regions";
 import {
   useSaveDiscount,
   useDeleteDiscount,
@@ -39,7 +43,7 @@ export function DiscountsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { stepCount, adjacent, stepNumber } = useEventSteps();
+  const { region, stepCount, adjacent, stepNumber } = useEventSteps();
 
   const { prev, next } = adjacent("discounts");
 
@@ -196,12 +200,9 @@ export function DiscountsPanel() {
     (sum, d) => sum + (d.discountGiven ?? 0),
     0,
   );
-  // "£1,234" / "£0" - no decimals when whole, else two. Matches the
+  // "£1,234" / "$1,234" - no decimals when whole, else two. Matches the
   // other money figures in the editor.
-  const discountGivenLabel = `£${totalDiscountGiven.toLocaleString("en-GB", {
-    minimumFractionDigits: Number.isInteger(totalDiscountGiven) ? 0 : 2,
-    maximumFractionDigits: 2,
-  })}`;
+  const discountGivenLabel = formatRegionAmount(totalDiscountGiven, region);
 
   return (
     <section className="panel is-active" data-panel="discounts" role="tabpanel">
@@ -258,6 +259,7 @@ export function DiscountsPanel() {
                 >
                   <DiscountRow
                     discount={d}
+                    region={region}
                     todayIso={todayIso}
                     onEdit={() => openEdit(d)}
                     onDelete={() => handleRemoveDiscount(d.id, d.code)}
@@ -341,6 +343,7 @@ export function DiscountsPanel() {
 
 function DiscountRow({
   discount,
+  region,
   todayIso,
   onEdit,
   onDelete,
@@ -350,6 +353,7 @@ function DiscountRow({
   canMoveDown,
 }: {
   discount: Discount;
+  region: Region;
   todayIso: string;
   onEdit: () => void;
   onDelete: () => void;
@@ -359,7 +363,7 @@ function DiscountRow({
   canMoveDown: boolean;
 }) {
   const expired = isExpired(discount, todayIso);
-  const subtitle = discountSubtitle(discount);
+  const subtitle = discountSubtitle(discount, region);
   const containerClasses = [
     "ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3",
     expired && "opacity-60",
@@ -403,7 +407,7 @@ function DiscountRow({
             </span>
           ) : (
             <span className="text-[10px] uppercase tracking-wider font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.5 rounded">
-              {discountAmountLabel(discount)}
+              {discountAmountLabel(discount, region)}
             </span>
           )}
         </div>
@@ -488,23 +492,20 @@ function isExpired(d: Discount, todayIso: string): boolean {
   return d.availableUntil != null && d.availableUntil < todayIso;
 }
 
-/** "15% off" or "£5 off" - the amount badge text. */
-function discountAmountLabel(d: Discount): string {
+/** "15% off" or "£5 off" / "$5 off" - the amount badge text. */
+function discountAmountLabel(d: Discount, region: Region): string {
   if (d.kind === "percentage") {
     // Trim a trailing .0 / .00 so 15.0 reads as "15% off".
-    return `${stripZeroDecimal(d.amount)}% off`;
+    const n = Number.isFinite(d.amount) ? d.amount : 0;
+    const trimmed = Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+    return `${trimmed}% off`;
   }
-  return `£${stripZeroDecimal(d.amount)} off`;
-}
-
-function stripZeroDecimal(n: number): string {
-  if (!Number.isFinite(n)) return "0";
-  return Number.isInteger(n) ? String(n) : String(parseFloat(n.toFixed(2)));
+  return `${formatRegionAmount(d.amount, region)} off`;
 }
 
 /** "Used 24 / 100 · Expires 15 Apr 2026" subtitle.
  *  Falls back gracefully when fields are unset. */
-function discountSubtitle(d: Discount): string {
+function discountSubtitle(d: Discount, region: Region): string {
   const parts: string[] = [];
   const limit = d.usageLimit == null ? "Unlimited" : String(d.usageLimit);
   parts.push(`Used ${d.usageCount} / ${limit}`);
@@ -512,20 +513,11 @@ function discountSubtitle(d: Discount): string {
   if (d.note) {
     parts.push(d.note);
   } else if (d.availableUntil) {
-    const dateLabel = formatShort(d.availableUntil);
+    const dateLabel = formatRegionShortDate(d.availableUntil, region, true);
     const verb = d.availableUntil < isoToday() ? "Ended" : "Expires";
     parts.push(`${verb} ${dateLabel}`);
   } else if (d.availableFrom) {
-    parts.push(`From ${formatShort(d.availableFrom)}`);
+    parts.push(`From ${formatRegionShortDate(d.availableFrom, region, true)}`);
   }
   return parts.join(" · ");
-}
-
-/** "2026-04-15" → "15 Apr 2026" - tight subtitle variant. */
-function formatShort(iso: string): string {
-  const full = formatEditorDate(iso); // "15 April 2026"
-  return full.replace(
-    /(January|February|March|April|May|June|July|August|September|October|November|December)/,
-    (m) => m.slice(0, 3),
-  );
 }

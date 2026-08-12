@@ -1,9 +1,5 @@
 import type { OrderStatus, ApplicationStatus, ShowCarStatus } from "@/context/types";
-import {
-  formatRegionCurrency,
-  resolveRegion,
-  type Region,
-} from "./regions";
+import { formatRegionCurrency, type Region } from "./regions";
 
 export function cx(...classes: (string | false | null | undefined)[]): string {
   return classes.filter(Boolean).join(" ");
@@ -16,12 +12,13 @@ export function cx(...classes: (string | false | null | undefined)[]): string {
  * shows $1,234.00 where a UK one shows £1,234.00 - so pass the region
  * off the event you're rendering (`event.region`).
  *
- * `region` is optional and defaults to UK, matching the API's own
- * fallback for an omitted `site`. That keeps call sites with no event
- * in scope working rather than forcing a wrong region on them.
+ * `region` is required. It used to default to UK, which meant a missing
+ * one didn't fail - it just printed a US event's takings in pounds.
+ * Every call site has an event (or its region) in scope, so there's
+ * nothing to gain from a default and a wrong figure to lose.
  */
-export function currency(amount: number, region?: Region): string {
-  return formatRegionCurrency(amount, region ?? resolveRegion(undefined));
+export function currency(amount: number, region: Region): string {
+  return formatRegionCurrency(amount, region);
 }
 
 /** Map a domain status to the "pill" CSS modifier used throughout the UI */

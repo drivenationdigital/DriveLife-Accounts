@@ -12,7 +12,11 @@ import {
   type SectionId,
   type TicketSourceMode,
 } from "@/context/EventCreateContext";
-import { formatEditorDate } from "@/lib/formatEditorDate";
+import {
+  formatRegionAmount,
+  formatRegionShortDate,
+  type Region,
+} from "@/lib/regions";
 import {
   useSaveTicketRow,
   useDeleteTicketRow,
@@ -59,7 +63,7 @@ export function TicketsPanel() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const { stepCount, adjacent, stepNumber } = useEventSteps();
+  const { region, stepCount, adjacent, stepNumber } = useEventSteps();
 
   const { prev, next } = adjacent("tickets");
 
@@ -173,6 +177,14 @@ export function TicketsPanel() {
    *  is created and we have an event to attach tickets to. */
   const eid = state.encryptedId;
 
+  /** The blog the eid resolves against, sent with every ticket write.
+   *
+   *  Taken from the resolved region rather than raw `state.site`: that
+   *  is null on an event opened from a pre-multisite link, and the
+   *  route requires a real key. `resolveRegion` supplies the API's own
+   *  default in that case, which is the blog it would have used anyway. */
+  const site = region.key;
+
   /** Pull a human message out of whatever the mutation threw. */
   const errorText = (err: Error | null): string | null =>
     err
@@ -187,6 +199,7 @@ export function TicketsPanel() {
     try {
       const res = await ticketSaver.mutateAsync({
         eid,
+        site,
         id: t.id,
         body: mapTicketToBody(t),
       });
@@ -214,6 +227,7 @@ export function TicketsPanel() {
     try {
       const res = await sectionSaver.mutateAsync({
         eid,
+        site,
         id: s.id,
         body: mapSectionToBody(s),
       });
@@ -256,7 +270,7 @@ export function TicketsPanel() {
       successTitle: "Ticket deleted",
       errorTitle: "Couldn't delete the ticket",
       run: async () => {
-        await ticketRemover.mutateAsync({ eid, id });
+        await ticketRemover.mutateAsync({ eid, site, id });
         return true;
       },
     });
@@ -286,7 +300,7 @@ export function TicketsPanel() {
       successTitle: "Section deleted",
       errorTitle: "Couldn't delete the section",
       run: async () => {
-        await ticketRemover.mutateAsync({ eid, id });
+        await ticketRemover.mutateAsync({ eid, site, id });
         return true;
       },
     });
@@ -306,7 +320,7 @@ export function TicketsPanel() {
   const persistOrder = (items: typeof state.ticketList) => {
     if (!eid) return;
     const ids = items.map((it) => String(it.encryptedTicketID));
-    reorderer.mutate({ eid, ids });
+    reorderer.mutate({ eid, site, ids });
   };
 
   const isCE = state.ticketSource === "ce";
@@ -512,6 +526,7 @@ export function TicketsPanel() {
                       {item.kind === "ticket" ? (
                         <TicketRow
                           ticket={item}
+                          region={region}
                           showFees={state.ticketFeeMode === "pass"}
                           onEdit={() => openEditTicket(item)}
                           onDelete={() => handleRemoveTicket(item.id, item.name)}
@@ -668,7 +683,7 @@ export function TicketsPanel() {
                       value,
                     })
                   }
-                  placeholder="Cash and card accepted on the gate. £15 per adult, under 12s free. Gate prices are higher than advance tickets."
+                  placeholder={`Cash and card accepted on the gate. ${region.currencySymbol}15 per adult, under 12s free. Gate prices are higher than advance tickets.`}
                 />
               </div>
             )}
@@ -786,6 +801,7 @@ function ModeCard({
 
 function TicketRow({
   ticket,
+  region,
   showFees,
   onEdit,
   onDelete,
@@ -795,6 +811,7 @@ function TicketRow({
   canMoveDown,
 }: {
   ticket: Ticket;
+  region: Region;
   showFees: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -804,9 +821,9 @@ function TicketRow({
   canMoveDown: boolean;
 }) {
   const isShow = ticket.requireCarDetails;
-  const subtitle = ticketSubtitle(ticket);
+  const subtitle = ticketSubtitle(ticket, region);
   const priceText = Number.isFinite(ticket.price)
-    ? `£${ticket.price.toFixed(2)}`
+    ? formatRegionAmount(ticket.price, region)
     : "-";
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
@@ -1040,7 +1057,7 @@ function RowActions({
 
 /** Build the small subtitle text shown beneath each ticket name -
  *  available count + sale window in human form. */
-function ticketSubtitle(t: Ticket): string {
+function ticketSubtitle(t: Ticket, region: Region): string {
   const parts: string[] = [];
   if (Number.isFinite(t.quantity) && t.quantity > 0) {
     parts.push(`${t.quantity} available`);
@@ -1048,26 +1065,13 @@ function ticketSubtitle(t: Ticket): string {
   if (t.requireCarDetails) {
     parts.push("Requires car details");
   } else if (t.saleEnd) {
-    parts.push(`Sales end ${formatShort(t.saleEnd)}`);
+    parts.push(`Sales end ${formatRegionShortDate(t.saleEnd, region)}`);
   } else if (t.saleStart) {
-    parts.push(`On sale from ${formatShort(t.saleStart)}`);
+    parts.push(`On sale from ${formatRegionShortDate(t.saleStart, region)}`);
   } else {
     parts.push("On sale now");
   }
   return parts.join(" · ");
-}
-
-/** "2026-04-15" → "15 Apr". Short variant for the subtitle. */
-function formatShort(iso: string): string {
-  const full = formatEditorDate(iso); // "15 April 2026"
-  // The cheapest way to abbreviate the month is a single replace -
-  // we don't need a second Intl format call.
-  return full
-    .replace(
-      /(January|February|March|April|May|June|July|August|September|October|November|December)/,
-      (m) => m.slice(0, 3),
-    )
-    .replace(/\s\d{4}$/, "");
 }
 
 /**

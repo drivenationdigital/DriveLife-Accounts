@@ -153,6 +153,8 @@ export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
   "/event/car-clubs",
   "/event-edit",
   "/event-update",
+  "/event-ticket",
+  "/event-ticket-reorder",
   "/events",
   "/event-categories",
   "/event-image-upload-url",

@@ -74,7 +74,7 @@ export function ShowCarsTab() {
     error,
     refetch,
     isFetching,
-  } = useShowCarApplications(eid);
+  } = useShowCarApplications(eid, event.region);
 
   // No show car tickets ⇒ feature isn't set up for this event. Checked
   // before the loading state because it reads from the already-loaded

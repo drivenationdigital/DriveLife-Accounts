@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useOrderDetail, type OrderDetailItem } from "@/lib/orderDetail";
 import {
   useUpdateLineItemMeta,
@@ -9,6 +9,14 @@ import {
   useCancelOrder,
   orderTicketsUrl,
 } from "@/lib/orderActions";
+import {
+  formatRegionDateString,
+  formatRegionMoneyString,
+  formatRegionTime,
+  regionFromSite,
+  resolveRegion,
+  type Region,
+} from "@/lib/regions";
 import { useAction } from "@/context/ActionContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
@@ -33,10 +41,17 @@ function statusPill(status: string): { bg: string; fg: string } {
 
 export default function OrderPage() {
   const params = useParams<{ oid: string }>();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const oid = params?.oid;
 
-  const { data: order, isLoading, error } = useOrderDetail(oid);
+  // The order's region. It arrives on the link from whichever list the
+  // user clicked (see orderDetailPath); there's no event in scope here
+  // to infer it from. The response's own site block wins when the API
+  // starts sending one.
+  const site = searchParams.get("site");
+  const { data: order, isLoading, error } = useOrderDetail(oid, site);
+  const region = order?.site ? regionFromSite(order.site) : resolveRegion(site);
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
@@ -168,6 +183,7 @@ export default function OrderPage() {
               <TicketCard
                 key={item.line_id}
                 item={item}
+                region={region}
                 oid={oid}
                 orderId={order.id}
                 transactionId={order.transaction_id}
@@ -183,7 +199,10 @@ export default function OrderPage() {
                   {order.totals.map((t, i) => (
                     <tr key={i}>
                       <th>{t.label}</th>
-                      <td>{t.value}</td>
+                      {/* Server-rendered money - re-symbolled into the
+                          order's region. A row that isn't an amount
+                          (a payment method, say) passes through. */}
+                      <td>{formatRegionMoneyString(t.value, region)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -198,11 +217,13 @@ export default function OrderPage() {
 
 function TicketCard({
   item,
+  region,
   oid,
   orderId,
   transactionId,
 }: {
   item: OrderDetailItem;
+  region: Region;
   oid: string;
   orderId: number;
   transactionId: string;
@@ -285,9 +306,12 @@ function TicketCard({
         <p className="ticket-event" style={{ lineHeight: 1.9, margin: 0 }}>
           <strong>{item.event_title}</strong>
           <br />
-          <b>Event Date:</b> {item.event_date || "-"}
+          {/* Both arrive pre-rendered. A machine-readable date is
+              re-ordered for the region; one the server already wrote
+              out in words is left alone rather than mis-parsed. */}
+          <b>Event Date:</b> {formatRegionDateString(item.event_date, region) || "-"}
           <br />
-          <b>Event Time:</b> {item.event_time || "-"}
+          <b>Event Time:</b> {formatRegionTime(item.event_time, region) || "-"}
         </p>
 
         {editing ? (
@@ -341,14 +365,20 @@ function TicketCard({
         >
           {item.price.has_discount ? (
             <>
-              <strong>Ticket Price: {item.price.subtotal}</strong>
+              <strong>
+                Ticket Price:{" "}
+                {formatRegionMoneyString(item.price.subtotal, region)}
+              </strong>
               <br />
               <strong>
-                Total paid: {item.price.total} (-{item.price.discount})
+                Total paid: {formatRegionMoneyString(item.price.total, region)}{" "}
+                (-{formatRegionMoneyString(item.price.discount, region)})
               </strong>
             </>
           ) : (
-            <strong>Ticket Price: {item.price.total}</strong>
+            <strong>
+              Ticket Price: {formatRegionMoneyString(item.price.total, region)}
+            </strong>
           )}
         </div>
       </div>

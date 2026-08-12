@@ -1,7 +1,7 @@
 "use client";
 
 import { useEventSteps } from "@/lib/useEventSteps";
-import type { Region } from "@/lib/regions";
+import { formatRegionShortDate, formatRegionTime } from "@/lib/regions";
 import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -87,9 +87,12 @@ export function PublishPanel() {
   // JSX stays readable. All purely view-side; no side effects.
   const summaryDate =
     state.startDate && state.startTime
-      ? `${formatShort(state.startDate, region)}, ${state.startTime}`
+      ? `${formatRegionShortDate(state.startDate, region, true)}, ${formatRegionTime(
+          state.startTime,
+          region,
+        )}`
       : state.startDate
-        ? formatShort(state.startDate, region)
+        ? formatRegionShortDate(state.startDate, region, true)
         : "Not set";
 
   // Count actual tickets (sections are dividers, not sellable rows).
@@ -170,7 +173,7 @@ export function PublishPanel() {
                   />
                   <span className="df-display">
                     {state.scheduledDate
-                      ? formatEditorDate(state.scheduledDate)
+                      ? formatEditorDate(state.scheduledDate, region)
                       : "Select date"}
                   </span>
                   <i
@@ -435,24 +438,6 @@ function SummaryItem({
 // ============================================================
 // Helpers
 // ============================================================
-
-/** "2026-04-19" → "19 Apr 2026" - short variant for tight summary copy. */
-function formatShort(iso: string, region: Region): string {
-  const parts = iso.split("-");
-  if (parts.length !== 3) return iso;
-  const [yStr, mStr, dStr] = parts as [string, string, string];
-  const y = Number(yStr);
-  const m = Number(mStr);
-  const d = Number(dStr);
-  if (!y || !m || !d) return iso;
-  const date = new Date(Date.UTC(y, m - 1, d));
-  return date.toLocaleDateString(region.locale, {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
 
 /** Truncate a slug for the preview URL display so long titles don't
  *  blow out the dark card on narrow screens. */

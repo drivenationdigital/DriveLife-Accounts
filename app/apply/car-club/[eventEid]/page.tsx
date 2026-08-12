@@ -12,6 +12,7 @@ import {
 import { ConfettiBurst } from "@/components/apply/ConfettiBurst";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
+import { formatRegionCurrency, regionFromSite } from "@/lib/regions";
 import {
   useCarClubPublic,
   useSubmitCarClubApplication,
@@ -175,7 +176,8 @@ export default function CarClubApplyPage({
         )}
         {data.require_ticket && typeof data.ticket_cost === "number" && (
           <p className="text-sm text-ink-700 mt-3 inline-flex items-center gap-2 bg-gold-50 border border-gold-200 rounded-lg px-3 py-2">
-            Approved clubs purchase tickets at £{data.ticket_cost.toFixed(2)}{" "}
+            Approved clubs purchase tickets at{" "}
+            {formatRegionCurrency(data.ticket_cost, regionFromSite(data.site))}{" "}
             per vehicle.
           </p>
         )}

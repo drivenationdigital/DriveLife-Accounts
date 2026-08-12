@@ -11,6 +11,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiGet, apiPost } from "./apiClient";
 import type { Club, ApplicationStatus } from "@/context/types";
+import { formatRelativeDate, type Region } from "./regions";
 
 /** Server status is already collapsed to pending|approved|rejected. */
 export interface ApiCarClubRecord {
@@ -63,45 +64,22 @@ export interface ClubApplicationsData {
   sales: ClubSalesSummary;
 }
 
-/** Relative "Applied Nd/Nw ago" label from an ISO timestamp. */
-function appliedLabel(iso: string | null): string {
-  if (!iso) return "Applied recently";
-  try {
-    const d = new Date(iso);
-    const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-    if (days <= 0) return "Applied today";
-    if (days === 1) return "Applied 1 day ago";
-    if (days < 7) return `Applied ${days} days ago`;
-    if (days < 30) return `Applied ${Math.floor(days / 7)}w ago`;
-    return `Applied ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-  } catch {
-    return "Applied recently";
-  }
-}
-
 /** Relative status-change label, prefixed by the verb for the status. */
-function statusLabel(status: ApplicationStatus, iso: string | null): string {
-  if (!iso) return "";
+function statusLabel(
+  status: ApplicationStatus,
+  iso: string | null,
+  region: Region,
+): string {
   const verb =
     status === "approved"
       ? "Confirmed"
       : status === "rejected"
         ? "Rejected"
         : "Updated";
-  try {
-    const d = new Date(iso);
-    const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
-    if (days <= 0) return `${verb} today`;
-    if (days === 1) return `${verb} 1 day ago`;
-    if (days < 7) return `${verb} ${days} days ago`;
-    if (days < 30) return `${verb} ${Math.floor(days / 7)}w ago`;
-    return `${verb} ${d.toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
-  } catch {
-    return "";
-  }
+  return formatRelativeDate(iso, region, verb);
 }
 
-export function mapClub(r: ApiCarClubRecord): Club {
+export function mapClub(r: ApiCarClubRecord, region: Region): Club {
   return {
     id: String(r.id),
     name: r.club.name || "Unnamed club",
@@ -110,15 +88,22 @@ export function mapClub(r: ApiCarClubRecord): Club {
     contactEmail: r.contact.email,
     contactPhone: r.contact.phone,
     description: r.notes ?? "",
-    appliedLabel: appliedLabel(r.created_at),
-    updatedLabel: statusLabel(r.status, r.updated_at ?? r.created_at),
+    appliedLabel: formatRelativeDate(
+      r.created_at,
+      region,
+      "Applied",
+      "Applied recently",
+    ),
+    updatedLabel: statusLabel(r.status, r.updated_at ?? r.created_at, region),
     status: r.status,
     ticketsSold: r.ticket?.tickets_sold ?? 0,
     ticketSales: r.ticket?.sales ?? 0,
   };
 }
 
-export function useClubApplications(eid: string | undefined) {
+/** @param region the event's region - dates in the "Applied" labels are
+ *  rendered in it. Pass `event.region` from the tab. */
+export function useClubApplications(eid: string | undefined, region: Region) {
   return useQuery<ClubApplicationsResponse, Error, ClubApplicationsData>({
     queryKey: ["event-car-club-applications", eid],
     queryFn: () =>
@@ -128,7 +113,7 @@ export function useClubApplications(eid: string | undefined) {
     enabled: !!eid,
     staleTime: 30_000,
     select: (data) => ({
-      clubs: data.applications.map(mapClub),
+      clubs: data.applications.map((r) => mapClub(r, region)),
       sales: data.sales,
     }),
   });
