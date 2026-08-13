@@ -48,19 +48,37 @@ export function EditorTopBar() {
     }
   };
 
+  // `encryptedId` is set once the event exists server-side. Before that
+  // - a brand new event still being drafted - there is no overview page
+  // to go back to, so the dashboard stays the destination.
+  const backHref = state.encryptedId
+    ? eventDetailPath(state.encryptedId, state.site)
+    : "/";
+  const backLabel = state.encryptedId ? "Event" : "Dashboard";
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-200">
       <div className="px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-3">
-        {/* Back to dashboard.
+        {/* Back link.
+            Goes to the event's own overview - that's where the user came
+            from when they hit Edit, so it's what "back" means here.
+            Falls back to the dashboard while creating, when there is no
+            saved event to return to yet.
+
+            The label follows the destination rather than being fixed:
+            an arrow labelled "Dashboard" that lands on the event page
+            is worse than no label.
+
             Uses Next's Link so navigation stays client-side and the auth
             token cookie is preserved naturally (no full reload). */}
         <Link
-          href="/"
+          href={backHref}
           className="flex items-center gap-2 text-ink-500 hover:text-ink-900 transition"
+          aria-label={`Back to ${backLabel.toLowerCase()}`}
         >
           <i className="fa-solid fa-arrow-left text-sm" aria-hidden />
           <span className="hidden sm:inline text-sm font-medium">
-            Dashboard
+            {backLabel}
           </span>
         </Link>
 

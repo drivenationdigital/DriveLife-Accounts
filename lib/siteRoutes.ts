@@ -62,8 +62,25 @@ export function eventRowPath(
  * a US order's money and dates in the UK's, so the region has to travel
  * with the link from whichever list minted it.
  */
-export function orderDetailPath(oid: string, site?: string | null): string {
-  return withSite(`/orders/${encodeURIComponent(oid)}`, site);
+export function orderDetailPath(
+  oid: string,
+  site?: string | null,
+  /**
+   * Encrypted id of the event the user was looking at when they opened
+   * this order. Powers the order page's back link, which returns to
+   * that event's view rather than dropping the user at the dashboard.
+   *
+   * Carried in the URL rather than read off the order because the order
+   * response only exposes a NUMERIC event id, and every internal event
+   * link needs the encrypted one. Omit it where there's no event in
+   * scope - My Tickets, say - and the back link falls back.
+   */
+  fromEventEid?: string | null,
+): string {
+  const path = withSite(`/orders/${encodeURIComponent(oid)}`, site);
+  if (!fromEventEid) return path;
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}from=${encodeURIComponent(fromEventEid)}`;
 }
 
 /** The editor. `eid` rides in the query string here, not the path. */

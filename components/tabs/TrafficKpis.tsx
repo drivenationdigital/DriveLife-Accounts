@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { KpiCard } from "@/components/cards/KpiCard";
 import { useEventAnalytics } from "@/lib/eventAnalytics";
 import type { Region } from "@/lib/regions";
@@ -36,8 +37,20 @@ export function TrafficKpis({
   // it's treated exactly like a failed request.
   const unavailable = isError || data?.available === false;
 
-  const count = (n: number | undefined) =>
-    typeof n === "number" ? n.toLocaleString(region.locale) : "-";
+  /**
+   * What goes in a card, in priority order:
+   *
+   *   in flight   - a spinner, so the wait reads as "fetching" rather
+   *                 than "there's nothing here"
+   *   unavailable - a dash. We don't know the number, and a 0 would be
+   *                 a claim that nobody visited
+   *   otherwise   - the figure, including a genuine 0
+   */
+  const cardValue = (n: number | undefined): ReactNode => {
+    if (isLoading) return <ValueSpinner />;
+    if (unavailable || typeof n !== "number") return "-";
+    return n.toLocaleString(region.locale);
+  };
 
   return (
     <>
@@ -47,19 +60,15 @@ export function TrafficKpis({
       <div className="kpi-grid">
         <KpiCard
           label="Page Views (last 7 days)"
-          value={isLoading || unavailable ? "-" : count(data?.page_views_7d)}
+          value={cardValue(data?.page_views_7d)}
         />
         <KpiCard
           label="Page Views (Lifetime)"
-          value={
-            isLoading || unavailable ? "-" : count(data?.page_views_lifetime)
-          }
+          value={cardValue(data?.page_views_lifetime)}
         />
         <KpiCard
           label="Unique Visitors (Lifetime)"
-          value={
-            isLoading || unavailable ? "-" : count(data?.visitors_lifetime)
-          }
+          value={cardValue(data?.visitors_lifetime)}
         />
       </div>
       {unavailable && !isLoading && (
@@ -72,5 +81,24 @@ export function TrafficKpis({
         </p>
       )}
     </>
+  );
+}
+
+/**
+ * The in-flight placeholder for a KPI value.
+ *
+ * Sized well below the 36px `.kpi-value` - a spinner at the full figure
+ * size dominates the card. The parent's line-height still sets the line
+ * box, so swapping the spinner for the number doesn't shift the row.
+ */
+function ValueSpinner() {
+  return (
+    <span role="status" aria-label="Loading">
+      <i
+        className="fa-solid fa-spinner fa-spin text-ink-300"
+        style={{ fontSize: 20 }}
+        aria-hidden
+      />
+    </span>
   );
 }

@@ -273,7 +273,7 @@ export function OrdersTab() {
               <tr
                 key={o.id}
                 {...clickableRow(
-                  () => router.push(orderDetailPath(o.encryptedId, event.region.key)),
+                  () => router.push(orderDetailPath(o.encryptedId, event.region.key, event.encryptedId)),
                   { label: `Open order #${o.id}` },
                 )}
               >
@@ -311,7 +311,7 @@ export function OrdersTab() {
                     </DropdownTrigger>
                     <DropdownMenu>
                       <DropdownItem
-                        onClick={() => router.push(orderDetailPath(o.encryptedId, event.region.key))}
+                        onClick={() => router.push(orderDetailPath(o.encryptedId, event.region.key, event.encryptedId))}
                       >
                         View &amp; edit
                       </DropdownItem>

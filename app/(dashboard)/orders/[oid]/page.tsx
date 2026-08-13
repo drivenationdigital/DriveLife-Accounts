@@ -17,6 +17,7 @@ import {
   resolveRegion,
   type Region,
 } from "@/lib/regions";
+import { eventDetailPath } from "@/lib/siteRoutes";
 import { useAction } from "@/context/ActionContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
@@ -52,6 +53,13 @@ export default function OrderPage() {
   const site = searchParams.get("site");
   const { data: order, isLoading, error } = useOrderDetail(oid, site);
   const region = order?.site ? regionFromSite(order.site) : resolveRegion(site);
+
+  // Where the back link goes: the event the user came from, carried on
+  // the link as `from` (see orderDetailPath). Absent when the order was
+  // opened from somewhere with no event in scope - My Tickets, or a
+  // pasted URL - and then the dashboard root is the honest fallback.
+  const fromEventEid = searchParams.get("from");
+  const backHref = fromEventEid ? eventDetailPath(fromEventEid, site) : "/";
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
@@ -96,12 +104,17 @@ export default function OrderPage() {
 
   return (
     <div className="order-view">
+      {/* Returns to the event view the user opened this order from,
+          rather than router.back(). History-back would follow whatever
+          the browser happened to have - a refresh, a pasted link or a
+          redirect all break it - where the `from` eid is the event we
+          know they came from. */}
       <button
         type="button"
-        onClick={() => router.back()}
+        onClick={() => router.push(backHref)}
         className="order-back"
       >
-        ‹ View order
+        ‹ Back to Dashboard
       </button>
 
       {isLoading && <OrderSkeleton />}
