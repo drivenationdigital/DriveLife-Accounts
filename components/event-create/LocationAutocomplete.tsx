@@ -109,6 +109,8 @@ export function LocationAutocomplete({
   placeholder,
   countries,
   types,
+  inputClassName,
+  showPinIcon = true,
 }: {
   value: string;
   onValueChange: (text: string) => void;
@@ -134,6 +136,22 @@ export function LocationAutocomplete({
    * which is what an event location wants.
    */
   types?: string[];
+  /**
+   * Classes for the text input. Defaults to the editor's `.input`,
+   * which is what the event, club and venue forms use.
+   *
+   * Overridable because this component is no longer editor-only: the
+   * account page styles its fields with Tailwind utilities, and
+   * dropping a `.input` into that form renders an unstyled box.
+   */
+  inputClassName?: string;
+  /**
+   * Show the location pin inside the field. On by default, matching the
+   * editor forms. Turn it off where the surrounding fields have no
+   * icons - the pin needs left padding to sit behind, and a form that
+   * doesn't allow for it ends up with text tucked under the icon.
+   */
+  showPinIcon?: boolean;
 }) {
   // Stable key for "which restriction were these predictions fetched
   // under", so an array prop rebuilt each render doesn't invalidate
@@ -324,14 +342,20 @@ export function LocationAutocomplete({
 
   return (
     <div ref={containerRef} className="relative">
-      <i
-        className="fa-solid fa-location-dot absolute left-4 top-6 -translate-y-1/2 text-ink-400 pointer-events-none"
-        aria-hidden
-      />
+      {showPinIcon && (
+        <i
+          className="fa-solid fa-location-dot absolute left-4 top-6 -translate-y-1/2 text-ink-400 pointer-events-none"
+          aria-hidden
+        />
+      )}
       <input
         id={id}
         type="text"
-        className="input has-icon"
+        // `has-icon` only when the pin is actually there - it exists to
+        // reserve the space the pin sits in.
+        className={
+          inputClassName ?? (showPinIcon ? "input has-icon" : "input")
+        }
         value={value}
         placeholder={placeholder}
         autoComplete="off"

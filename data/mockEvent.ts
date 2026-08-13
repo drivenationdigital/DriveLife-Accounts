@@ -12,6 +12,8 @@ export const mockEventData: EventData = {
     location: "The Motorist, Sherburn in Elmet, Leeds",
     url: "carevents.com/uk/events/porsche-ft-genome-design-25-04-26",
     slug: "porsche-ft-genome-design-25-04-26",
+    description:
+      "A relaxed Saturday gathering for air-cooled and modern Porsches alike, hosted with Genome Design at The Motorist.\n\nGates open at 9am. Entry includes parking for one vehicle. Under 12s go free.",
     site: "uk",
     region: REGIONS.uk,
     isRecurringParent: false,

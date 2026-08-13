@@ -78,11 +78,18 @@ function EventDetailContent() {
   const carClubsEnabled =
     ticketingAvailable && eventQuery.data?.clubs?.enabled === true;
 
+  // An event with no ticket types has no Orders tab (see EventTabs), so
+  // there is nothing to fetch. `activeTab` is remembered across events
+  // though, so opening a listing event straight after a ticketed one
+  // arrives here still holding "orders" - without this the page would
+  // spend a request to be told there are none.
+  const hasTicketTypes = (eventQuery.data?.sales?.tickets?.length ?? 0) > 0;
+
   const ordersQuery = useEventOrders(eid, {
     site,
     limit: ORDERS_PER_PAGE,
     offset: (ordersPage - 1) * ORDERS_PER_PAGE,
-    enabled: activeTab === "orders" && ticketingAvailable,
+    enabled: activeTab === "orders" && ticketingAvailable && hasTicketTypes,
   });
 
   const showCarsQuery = useEventShowCars(eid, {

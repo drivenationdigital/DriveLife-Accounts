@@ -22,7 +22,7 @@ interface TabDef {
 
 export function EventTabs() {
   const { activeTab, setActiveTab } = useUI();
-  const { event, occurrences, kpis, orders, showCars, clubs, traders } =
+  const { event, occurrences, kpis, orders, tickets, showCars, clubs, traders } =
     useEventData();
   const tabsRef = useRef<HTMLDivElement | null>(null);
 
@@ -60,6 +60,21 @@ export function EventTabs() {
       occurrences.ticketed ||
       occurrences.registrationRequired);
 
+  // Orders needs one more condition than the other ticketing tabs: the
+  // event has to actually sell something. `sales.tickets` empty means
+  // the organiser set none up, so there can be no orders and the tab
+  // would only ever show an empty table.
+  //
+  // Checked separately from `ticketingVisible` rather than folded into
+  // it, because show cars, clubs and traders take applications without
+  // any ticket existing - hiding those alongside Orders would remove
+  // working features from a listing event.
+  //
+  // A series parent has no tickets of its own (they belong to each
+  // date), so it keeps Orders on the region-level check alone.
+  const hasTickets = isSeriesParent || tickets.length > 0;
+  const ordersVisible = ticketingVisible && hasTickets;
+
   // Orders tab shows the *total* order count (from KPIs, not the loaded page).
   // Other tabs show entity count, or nothing when coming-soon stubbed.
   const tabs: TabDef[] = [
@@ -69,9 +84,13 @@ export function EventTabs() {
           { key: "past",     label: "Past Events",     count: occurrenceCounts.past },
         ] as TabDef[])
       : ([{ key: "overview", label: "Overview" }] as TabDef[])),
-    ...(ticketingVisible
+    ...(ordersVisible
       ? ([
           { key: "orders",   label: "Orders",    count: kpis.totalOrders || orders.length },
+        ] as TabDef[])
+      : []),
+    ...(ticketingVisible
+      ? ([
           { key: "showcars", label: "Show Cars", count: showCars.length },
           { key: "clubs",    label: "Clubs",     count: clubs.length },
           { key: "traders",  label: "Traders",   count: traders.length },

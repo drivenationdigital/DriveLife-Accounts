@@ -29,6 +29,11 @@ export interface EventDetail {
   url: string;
   slug: string;
   encryptedId: string;
+  /** The event's public description as PLAIN text (the API's
+   *  `description_plain`), so it can be rendered without a sanitiser.
+   *  Shown on the overview only for an event with no tickets, where
+   *  there's no sales breakdown to fill the page. Empty when unset. */
+  description: string;
   /** Multisite blog key this event lives on ("uk", "us", …). Every
    *  event-scoped API call needs it alongside `encryptedId`, since
    *  encrypted ids are only unique within a site. Empty string when

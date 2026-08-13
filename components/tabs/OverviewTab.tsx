@@ -12,6 +12,7 @@ import { ClubTable } from "@/components/tables/ClubTable";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { orderDetailPath } from "@/lib/siteRoutes";
+import { TrafficKpis } from "@/components/tabs/TrafficKpis";
 import { useRouter } from "next/navigation";
 
 export function OverviewTab() {
@@ -56,9 +57,25 @@ export function OverviewTab() {
     features.car_clubs.enabled ||
     features.traders.enabled;
 
+  // `sales.tickets` empty means the organiser never set up ticketing on
+  // this event - it's a listing. There are no orders, no revenue and no
+  // breakdown to show, so the sales KPIs would be three zeroes. The
+  // traffic row takes their place as the only row, and the description
+  // fills the space the tickets breakdown would have used.
+  const hasTickets = tickets.length > 0;
+
+  const trafficRow = (
+    <TrafficKpis
+      eid={event.encryptedId}
+      site={event.site}
+      region={event.region}
+    />
+  );
+
   return (
     <>
-      {/* KPIs */}
+      {/* Sales KPIs. Ticketed events only - see hasTickets above. */}
+      {hasTickets && (
       <div className="kpi-grid">
         <KpiCard
           label="Total Orders"
@@ -96,9 +113,24 @@ export function OverviewTab() {
           }
         />
       </div>
+      )}
 
-      {/* Tickets breakdown + (optional) Needs Attention */}
-      <div className={anyPendingFeature ? "two-col" : ""}>
+      {/* Traffic. Second row on a ticketed event, the only row on a
+          listing - the JSX is the same either way, it's the sales row
+          above that appears or doesn't. */}
+      {trafficRow}
+
+      {/* A listing has no sales breakdown, so the description takes the
+          place of the tickets card rather than leaving the page empty
+          below the traffic row. */}
+      {!hasTickets && <DescriptionSection html={event.description} />}
+
+      {/* Tickets breakdown + (optional) Needs Attention.
+          Two columns only when BOTH are present - a listing event with
+          pending applications still shows Needs Attention, it just gets
+          the full width instead of sharing it. */}
+      <div className={hasTickets && anyPendingFeature ? "two-col" : ""}>
+        {hasTickets && (
         <div className="section">
           <div className="section-header">
             <div>
@@ -124,6 +156,7 @@ export function OverviewTab() {
             ))}
           </div>
         </div>
+        )}
 
         {anyPendingFeature && (
           <div className="section">
@@ -281,7 +314,10 @@ export function OverviewTab() {
         )}
       </div>
 
-      {/* Recent orders */}
+      {/* Recent orders. Ticketed events only - with no tickets there is
+          nothing to order, so the table could only ever be empty, and
+          its "View all orders" link points at a tab that isn't there. */}
+      {hasTickets && (
       <div className="section">
         <div className="section-header">
           <div>
@@ -346,6 +382,7 @@ export function OverviewTab() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Pending show cars */}
       {features.show_cars.enabled && pendingShowCars.length > 0 && (
@@ -433,5 +470,54 @@ export function OverviewTab() {
         </div>
       )}
     </>
+  );
+}
+
+/**
+ * The event description card, shown on the overview only when the event
+ * has no tickets.
+ *
+ * Rendered as text rather than markup: `event.description` is the API's
+ * `description_plain`, so there's no HTML to inject and no sanitiser
+ * needed. Blank lines become paragraphs, which is the one bit of
+ * structure the plain-text version keeps.
+ */
+function DescriptionSection({ html: text }: { html: string }) {
+  const paragraphs = text
+    .split(/\n\s*\n/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+
+  return (
+    <div className="section">
+      <div className="section-header">
+        <div>
+          <div className="section-title">Event Description</div>
+        </div>
+      </div>
+      <div className="section-body">
+        {paragraphs.length === 0 ? (
+          <p className="text-sm text-ink-500" style={{ margin: 0 }}>
+            No description has been added to this event yet.
+          </p>
+        ) : (
+          paragraphs.map((p, i) => (
+            <p
+              key={i}
+              style={{
+                margin: i === 0 ? "0 0 12px" : "0 0 12px",
+                // Single newlines inside a paragraph are the author's
+                // own line breaks - keep them rather than collapsing
+                // an address or a schedule onto one line.
+                whiteSpace: "pre-wrap",
+                lineHeight: 1.7,
+              }}
+            >
+              {p}
+            </p>
+          ))
+        )}
+      </div>
+    </div>
   );
 }

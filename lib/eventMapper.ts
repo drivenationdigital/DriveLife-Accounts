@@ -147,6 +147,11 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
     encryptedId: core.encrypted_id,
+    // description_plain, not description. The HTML version would need
+    // a sanitiser before it could go through dangerouslySetInnerHTML,
+    // and there isn't one in the project - adding a dependency is a
+    // call for the repo owner, not a side effect of a layout change.
+    description: core.description_plain || "",
     // The response wins over the URL - it's the server's own answer for
     // which blog it resolved the eid on.
     site: core.site?.key ?? fallbackSite ?? "",

@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import AccountSkeleton from "@/components/account/AccountSkeleton";
+import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
+import { REGION_COUNTRIES } from "@/lib/regions";
 import {
   useAccount,
   useUpdateAccount,
@@ -170,11 +172,23 @@ export default function AccountPage() {
             label="Nearest Town/City"
             hint="So we can show events close to you"
           >
-            <input
-              className={inputCls}
+            {/* Cities only, and restricted to the countries we actually
+                list events in - the field exists to place the user near
+                events, so a town we'll never have anything near isn't a
+                useful answer. Free text still works for somewhere too
+                small for Places to know. */}
+            <LocationAutocomplete
               value={town}
+              countries={REGION_COUNTRIES}
+              types={["(cities)"]}
               placeholder="e.g. Manchester"
-              onChange={(e) => setTown(e.target.value)}
+              // Match the other fields on this form. The component's
+              // default is the editor's `.input`, which renders as an
+              // unstyled box here.
+              inputClassName={inputCls}
+              showPinIcon={false}
+              onValueChange={setTown}
+              onPlacePicked={(place) => setTown(place.address || place.name)}
             />
           </FieldRow>
 
