@@ -90,13 +90,11 @@ export default function SavedEventsPage() {
       {events.length > 0 && (
         <div
           className="se-grid"
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
-            gap: 20,
-            alignItems: "start",
-            opacity: isPlaceholderData ? 0.6 : 1,
-          }}
+          // Layout lives in .se-grid; only the loading fade is dynamic.
+          // The inline grid properties that used to be here silently
+          // overrode the stylesheet, so the column count was set in two
+          // places that disagreed.
+          style={{ opacity: isPlaceholderData ? 0.6 : 1 }}
         >
           {events.map((e) => (
             <EventCard key={e.id} event={e} onClick={openEvent} />

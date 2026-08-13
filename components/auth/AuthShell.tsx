@@ -40,7 +40,7 @@ export function AuthShell({
 
         <div className="section auth-card">
           <div className="section-header auth-card-header">
-            <div>
+            <div className="w-full">
               <div className="section-title auth-title">{title}</div>
               {subtitle && <div className="section-subtitle">{subtitle}</div>}
             </div>

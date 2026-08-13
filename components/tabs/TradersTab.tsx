@@ -90,7 +90,7 @@ export function TradersTab() {
   if (traders.length === 0) {
     return (
       <ComingSoonBanner
-        title="No trader applications yet"
+        title="Trader applications not enabled for this event"
         message="Applications will appear here as traders apply through your event's trader application link."
       />
     );

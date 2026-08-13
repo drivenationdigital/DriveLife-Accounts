@@ -61,11 +61,11 @@ export function EventCard({ event, onClick }: Props) {
             pinned star is the rarer of the two, so they share a row
             rather than one being pushed elsewhere. */}
         <div className="ev-cover-corner">
-          {event.is_pinned && (
+          {/* {event.is_pinned && (
             <span className="ev-pinned-marker" aria-label="Pinned">
               ★
             </span>
-          )}
+          )} */}
           {event.site && (
             <span className="card-site-badge">
               <CountryFlag

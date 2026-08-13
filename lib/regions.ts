@@ -106,6 +106,16 @@ function isTicketingForced(key: string | null | undefined): boolean {
 export const REGION_LIST: Region[] = [REGIONS.uk, REGIONS.us];
 
 /**
+ * Every country the platform operates in, as ISO 3166-1 alpha-2.
+ *
+ * For the places that aren't scoped to one region - a user's account is
+ * network-wide, since WordPress keeps users in one global table - but
+ * still shouldn't offer the whole world. Derived from the table so a
+ * new site is included automatically.
+ */
+export const REGION_COUNTRIES: string[] = REGION_LIST.map((r) => r.country);
+
+/**
  * The region assumed when none is known. Matches the API, which
  * resolves an omitted `site` against the UK blog - so a link or a
  * record from before the multisite rollout formats as it always did.

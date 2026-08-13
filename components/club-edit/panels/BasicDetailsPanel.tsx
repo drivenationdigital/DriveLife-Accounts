@@ -105,7 +105,7 @@ export function BasicDetailsPanel() {
             <FieldLabel required>Where are you based?</FieldLabel>
             <LocationAutocomplete
               value={club.location}
-              region={region}
+              countries={region.country}
               onValueChange={(text) => setField("location", text)}
               onPlacePicked={(place) => {
                 setField("location", place.address || place.name);

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Suspense, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { ApiError } from "@/lib/apiClient";
+import { loginFailureFrom, type LoginFailure } from "@/lib/auth";
 import { AuthShell, AuthAltPanel } from "@/components/auth/AuthShell";
 
 export default function LoginPage() {
@@ -54,8 +54,14 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<LoginFailure | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Same convention as the register form: a failure the server pinned
+  // to a field renders beside that input, everything else in the
+  // banner below the form.
+  const fieldError = (field: "email" | "password") =>
+    error?.field === field ? error.message : null;
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -81,11 +87,11 @@ function LoginForm() {
       // this page stays on screen until the new document arrives;
       // re-enabling the button in that window invites a second submit.
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message);
-      } else {
-        setError("Something went wrong. Please try again.");
-      }
+      // The server's error code decides the wording and which input it
+      // belongs to - a locked account, an unverified one and a rate
+      // limit each need their own answer, and none of them are fixed
+      // by retyping a password.
+      setError(loginFailureFrom(err));
       setBusy(false);
     }
   };
@@ -104,8 +110,15 @@ function LoginForm() {
           onChange={(e) => setEmail(e.target.value)}
           required
           disabled={busy}
-          className="auth-input"
+          aria-invalid={Boolean(fieldError("email"))}
+          aria-describedby={fieldError("email") ? "email-error" : undefined}
+          className={`auth-input${fieldError("email") ? " has-error" : ""}`}
         />
+        {fieldError("email") && (
+          <p id="email-error" className="auth-field-error" role="alert">
+            {fieldError("email")}
+          </p>
+        )}
       </div>
 
       <div className="auth-field">
@@ -120,13 +133,24 @@ function LoginForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           disabled={busy}
-          className="auth-input"
+          aria-invalid={Boolean(fieldError("password"))}
+          aria-describedby={
+            fieldError("password") ? "password-error" : undefined
+          }
+          className={`auth-input${fieldError("password") ? " has-error" : ""}`}
         />
+        {fieldError("password") && (
+          <p id="password-error" className="auth-field-error" role="alert">
+            {fieldError("password")}
+          </p>
+        )}
       </div>
 
-      {error && (
+      {/* Form-level failures - a disabled account, a rate limit, or a
+          transport error. Anything pinned to an input renders above. */}
+      {error && error.field === null && (
         <div className="auth-error" role="alert">
-          {error}
+          {error.message}
         </div>
       )}
 

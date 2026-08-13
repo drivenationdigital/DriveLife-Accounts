@@ -29,7 +29,7 @@
  */
 
 import { useMutation } from "@tanstack/react-query";
-import { apiPost } from "./apiClient";
+import { ApiError, apiPost } from "./apiClient";
 import type { AuthUser } from "./apiTypes";
 
 /** Mirrors DL_ACCOUNTS_MIN_PASSWORD server-side. */
@@ -142,4 +142,207 @@ export function registerErrorField(
     default:
       return null;
   }
+}
+
+// ============================================================
+// Sign-in failures
+// ============================================================
+
+/**
+ * Whether sign-in may say WHICH half of the credentials was wrong.
+ *
+ * Telling an anonymous visitor "no account with that email" turns the
+ * form into a user-enumeration oracle: someone can walk a list of
+ * addresses and learn which are registered here. That is a real
+ * trade-off rather than a bug in either direction, so it's a single
+ * switch instead of an assumption spread across the mapping below.
+ *
+ * With it false, a wrong email and a wrong password give the same
+ * message, and only the failures that leak nothing (empty field, rate
+ * limit, disabled account) stay specific.
+ */
+export const REVEAL_WHICH_CREDENTIAL_FAILED = true;
+
+/** A sign-in failure, ready to render. `field` names the input to
+ *  attach it to, or null for the form-level banner - same shape the
+ *  register form already uses. */
+export interface LoginFailure {
+  field: "email" | "password" | null;
+  message: string;
+  /** The server's code, or "" when the failure wasn't one (network,
+   *  unparseable body). Kept for logging, not for display. */
+  code: string;
+}
+
+const GENERIC_CREDENTIALS: LoginFailure = {
+  field: null,
+  code: "invalid_credentials",
+  message: "That email and password don't match an account.",
+};
+
+/**
+ * Message + field for a sign-in error code.
+ *
+ * Covers WordPress's own `wp_authenticate` codes (`invalid_username`,
+ * `incorrect_password`, and friends), since /next-dash-login passes
+ * credentials through it, plus the field-named codes this API uses on
+ * its other account routes.
+ *
+ * Returns null for anything unrecognised so the caller can fall back to
+ * the server's own message - WP writes user-facing copy into WP_Error,
+ * and showing it beats replacing a specific reason with a vague one.
+ */
+function knownLoginFailure(code: string): LoginFailure | null {
+  switch (code) {
+    // ---- Nothing typed. Safe to be specific: an empty field leaks
+    // nothing about who has an account.
+    case "empty_username":
+    case "empty_email":
+      return {
+        field: "email",
+        code,
+        message: "Enter your email address or username.",
+      };
+    case "empty_password":
+      return { field: "password", code, message: "Enter your password." };
+    case "missing_fields":
+      return {
+        field: null,
+        code,
+        message: "Enter your email and password.",
+      };
+
+    // ---- No such account. This is the enumeration-sensitive half.
+    case "invalid_username":
+    case "invalid_email":
+    case "invalid_user":
+      return REVEAL_WHICH_CREDENTIAL_FAILED
+        ? {
+            field: "email",
+            code,
+            message: "We couldn't find an account with those details.",
+          }
+        : { ...GENERIC_CREDENTIALS, code };
+
+    // ---- Account exists, password wrong. Same sensitivity: confirming
+    // this confirms the account exists.
+    case "incorrect_password":
+      return REVEAL_WHICH_CREDENTIAL_FAILED
+        ? {
+            field: "password",
+            code,
+            message: "That password isn't right. Try again or reset it.",
+          }
+        : { ...GENERIC_CREDENTIALS, code };
+
+    case "invalid_credentials":
+    case "authentication_failed":
+    case "jwt_auth_failed":
+      return { ...GENERIC_CREDENTIALS, code };
+
+    // ---- Account exists and the password is right, but sign-in is
+    // refused. Never generic: the user cannot fix these by retyping,
+    // and a credentials message would send them round in circles.
+    case "account_disabled":
+    case "user_disabled":
+    case "account_suspended":
+      return {
+        field: null,
+        code,
+        message:
+          "This account has been disabled. Contact support if you think that's wrong.",
+      };
+    case "account_pending":
+    case "email_not_verified":
+      return {
+        field: null,
+        code,
+        message:
+          "This account hasn't been verified yet. Check your inbox for the confirmation email.",
+      };
+    case "too_many_retries":
+    case "too_many_attempts":
+    case "rate_limited":
+      return {
+        field: null,
+        code,
+        message:
+          "Too many sign-in attempts. Wait a few minutes and try again.",
+      };
+
+    default:
+      return null;
+  }
+}
+
+/**
+ * Turn whatever sign-in threw into something worth showing.
+ *
+ * Order matters: a recognised code wins, then the server's own message,
+ * then a status-shaped fallback. The old behaviour - collapsing every
+ * ApiError into "Invalid email or password" - told a user whose account
+ * was locked, or whose request never left the building, to go and check
+ * their typing.
+ */
+export function loginFailureFrom(err: unknown): LoginFailure {
+  if (!(err instanceof ApiError)) {
+    return {
+      field: null,
+      code: "",
+      message: "Something went wrong. Please try again.",
+    };
+  }
+
+  // status 0 is apiClient's marker for "the response never reached JS"
+  // - network down, DNS, or CORS. Its message already says so, and it
+  // is emphatically not a credentials problem.
+  if (err.status === 0) {
+    return { field: null, code: "", message: err.message };
+  }
+
+  const code = extractErrorCode(err.body);
+  const known = code ? knownLoginFailure(code) : null;
+  if (known) return known;
+
+  // Unrecognised code: prefer the server's wording over ours - WP puts
+  // user-facing copy in WP_Error, and a specific reason beats a vague
+  // one. Two things are NOT server wording and must not reach the user:
+  // apiClient's own "Request failed with status N" placeholder, which
+  // it synthesises when the body carried no message at all, and a raw
+  // fatal or HTML error page.
+  const isPlaceholder = /^Request failed with status \d+$/.test(err.message);
+  if (
+    err.message &&
+    !isPlaceholder &&
+    err.message.length <= 200 &&
+    !/[<>{}]/.test(err.message)
+  ) {
+    return { field: null, code, message: err.message };
+  }
+
+  if (err.status === 429) {
+    return {
+      field: null,
+      code,
+      message: "Too many sign-in attempts. Wait a few minutes and try again.",
+    };
+  }
+  if (err.status >= 500) {
+    return {
+      field: null,
+      code,
+      message: "Sign-in is temporarily unavailable. Please try again shortly.",
+    };
+  }
+  return { ...GENERIC_CREDENTIALS, code };
+}
+
+/** Pull `code` out of a WP_Error body. Also checks `data.code`, which
+ *  is where some older handlers on this API put it. */
+function extractErrorCode(body: unknown): string {
+  if (!body || typeof body !== "object") return "";
+  const b = body as { code?: unknown; data?: { code?: unknown } };
+  if (typeof b.code === "string" && b.code) return b.code;
+  if (typeof b.data?.code === "string" && b.data.code) return b.data.code;
+  return "";
 }

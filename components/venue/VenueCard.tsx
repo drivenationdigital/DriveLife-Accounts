@@ -3,6 +3,7 @@
 import type { MyVenue } from "@/lib/myVenues";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 import { regionFromSite } from "@/lib/regions";
+import { roleBadgeLabel } from "@/lib/roleBadge";
 
 interface Props {
   venue: MyVenue;
@@ -50,7 +51,9 @@ export function VenueCard({ venue, onClick }: Props) {
             given, so without the flag a US and a UK venue look alike.
             Account dashboard only - never the public site. */}
         <div className="venue-cover-corner">
-          <span className={`venue-badge ${badgeClass}`}>{venue.badge}</span>
+          <span className={`venue-badge ${badgeClass}`}>
+            {roleBadgeLabel(venue.badge)}
+          </span>
           {venue.site && (
             <span className="card-site-badge">
               <CountryFlag

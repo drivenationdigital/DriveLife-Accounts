@@ -102,9 +102,9 @@ function Row({
           </div>
           <div className="tbl-event-text">
             <div className="tbl-event-title">
-              {event.is_pinned && (
+              {/* {event.is_pinned && (
                 <span style={{ color: "var(--gold)", marginRight: 6 }}>★</span>
-              )}
+              )} */}
               {event.title}
             </div>
             <div className="tbl-event-sub">{formatDateSubLabel(event)}</div>

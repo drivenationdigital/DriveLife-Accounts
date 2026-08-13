@@ -3,6 +3,7 @@
 import type { MyClub } from "@/lib/myClubs";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 import { regionFromSite } from "@/lib/regions";
+import { roleBadgeLabel } from "@/lib/roleBadge";
 
 interface Props {
   club: MyClub;
@@ -54,7 +55,7 @@ export function ClubCard({ club, onClick }: Props) {
           <span
             className={`club-badge${club.is_published ? " role" : " unpublished"}`}
           >
-            {club.badge}
+            {roleBadgeLabel(club.badge)}
           </span>
           {club.site && (
             <span className="card-site-badge">

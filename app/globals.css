@@ -3966,7 +3966,13 @@
 .se-tab.active .se-tab-count { background: rgba(255,255,255,.25); }
 .se-state { padding: 40px 24px; text-align: center; color: var(--muted, #6b6860); background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; }
 .se-state.error { color: var(--danger, #c0492f); }
-.se-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; transition: opacity .15s; }
+/* Capped at 3 columns. auto-fill alone kept adding a 4th on wide
+   screens, which made the cards too narrow to read the date line under
+   the title. Desktop-first to match the rest of this file: 3 is the
+   base, and the breakpoints step it down rather than up. */
+.se-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; transition: opacity .15s; }
+@media (max-width: 900px) { .se-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .se-grid { grid-template-columns: minmax(0, 1fr); } }
 .se-card { display: block; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; overflow: hidden; text-decoration: none; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s; }
 .se-card:hover { box-shadow: 0 4px 12px rgba(31,29,24,.1); }
 .se-card-img { width: 100%; height: 150px; object-fit: cover; display: block; }

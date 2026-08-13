@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import type { LatLng } from "@/context/EventCreateContext";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
-import type { Region } from "@/lib/regions";
 
 /**
  * Location autocomplete input with custom-styled dropdown.
@@ -108,7 +107,8 @@ export function LocationAutocomplete({
   onValueChange,
   onPlacePicked,
   placeholder,
-  region,
+  countries,
+  types,
 }: {
   value: string;
   onValueChange: (text: string) => void;
@@ -118,9 +118,29 @@ export function LocationAutocomplete({
     coords: LatLng;
   }) => void;
   placeholder?: string;
-  /** The record's region. Restricts predictions to its country. */
-  region: Region;
+  /**
+   * ISO 3166-1 alpha-2 codes the search is limited to - `region.country`
+   * for a record that belongs to one region, or several for one that
+   * doesn't. Google accepts at most five.
+   *
+   * Required, with no default. A default would silently restrict some
+   * country, and a search that returns nothing for every query looks
+   * like a broken API key rather than a wrong setting.
+   */
+  countries: string | string[];
+  /**
+   * Google place types to match, e.g. `["(cities)"]` for a town/city
+   * field. Omitted means everything - venues, addresses, postcodes -
+   * which is what an event location wants.
+   */
+  types?: string[];
 }) {
+  // Stable key for "which restriction were these predictions fetched
+  // under", so an array prop rebuilt each render doesn't invalidate
+  // them on every keystroke.
+  const countryKey = Array.isArray(countries)
+    ? countries.join(",")
+    : countries;
   const id = useId();
   const containerRef = useRef<HTMLDivElement>(null);
   // Hidden div we hand to PlacesService - it uses this to attribute
@@ -143,7 +163,7 @@ export function LocationAutocomplete({
     items: AutocompletePrediction[];
   }>({ country: "", items: [] });
   const visiblePredictions =
-    predictions.country === region.country ? predictions.items : [];
+    predictions.country === countryKey ? predictions.items : [];
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -186,7 +206,7 @@ export function LocationAutocomplete({
   const requestPredictions = (input: string) => {
     if (!ready) return;
     if (!input.trim()) {
-      setPredictions({ country: region.country, items: [] });
+      setPredictions({ country: countryKey, items: [] });
       setOpen(false);
       return;
     }
@@ -200,21 +220,22 @@ export function LocationAutocomplete({
         // No types restriction so users can pick venues, addresses,
         // postcodes, etc. - same flexibility as the original mockup.
         //
-        // Country IS restricted. `region.country` rather than
-        // `region.key`: Google wants an ISO 3166-1 alpha-2 code, which
-        // is "GB" for the UK where the site slug is "uk" - passing the
-        // slug would silently match nothing.
-        componentRestrictions: { country: region.country },
+        // Country IS restricted. Callers pass `region.country` rather
+        // than `region.key`: Google wants an ISO 3166-1 alpha-2 code,
+        // which is "GB" for the UK where the site slug is "uk" -
+        // passing the slug would silently match nothing.
+        componentRestrictions: { country: countries },
+        ...(types ? { types } : {}),
       },
       (results, status) => {
         // Stale result - discard.
         if (myId !== requestIdRef.current) return;
         if (status !== g.places.PlacesServiceStatus.OK || !results) {
-          setPredictions({ country: region.country, items: [] });
+          setPredictions({ country: countryKey, items: [] });
           setOpen(false);
           return;
         }
-        setPredictions({ country: region.country, items: results });
+        setPredictions({ country: countryKey, items: results });
         setOpen(true);
         setHighlight(0);
       },
@@ -233,7 +254,7 @@ export function LocationAutocomplete({
   // ---- Pick a prediction → fetch full details for coords + address. ----
   const pick = (prediction: AutocompletePrediction) => {
     setOpen(false);
-    setPredictions({ country: region.country, items: [] });
+    setPredictions({ country: countryKey, items: [] });
 
     if (!ready || !attributionRef.current) {
       // Fall back to using just the description text - better than nothing.

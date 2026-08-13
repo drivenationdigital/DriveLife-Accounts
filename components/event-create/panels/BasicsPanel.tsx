@@ -197,7 +197,7 @@ export function BasicsPanel() {
         </label>
         <LocationAutocomplete
           value={state.location}
-          region={region}
+          countries={region.country}
           placeholder={`Search for a venue or address in the ${region.abbr}`}
           onValueChange={(text) =>
             dispatch({ type: "SET_FIELD", key: "location", value: text })

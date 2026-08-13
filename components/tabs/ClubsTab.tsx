@@ -63,7 +63,7 @@ export function ClubsTab() {
   if (clubs.length === 0) {
     return (
       <ComingSoonBanner
-        title="No club applications yet"
+        title="Club applications not enabled for this event"
         message="Applications will appear here as car clubs apply through your event's club application link."
       />
     );
