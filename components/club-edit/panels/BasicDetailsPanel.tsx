@@ -2,6 +2,7 @@
 
 import { useClubEdit } from "@/context/ClubEditContext";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
+import { resolveRegion } from "@/lib/regions";
 import { FieldLabel, inputCls, selectCls } from "../shared";
 import type { ClubLocationType } from "@/lib/clubEditTypes";
 
@@ -17,6 +18,11 @@ const TITLE_MAX = 60;
 export function BasicDetailsPanel() {
   const { club, categories, setField, toggleCategory, setAllCategories } =
     useClubEdit();
+
+  // A club belongs to one region, so its address search is limited to
+  // that country. `resolveRegion` covers the blank `site` a club has
+  // before it's been loaded or saved.
+  const region = resolveRegion(club.site);
 
   const allSelected =
     categories.length > 0 && club.categoryIds.length === categories.length;
@@ -99,6 +105,7 @@ export function BasicDetailsPanel() {
             <FieldLabel required>Where are you based?</FieldLabel>
             <LocationAutocomplete
               value={club.location}
+              region={region}
               onValueChange={(text) => setField("location", text)}
               onPlacePicked={(place) => {
                 setField("location", place.address || place.name);

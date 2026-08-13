@@ -2,6 +2,7 @@
 
 import { useVenueEdit } from "@/context/VenueEditContext";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
+import { resolveRegion } from "@/lib/regions";
 import { MapPreview } from "@/components/event-create/MapPreview";
 import { FieldLabel } from "../shared";
 
@@ -16,6 +17,10 @@ const TITLE_MAX = 60;
  */
 export function BasicDetailsPanel() {
   const { venue, set, errors, touched, markTouched } = useVenueEdit();
+
+  // A venue belongs to one region, so its address search is limited to
+  // that country.
+  const region = resolveRegion(venue.site);
 
   const locationError = Boolean(touched.location && errors.location);
 
@@ -59,6 +64,7 @@ export function BasicDetailsPanel() {
         <FieldLabel required>Venue location</FieldLabel>
         <LocationAutocomplete
           value={venue.location}
+          region={region}
           onValueChange={(text) => set("location", text)}
           onPlacePicked={(place) => {
             set("location", place.address || place.name);

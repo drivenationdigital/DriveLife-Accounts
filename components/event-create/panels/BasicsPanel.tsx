@@ -1,6 +1,7 @@
 "use client";
 
 import { useEventSteps } from "@/lib/useEventSteps";
+import { useAutoTimezone } from "@/lib/useAutoTimezone";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
@@ -43,6 +44,7 @@ export function BasicsPanel() {
   // reference, so any checked categories survive the source swap
   // intact.
   const { region, stepCount, adjacent, stepNumber } = useEventSteps();
+  const { applyFromCoords } = useAutoTimezone();
 
   const {
     data: categoriesResponse,
@@ -195,7 +197,8 @@ export function BasicsPanel() {
         </label>
         <LocationAutocomplete
           value={state.location}
-          placeholder="Search for a venue or address"
+          region={region}
+          placeholder={`Search for a venue or address in the ${region.abbr}`}
           onValueChange={(text) =>
             dispatch({ type: "SET_FIELD", key: "location", value: text })
           }
@@ -220,6 +223,10 @@ export function BasicsPanel() {
               key: "locationCoords",
               value: place.coords,
             });
+            // The address is the only thing that can pick the right
+            // zone for a country that spans several - the US has six.
+            // No-ops if the organiser already chose one by hand.
+            applyFromCoords(place.coords);
           }}
         />
         <MapPreview coords={state.locationCoords} />

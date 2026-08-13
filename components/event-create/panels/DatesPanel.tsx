@@ -12,6 +12,8 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { enumerateDays } from "@/lib/dateRange";
 import { makeLocalId } from "@/lib/makeLocalId";
+import { timezoneOptionLabel, timezonesForRegion } from "@/lib/timezones";
+import { useAutoTimezone } from "@/lib/useAutoTimezone";
 
 import { PanelHeader } from "../PanelHeader";
 import { FullScreenDatePicker } from "../FullScreenDatePicker";
@@ -60,6 +62,12 @@ export function DatesPanel() {
   const searchParams = useSearchParams();
 
   const { region, stepCount, adjacent, stepNumber } = useEventSteps();
+
+  // Mounted here as well as on Basics so the region-level correction
+  // runs for someone who lands straight on this step - the hook's
+  // address lookup only fires on an explicit place pick.
+  useAutoTimezone();
+  const timezoneOptions = useMemo(() => timezonesForRegion(region), [region]);
 
   const { prev, next } = adjacent("dates");
 
@@ -570,7 +578,10 @@ export function DatesPanel() {
         </div>
       )}
 
-      {/* ---- Timezone ---- */}
+      {/* ---- Timezone ----
+          Options are scoped to the event's region, and the value is
+          set from the address on the Basics step. Offsets are computed
+          live so they stay right across DST. */}
       <div className="mt-6">
         <label
           htmlFor="f-timezone"
@@ -588,21 +599,35 @@ export function DatesPanel() {
             className="select"
             style={{ paddingLeft: 44, paddingRight: 40 }}
             value={state.timezone}
-            onChange={(e) =>
+            onChange={(e) => {
               dispatch({
                 type: "SET_FIELD",
                 key: "timezone",
                 value: e.target.value,
-              })
-            }
+              });
+              // A deliberate choice. From here on, changing the address
+              // leaves the timezone alone.
+              dispatch({
+                type: "SET_FIELD",
+                key: "timezoneIsAuto",
+                value: false,
+              });
+            }}
           >
-            <option value="Europe/London">Europe/London (GMT+1)</option>
-            <option value="Europe/Dublin">Europe/Dublin</option>
-            <option value="Europe/Paris">Europe/Paris</option>
-            <option value="America/New_York">America/New_York</option>
-            <option value="America/Los_Angeles">America/Los_Angeles</option>
+            {timezoneOptions.map((tz) => (
+              <option key={tz.value} value={tz.value}>
+                {timezoneOptionLabel(tz)}
+              </option>
+            ))}
           </select>
         </div>
+        {timezoneOptions.length > 1 && state.timezoneIsAuto && (
+          <p className="mt-2 text-xs text-ink-500">
+            {state.locationCoords
+              ? "Set from your event address. Change it here if it's not right."
+              : "Pick your event address on the Basics step and we'll set this for you."}
+          </p>
+        )}
       </div>
 
       {/* ---- Desktop nav row (Back / Continue). Hidden on mobile -

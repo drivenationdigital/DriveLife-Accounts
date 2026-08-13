@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import type { LatLng } from "@/context/EventCreateContext";
 import { loadGoogleMaps } from "@/lib/googleMapsLoader";
+import type { Region } from "@/lib/regions";
 
 /**
  * Location autocomplete input with custom-styled dropdown.
@@ -34,12 +35,24 @@ import { loadGoogleMaps } from "@/lib/googleMapsLoader";
  *      the user just doesn't get suggestions. We show a small notice
  *      when this happens so the dev knows what to fix.
  *
+ *   6. Country-restricted. Predictions are limited to the record's own
+ *      region, so a US event can't be given a UK address and vice
+ *      versa. This matters beyond tidiness: the region fixes the
+ *      currency the event sells in and, via the address, its timezone -
+ *      a US event pointed at a Birmingham postcode gets a timezone
+ *      five hours out with no visible cause. Restricting the search is
+ *      also the only place this can be caught cheaply; validating a
+ *      free-typed address afterwards would mean reverse-geocoding it.
+ *
  * Props:
  *   - `value` is the displayed text. Parent owns it.
  *   - `onValueChange(text)` fires on every keystroke (typing).
  *   - `onPlacePicked({ name, address, coords })` fires once the user
  *     selects a prediction. Parent should sync `value` from this too
  *     if it wants the formatted address rather than what was typed.
+ *   - `region` is the record's region. Required rather than optional:
+ *     every consumer (event, club, venue) has one, and a default would
+ *     silently restrict the wrong country's search.
  */
 
 // Minimal surface type - we cast narrowly in code to avoid pulling in
@@ -95,6 +108,7 @@ export function LocationAutocomplete({
   onValueChange,
   onPlacePicked,
   placeholder,
+  region,
 }: {
   value: string;
   onValueChange: (text: string) => void;
@@ -104,6 +118,8 @@ export function LocationAutocomplete({
     coords: LatLng;
   }) => void;
   placeholder?: string;
+  /** The record's region. Restricts predictions to its country. */
+  region: Region;
 }) {
   const id = useId();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -115,7 +131,19 @@ export function LocationAutocomplete({
   const requestIdRef = useRef(0);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [predictions, setPredictions] = useState<AutocompletePrediction[]>([]);
+  // Predictions are stored with the country they were fetched for.
+  // On the create screens the region can be switched while a dropdown
+  // is open, and a UK result left sitting there stays pickable on an
+  // event that just became US - the precise thing the restriction is
+  // meant to prevent. Deriving visibility from the current country
+  // discards them at render, with no effect and no extra state to keep
+  // in sync.
+  const [predictions, setPredictions] = useState<{
+    country: string;
+    items: AutocompletePrediction[];
+  }>({ country: "", items: [] });
+  const visiblePredictions =
+    predictions.country === region.country ? predictions.items : [];
   const [open, setOpen] = useState(false);
   const [highlight, setHighlight] = useState(0);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -158,7 +186,7 @@ export function LocationAutocomplete({
   const requestPredictions = (input: string) => {
     if (!ready) return;
     if (!input.trim()) {
-      setPredictions([]);
+      setPredictions({ country: region.country, items: [] });
       setOpen(false);
       return;
     }
@@ -171,16 +199,22 @@ export function LocationAutocomplete({
         sessionToken: sessionTokenRef.current,
         // No types restriction so users can pick venues, addresses,
         // postcodes, etc. - same flexibility as the original mockup.
+        //
+        // Country IS restricted. `region.country` rather than
+        // `region.key`: Google wants an ISO 3166-1 alpha-2 code, which
+        // is "GB" for the UK where the site slug is "uk" - passing the
+        // slug would silently match nothing.
+        componentRestrictions: { country: region.country },
       },
       (results, status) => {
         // Stale result - discard.
         if (myId !== requestIdRef.current) return;
         if (status !== g.places.PlacesServiceStatus.OK || !results) {
-          setPredictions([]);
+          setPredictions({ country: region.country, items: [] });
           setOpen(false);
           return;
         }
-        setPredictions(results);
+        setPredictions({ country: region.country, items: results });
         setOpen(true);
         setHighlight(0);
       },
@@ -199,7 +233,7 @@ export function LocationAutocomplete({
   // ---- Pick a prediction → fetch full details for coords + address. ----
   const pick = (prediction: AutocompletePrediction) => {
     setOpen(false);
-    setPredictions([]);
+    setPredictions({ country: region.country, items: [] });
 
     if (!ready || !attributionRef.current) {
       // Fall back to using just the description text - better than nothing.
@@ -249,16 +283,18 @@ export function LocationAutocomplete({
 
   // ---- Keyboard nav: ↑ ↓ Enter Esc. ------------------------------
   const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (!open || predictions.length === 0) return;
+    if (!open || visiblePredictions.length === 0) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
-      setHighlight((h) => (h + 1) % predictions.length);
+      setHighlight((h) => (h + 1) % visiblePredictions.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setHighlight((h) => (h - 1 + predictions.length) % predictions.length);
+      setHighlight(
+        (h) => (h - 1 + visiblePredictions.length) % visiblePredictions.length,
+      );
     } else if (e.key === "Enter") {
       e.preventDefault();
-      const picked = predictions[highlight];
+      const picked = visiblePredictions[highlight];
       if (picked) pick(picked);
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -279,7 +315,7 @@ export function LocationAutocomplete({
         placeholder={placeholder}
         autoComplete="off"
         onChange={(e) => handleChange(e.target.value)}
-        onFocus={() => predictions.length > 0 && setOpen(true)}
+        onFocus={() => visiblePredictions.length > 0 && setOpen(true)}
         onKeyDown={onKeyDown}
         role="combobox"
         aria-expanded={open}
@@ -288,13 +324,13 @@ export function LocationAutocomplete({
       />
 
       {/* Custom-styled dropdown. Anchored absolutely below the input. */}
-      {open && predictions.length > 0 && (
+      {open && visiblePredictions.length > 0 && (
         <ul
           id={`${id}-listbox`}
           role="listbox"
           className="absolute z-30 left-0 right-0 top-full mt-2 bg-white border border-ink-200 rounded-xl shadow-lg overflow-hidden"
         >
-          {predictions.map((p, i) => {
+          {visiblePredictions.map((p, i) => {
             const main = p.structured_formatting?.main_text ?? p.description;
             const sub = p.structured_formatting?.secondary_text;
             const active = i === highlight;

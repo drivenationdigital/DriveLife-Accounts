@@ -474,6 +474,20 @@ export type EventCreateState = {
     endTime: string;
   }>;
   timezone: string;
+  /**
+   * True while `timezone` is still an automatic value that picking an
+   * address is allowed to replace.
+   *
+   * Cleared the moment the organiser changes the dropdown themselves,
+   * and cleared on hydrate so a saved event's stored zone is treated as
+   * a decision already made. Without this, editing the address on an
+   * event whose timezone had been deliberately corrected would silently
+   * revert it - and a wrong timezone shifts every start time, sale
+   * window and door time on the event by hours.
+   *
+   * UI-only: not sent to the API and not read back from it.
+   */
+  timezoneIsAuto: boolean;
 
   // ---- Description ----
   description: string;
@@ -603,7 +617,10 @@ const INITIAL_STATE: EventCreateState = {
   recurringUntilDate: null,
   recurringRepeatUntilCancelled: false,
   recurringCustomDates: [],
+  // Placeholder only - the region's default replaces this as soon as
+  // the editor knows the region, and the address replaces that.
   timezone: "Europe/London",
+  timezoneIsAuto: true,
 
   description: "",
   websiteUrl: "",
@@ -688,6 +705,7 @@ type ScalarStateKey =
   | "recurringUntilDate"
   | "recurringRepeatUntilCancelled"
   | "timezone"
+  | "timezoneIsAuto"
   | "description"
   | "websiteUrl"
   | "publicEmail"
@@ -982,12 +1000,21 @@ function reducer(
     case "REORDER_TRADER_CATEGORIES":
       return { ...state, traderCategories: action.items };
 
-    case "HYDRATE":
+    case "HYDRATE": {
       // Spread order matters: existing state first (so any keys not
       // in the partial are preserved), then the partial overrides.
       // The partial is typed as Partial<EventCreateState> so the
       // mapper can't accidentally introduce unknown fields.
-      return { ...state, ...action.partial };
+      const next = { ...state, ...action.partial };
+      // A saved event's stored timezone is a decision already taken -
+      // by whoever created it, on that event's address. Editing the
+      // address later must not silently move it. A saved event with no
+      // timezone at all stays auto, so picking an address still fills
+      // it in.
+      return action.partial.timezone
+        ? { ...next, timezoneIsAuto: false }
+        : next;
+    }
 
     case "RESET":
       return INITIAL_STATE;
