@@ -5025,3 +5025,31 @@
 .auth-alt-btn {
   text-decoration: none;
 }
+
+/* Way back out to the public site, under the alt panel. Deliberately
+   quiet - it's an exit, not one of the two things the page is for. */
+.auth-back {
+  display: flex;
+  justify-content: center;
+  margin-top: 18px;
+}
+.auth-back a {
+  display: inline-flex;
+  align-items: center;
+  /* Tight - the chevron reads as part of the phrase, not a separate
+     icon sitting beside it. */
+  gap: 2px;
+  font-size: 13px;
+  color: var(--muted);
+  padding: 6px 8px;
+  border-radius: 6px;
+  transition: color 0.15s ease;
+}
+.auth-back a:hover {
+  color: var(--ink);
+}
+.auth-back svg {
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
+}

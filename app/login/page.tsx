@@ -5,7 +5,11 @@ import { Suspense, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { loginFailureFrom, type LoginFailure } from "@/lib/auth";
-import { AuthShell, AuthAltPanel } from "@/components/auth/AuthShell";
+import {
+  AuthShell,
+  AuthAltPanel,
+  AuthBackToSite,
+} from "@/components/auth/AuthShell";
 
 export default function LoginPage() {
   return (
@@ -13,11 +17,14 @@ export default function LoginPage() {
       title="Sign in"
       subtitle="Manage your events, clubs and venues"
       footer={
-        <AuthAltPanel
-          prompt="New to CarEvents?"
-          actionLabel="Create an account"
-          href="/register"
-        />
+        <>
+          <AuthAltPanel
+            prompt="New to CarEvents?"
+            actionLabel="Create an account"
+            href="/register"
+          />
+          <AuthBackToSite />
+        </>
       }
     >
       <Suspense fallback={<div className="section-body" />}>
