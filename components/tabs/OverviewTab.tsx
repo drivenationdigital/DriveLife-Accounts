@@ -342,7 +342,7 @@ export function OverviewTab() {
       {/* Recent tickets. One row per ticket SOLD, so a two-ticket order
           appears twice here and once above - the two cards count
           different things on purpose. */}
-      {hasTickets && recentTickets.length > 0 && (
+      {/* {hasTickets && recentTickets.length > 0 && (
         <div className="section">
           <div className="section-header">
             <div>
@@ -403,7 +403,7 @@ export function OverviewTab() {
             </div>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Pending show cars */}
       {features.show_cars.enabled && pendingShowCars.length > 0 && (
