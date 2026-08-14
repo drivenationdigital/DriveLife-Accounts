@@ -329,14 +329,40 @@ export interface ApiOrder {
   status: OrderStatus;
 }
 
+/**
+ * One SOLD TICKET, not one order.
+ *
+ * A two-ticket order produces two of these, and because
+ * `carevents_order_tickets` has no quantity column, buying two of the
+ * same ticket gives two rows identical in every field except
+ * `ticket_id`. Duplicate-looking rows are correct - don't dedupe them.
+ *
+ * The same shape is returned by `sales.attendees` on `/event` (the
+ * recent slice) and by `tickets` on `/event/tickets` (paginated).
+ */
 export interface ApiAttendee {
-  ticket_id: number | null;
+  /** This row's own id (`carevents_order_ticket_meta.ID`), and the only
+   *  field that distinguishes two otherwise-identical rows.
+   *
+   *  It used to repeat across every ticket in an order - the legacy
+   *  query selected one arbitrary id per order - so a response where
+   *  these collide is a stale backend, not bad data. */
+  ticket_id: number;
+  /** Which ticket TYPE was bought. Not shown in the table; kept so a
+   *  row can be traced back to its ticket. */
+  ticket_type_id: number;
   order_id: number;
   buyer: ApiBuyer;
   ticket_name: string;
+  /** A number, unformatted - format with the region's currency. The US
+   *  site returns USD, so this must never be prefixed with a hardcoded
+   *  pound sign. */
   line_total: number;
   car: ApiCar;
   car_club: string | null;
+  /** The legacy dashboard only showed this to users with the
+   *  `tickets_concours` flag. We don't surface it, so there's nothing
+   *  to gate yet. */
   is_concours: boolean;
 }
 

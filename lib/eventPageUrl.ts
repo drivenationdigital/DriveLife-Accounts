@@ -14,3 +14,17 @@ const CAREVENTS_BASE =
 export function eventPageUrl(eventId: number): string {
   return `${CAREVENTS_BASE}/?post_type=events&p=${eventId}`;
 }
+
+/**
+ * The public site's home page - the sidebar's "Back to CarEvents.com".
+ *
+ * Shares CAREVENTS_BASE with the event links above so a deployment
+ * pointing at staging doesn't send people from a staging dashboard to
+ * the live site. Note the base includes the region path ("/uk"): the
+ * sidebar has no event in scope to take a region from, so it lands on
+ * whichever the deployment is configured for, matching the API's own
+ * default.
+ */
+export function careventsHomeUrl(): string {
+  return CAREVENTS_BASE;
+}

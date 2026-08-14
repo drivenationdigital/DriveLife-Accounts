@@ -642,10 +642,92 @@
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
+/* Leaves the dashboard entirely, so it's styled as a quiet link rather
+   than a nav destination - it can never be the "active" item. */
+.nav-item-back {
+  color: var(--muted);
+  font-size: 13px;
+}
+.nav-item-back:hover {
+  color: var(--ink);
+}
 .nav-divider {
   height: 1px;
   background: var(--border);
   margin: 10px 12px;
+}
+
+/* ============ STAT STRIP (Overview) ============ */
+/* One wrapping row of stats rather than a fixed grid, so a listing
+   event that drops the three sales figures still fills the card
+   evenly instead of leaving a hole where they were. */
+.stat-strip-card {
+  overflow: hidden;
+}
+.stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+}
+.stat-item {
+  /* Grow to share the row, but never below ~200px - past that the
+     figure wraps under its own label. */
+  flex: 1 1 200px;
+  min-width: 0;
+  padding: 18px 22px;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  /* Pull the first item's left border and the first row's top border
+     off the card edge, so the dividers only ever appear BETWEEN
+     stats - however many rows they wrap onto. */
+  margin-left: -1px;
+  margin-top: -1px;
+}
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.stat-qualifier {
+  font-weight: 400;
+  color: var(--muted-2);
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.05;
+  color: var(--ink);
+}
+/* Pence de-emphasised so the pounds read first. */
+.stat-value .decimals {
+  font-size: 15px;
+  font-weight: 400;
+  opacity: 0.5;
+}
+.stat-strip-note {
+  padding: 0 22px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+/* In-flight placeholder for a stat value.
+   A CSS ring rather than a Font Awesome glyph: FA is only loaded in the
+   editor layout, so `fa-spinner` inside the dashboard renders as an
+   empty box. Reuses the `spin` keyframe defined further down. */
+.stat-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--muted);
+  border-radius: 50%;
+  display: inline-block;
+  /* Centres it in the 30px value line box, so swapping the spinner for
+     the real figure doesn't nudge the row. */
+  vertical-align: middle;
+  animation: spin 0.7s linear infinite;
 }
 
 /* ============ MAIN ============ */
@@ -2245,6 +2327,21 @@
 @media (max-width: 900px) {
   .main {
     padding: 20px;
+  }
+  /* Narrower basis so the strip lands two-up on a phone rather than
+     one enormous stat per row. */
+  .stat-item {
+    flex-basis: 140px;
+    padding: 13px 16px;
+  }
+  .stat-value {
+    font-size: 23px;
+  }
+  .stat-label {
+    font-size: 11px;
+  }
+  .stat-strip-note {
+    padding: 0 16px 12px;
   }
   .event-hero-grid {
     grid-template-columns: 1fr;

@@ -86,6 +86,13 @@ export const ChevLeftIcon = (p: IconProps) => (
   </svg>
 );
 
+export const ArrowLeftIcon = (p: IconProps) => (
+  <svg {...base} strokeWidth={1.8} {...p}>
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
 export const ChevRightIcon = (p: IconProps) => (
   <svg {...base} strokeWidth={2} {...p}>
     <polyline points="9 18 15 12 9 6" />

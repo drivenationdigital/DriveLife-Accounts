@@ -5,7 +5,9 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { useUI } from "@/context/UIContext";
 import { cx } from "@/lib/utils";
+import { careventsHomeUrl } from "@/lib/eventPageUrl";
 import {
+  ArrowLeftIcon,
   DashboardIcon,
   TicketIcon,
   BookmarkIcon,
@@ -23,10 +25,24 @@ interface NavItemProps {
   badge?: string | number;
   href?: string;
   onClick?: () => void;
+  /** Leaves the app - rendered as a plain anchor so the browser does a
+   *  real navigation rather than Next trying to route it internally. */
+  external?: boolean;
+  /** Extra class alongside `nav-item`, for variants like the back link. */
+  variant?: string;
 }
 
-function NavItem({ icon, label, active, badge, href, onClick }: NavItemProps) {
-  const className = cx("nav-item", active && "active");
+function NavItem({
+  icon,
+  label,
+  active,
+  badge,
+  href,
+  onClick,
+  external,
+  variant,
+}: NavItemProps) {
+  const className = cx("nav-item", variant, active && "active");
   const content = (
     <>
       <span className="nav-icon">{icon}</span>
@@ -35,6 +51,13 @@ function NavItem({ icon, label, active, badge, href, onClick }: NavItemProps) {
     </>
   );
 
+  if (href && external) {
+    return (
+      <a href={href} className={className} onClick={onClick}>
+        {content}
+      </a>
+    );
+  }
   if (href) {
     return (
       <Link href={href} className={className} onClick={onClick}>
@@ -82,6 +105,21 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
+      {/* Back out to the public site. Sits above the divider, separate
+          from the dashboard's own destinations - it's an exit, not a
+          nav item, so it never takes the active state. */}
+      <div className="nav-section">
+        <NavItem
+          icon={<ArrowLeftIcon />}
+          label="Back to CarEvents.com"
+          href={careventsHomeUrl()}
+          external
+          variant="nav-item-back"
+          onClick={() => handleClick("")}
+        />
+      </div>
+      <div className="nav-divider" style={{ marginTop: 0 }} />
+
       <div className="nav-section">
         <NavItem
           icon={<DashboardIcon />}

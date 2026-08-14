@@ -23,6 +23,7 @@ import type {
   FeatureSection,
   Order,
   OrderStatus,
+  SoldTicket,
   ShowCar,
   ShowCarStatus,
   Ticket,
@@ -291,6 +292,35 @@ export function mapOrder(
   };
 }
 
+/**
+ * One sold ticket.
+ *
+ * Car fields and the club collapse null/whitespace to "" so the table
+ * has a single "missing" case to render a dash for - the API sends
+ * `null` on some rows and `""` on others for the same absent value.
+ *
+ * Shared by the event response's `sales.attendees` and the paginated
+ * /event/tickets list, which return the identical row shape.
+ */
+export function mapSoldTicket(a: ApiAttendee): SoldTicket {
+  const text = (v: string | null | undefined): string => (v ?? "").trim();
+  return {
+    id: a.ticket_id,
+    ticketTypeId: a.ticket_type_id,
+    orderId: a.order_id,
+    buyerName: `${text(a.buyer?.first_name)} ${text(a.buyer?.last_name)}`.trim(),
+    buyerEmail: text(a.buyer?.email),
+    buyerPhone: text(a.buyer?.phone),
+    ticketName: text(a.ticket_name),
+    lineTotal: Number.isFinite(a.line_total) ? a.line_total : 0,
+    carMake: text(a.car?.make),
+    carModel: text(a.car?.model),
+    carReg: text(a.car?.reg),
+    carClub: text(a.car_club),
+    isConcours: a.is_concours === true,
+  };
+}
+
 function mapDiscount(d: ApiDiscount): Discount {
   return {
     id: d.id != null ? String(d.id) : d.code,
@@ -542,6 +572,11 @@ export function mapEventResponse(
     // default to [] to keep the contract stable.
     showCarTickets: (sales.show_car_tickets ?? []).map(mapTicket),
     orders: sales.orders.map((o) => mapOrder(o, region)),
+    // One row per ticket sold. The /event response carries a recent
+    // slice for the Overview card; the Tickets tab fetches its own
+    // paginated set. Defaulted to [] for responses that predate the
+    // field, so the tab renders empty rather than throwing.
+    soldTickets: (sales.attendees ?? []).map(mapSoldTicket),
     // The initial /event response returns ~5 recent orders for the Overview
     // card - not a full page. Leave pagination null until the Orders tab
     // fires /event/orders and calls applyOrdersPage().

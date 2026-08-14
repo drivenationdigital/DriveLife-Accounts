@@ -75,6 +75,40 @@ export interface Ticket {
   status: TicketStatus;
 }
 
+/**
+ * One sold ticket - the row shape behind the Tickets tab and the
+ * "Recent Tickets" card on the overview.
+ *
+ * Distinct from `Order`: an order can contain several of these, and two
+ * of the same ticket in one order produce two rows that differ only by
+ * `id`. That's correct, not a duplicate.
+ *
+ * Car fields collapse "absent" to empty string. The API sends `null` on
+ * some rows and `""` on others for the same missing value, and a table
+ * cell shouldn't have to care which.
+ */
+export interface SoldTicket {
+  /** `ticket_id` - unique per row. */
+  id: number;
+  /** Which ticket type was bought. Not displayed; kept for tracing. */
+  ticketTypeId: number;
+  orderId: number;
+  buyerName: string;
+  buyerEmail: string;
+  /** Per-TICKET phone, not the order's billing phone - two tickets in
+   *  one order can carry different numbers. The Orders tab shows
+   *  `billing_phone`, so the two tabs can legitimately disagree. */
+  buyerPhone: string;
+  ticketName: string;
+  /** Unformatted; render through the event's region. */
+  lineTotal: number;
+  carMake: string;
+  carModel: string;
+  carReg: string;
+  carClub: string;
+  isConcours: boolean;
+}
+
 export interface Order {
   id: string;
   customerName: string;
@@ -267,6 +301,10 @@ export interface EventData {
     fees: number;
   };
   tickets: Ticket[];
+  /** Sold tickets - one row per ticket, from `sales.attendees`. This is
+   *  the recent slice the event response carries; the Tickets tab
+   *  fetches its own paginated set from /event/tickets. */
+  soldTickets: SoldTicket[];
   /** Show car tickets (filtered server-side from the regular ticket
    *  list via the show_car_ticket=1 flag). Same shape as tickets;
    *  rendered in the show cars tab rather than the tickets breakdown. */
@@ -288,6 +326,7 @@ export interface EventData {
  *  instead. The two sets never appear together. */
 export type TabKey =
   | "overview"
+  | "tickets"
   | "upcoming"
   | "past"
   | "orders"

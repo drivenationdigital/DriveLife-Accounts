@@ -9,6 +9,7 @@ import type { TabKey } from "@/context/types";
 
 import { OverviewTab } from "@/components/tabs/OverviewTab";
 import { OrdersTab } from "@/components/tabs/OrdersTab";
+import { TicketsTab } from "@/components/tabs/TicketsTab";
 import { ShowCarsTab } from "@/components/tabs/ShowCarsTab";
 import { ClubsTab } from "@/components/tabs/ClubsTab";
 import { TradersTab } from "@/components/tabs/TradersTab";
@@ -22,8 +23,17 @@ interface TabDef {
 
 export function EventTabs() {
   const { activeTab, setActiveTab } = useUI();
-  const { event, occurrences, kpis, orders, tickets, showCars, clubs, traders } =
-    useEventData();
+  const {
+    event,
+    occurrences,
+    kpis,
+    orders,
+    tickets,
+    soldTickets,
+    showCars,
+    clubs,
+    traders,
+  } = useEventData();
   const tabsRef = useRef<HTMLDivElement | null>(null);
 
   // A series parent has no sales dashboard of its own - the KPIs,
@@ -87,6 +97,10 @@ export function EventTabs() {
     ...(ordersVisible
       ? ([
           { key: "orders",   label: "Orders",    count: kpis.totalOrders || orders.length },
+          // Tickets sits next to Orders and shares its visibility: both
+          // need ticket types to exist. The count is tickets SOLD, not
+          // orders - a two-ticket order contributes two.
+          { key: "tickets",  label: "Tickets",   count: kpis.ticketsSold || soldTickets.length },
         ] as TabDef[])
       : []),
     ...(ticketingVisible
@@ -135,6 +149,7 @@ export function EventTabs() {
         {currentTab === "upcoming" && <OccurrenceTable scope="upcoming" />}
         {currentTab === "past" && <OccurrenceTable scope="past" />}
         {currentTab === "orders" && <OrdersTab />}
+        {currentTab === "tickets" && <TicketsTab />}
         {currentTab === "showcars" && <ShowCarsTab />}
         {currentTab === "clubs" && <ClubsTab />}
         {currentTab === "traders" && <TradersTab />}

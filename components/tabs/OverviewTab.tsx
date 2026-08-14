@@ -4,7 +4,6 @@
 import { useEventData } from "@/context/EventContext";
 import { useUI } from "@/context/UIContext";
 import { currency, statusPillClass } from "@/lib/utils";
-import { KpiCard } from "@/components/cards/KpiCard";
 import { TicketRow } from "@/components/cards/TicketRow";
 import { AppCard } from "@/components/cards/AppCard";
 import { ShowCarTable } from "@/components/tables/ShowCarTable";
@@ -12,7 +11,8 @@ import { ClubTable } from "@/components/tables/ClubTable";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { orderDetailPath } from "@/lib/siteRoutes";
-import { TrafficKpis } from "@/components/tabs/TrafficKpis";
+import { EventStatStrip } from "@/components/tabs/EventStatStrip";
+import { carLabel } from "@/components/tabs/TicketsTab";
 import { useRouter } from "next/navigation";
 
 export function OverviewTab() {
@@ -20,6 +20,7 @@ export function OverviewTab() {
     event,
     kpis,
     tickets,
+    soldTickets,
     orders,
     showCars,
     clubs,
@@ -30,6 +31,9 @@ export function OverviewTab() {
   const router = useRouter();
 
   const recentOrders = orders.slice(0, 5);
+  // The event response carries a recent slice of sold tickets; the
+  // Tickets tab fetches its own paginated set.
+  const recentTickets = soldTickets.slice(0, 5);
   const pendingShowCars = showCars.filter((s) => s.status === "pending");
   const pendingClubs = clubs.filter((c) => c.status === "pending");
   const pendingTraders = traders.filter((t) => t.status === "pending");
@@ -64,61 +68,12 @@ export function OverviewTab() {
   // fills the space the tickets breakdown would have used.
   const hasTickets = tickets.length > 0;
 
-  const trafficRow = (
-    <TrafficKpis
-      eid={event.encryptedId}
-      site={event.site}
-      region={event.region}
-    />
-  );
-
   return (
     <>
-      {/* Sales KPIs. Ticketed events only - see hasTickets above. */}
-      {hasTickets && (
-      <div className="kpi-grid">
-        <KpiCard
-          label="Total Orders"
-          value={kpis.totalOrders}
-          sub={
-            <>
-              <b>{kpis.ordersThisWeek}</b> this week
-            </>
-          }
-        />
-        <KpiCard
-          label="Tickets Sold"
-          value={kpis.ticketsSold}
-          sub={
-            <>
-              <b>{kpis.ticketsSoldRecent}</b> in the last 7 days
-            </>
-          }
-        />
-        <KpiCard
-          label="Net Sales"
-          value={
-            <>
-              <span className="currency">{event.region.currencySymbol}</span>
-              {kpis.netSales.toLocaleString(event.region.locale, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </>
-          }
-          sub={
-            <>
-              <b>{currency(kpis.fees, event.region)}</b> in fees
-            </>
-          }
-        />
-      </div>
-      )}
-
-      {/* Traffic. Second row on a ticketed event, the only row on a
-          listing - the JSX is the same either way, it's the sales row
-          above that appears or doesn't. */}
-      {trafficRow}
+      {/* Stats. Sales figures only on a ticketed event; the traffic
+          three are always there. One wrapping strip rather than two
+          grids, so dropping the sales half doesn't leave a gap. */}
+      <EventStatStrip event={event} kpis={kpis} showSales={hasTickets} />
 
       {/* A listing has no sales breakdown, so the description takes the
           place of the tickets card rather than leaving the page empty
@@ -382,6 +337,72 @@ export function OverviewTab() {
           </table>
         </div>
       </div>
+      )}
+
+      {/* Recent tickets. One row per ticket SOLD, so a two-ticket order
+          appears twice here and once above - the two cards count
+          different things on purpose. */}
+      {hasTickets && recentTickets.length > 0 && (
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Recent Tickets</div>
+            </div>
+            <a
+              href="#"
+              className="section-link"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveTab("tickets");
+              }}
+            >
+              View all tickets →
+            </a>
+          </div>
+          <div className="section-body flush">
+            <div style={{ overflowX: "auto" }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Ticket ID</th>
+                    <th>Buyer</th>
+                    <th>Ticket</th>
+                    <th>Subtotal</th>
+                    <th>Car</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentTickets.map((t) => (
+                    <tr key={t.id}>
+                      <td>
+                        <span className="mono order-id">#{t.orderId}</span>
+                      </td>
+                      <td className="mono">{t.id}</td>
+                      <td>
+                        <div className="customer-cell">
+                          <div>
+                            <div className="customer-name">
+                              {t.buyerName || "-"}
+                            </div>
+                            <div className="customer-email">
+                              {t.buyerEmail || "-"}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>{t.ticketName || "-"}</td>
+                      <td className="amount">
+                        {currency(t.lineTotal, event.region)}
+                      </td>
+                      <td>{carLabel(t)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Pending show cars */}
