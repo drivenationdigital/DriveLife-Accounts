@@ -6,6 +6,8 @@ import { useState, type ReactNode } from "react";
 import { useUI } from "@/context/UIContext";
 import { cx } from "@/lib/utils";
 import { careventsHomeUrl } from "@/lib/eventPageUrl";
+import { REGIONS } from "@/lib/regions";
+import { useVisitorRegion } from "@/lib/useVisitorRegion";
 import {
   ArrowLeftIcon,
   DashboardIcon,
@@ -75,6 +77,11 @@ function NavItem({
 export function Sidebar() {
   const { closeSidebar } = useUI();
   const pathname = usePathname();
+  // Best guess at where the visitor is, so "Back to CarEvents.com"
+  // lands on their own region's site rather than always the UK one.
+  // A guess is fine here - the worst case is the other homepage - but
+  // it must never be reused for anything that touches data.
+  const visitorRegion = useVisitorRegion();
   // Local state for items that don't have routes yet.
   const [activeKey, setActiveKey] = useState<string>("");
 
@@ -112,7 +119,7 @@ export function Sidebar() {
         <NavItem
           icon={<ArrowLeftIcon />}
           label="Back to CarEvents.com"
-          href={careventsHomeUrl()}
+          href={careventsHomeUrl(REGIONS[visitorRegion])}
           external
           variant="nav-item-back"
           onClick={() => handleClick("")}

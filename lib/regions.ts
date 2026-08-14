@@ -49,6 +49,13 @@ export interface Region {
    *  Lives here so a new region declares its icon alongside its symbol
    *  instead of a component switching on the key. */
   currencyIcon: string;
+  /** This region's public site, no trailing slash.
+   *
+   *  Note the asymmetry: the US site is the bare domain and the UK one
+   *  lives under `/uk`. That's a WordPress multisite subdirectory
+   *  layout, not a mistake - the network's main site is the US one, so
+   *  it has no path prefix of its own. */
+  publicSiteUrl: string;
   /** False where the region can't sell tickets, which hides the entire
    *  ticketing surface - tickets, discounts, orders, attendees and all
    *  three application types. Both live regions are ticketed now; the
@@ -67,6 +74,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     currency: "GBP",
     currencySymbol: "£",
     currencyIcon: "fa-solid fa-sterling-sign",
+    publicSiteUrl: "https://www.carevents.com/uk",
     ticketing: true,
   },
   us: {
@@ -78,6 +86,7 @@ export const REGIONS: Record<RegionKey, Region> = {
     currency: "USD",
     currencySymbol: "$",
     currencyIcon: "fa-solid fa-dollar-sign",
+    publicSiteUrl: "https://www.carevents.com",
     ticketing: true,
   },
 };

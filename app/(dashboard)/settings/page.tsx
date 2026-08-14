@@ -137,7 +137,7 @@ function Card({ children }: { children: React.ReactNode }) {
 function EmbedBox() {
   const [copied, setCopied] = useState(false);
   const snippet = `<iframe
-  src="https://account.drive-life.com/embed/{type}/{id}"
+  src="https://account.carevents.com/embed/{type}/{id}"
   width="100%"
   height="800"
   style="border:0;border-radius:12px"

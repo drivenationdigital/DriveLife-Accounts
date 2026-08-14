@@ -42,11 +42,11 @@ export function ApplicationLinksCard({
   // public form, and a toggle that silently changed one of two adjacent
   // URLs would be a trap.
   const directUrl = withApplyTheme(
-    `https://account.drive-life.com/apply/${applicationKind}/${slug}`,
+    `https://account.carevents.com/apply/${applicationKind}/${slug}`,
     theme,
   );
   const embedSrc = withApplyTheme(
-    `https://account.drive-life.com/embed/${applicationKind}/${slug}`,
+    `https://account.carevents.com/embed/${applicationKind}/${slug}`,
     theme,
   );
   const embedSnippet = `<iframe

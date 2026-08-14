@@ -8,6 +8,8 @@
  * can't produce a broken link if the organiser renames the event.
  * Same shape the editor's Preview button uses.
  */
+import type { Region } from "./regions";
+
 const CAREVENTS_BASE =
   process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com/uk";
 
@@ -16,15 +18,21 @@ export function eventPageUrl(eventId: number): string {
 }
 
 /**
- * The public site's home page - the sidebar's "Back to CarEvents.com".
+ * The public site's home page for a region - the sidebar's "Back to
+ * CarEvents.com".
  *
- * Shares CAREVENTS_BASE with the event links above so a deployment
- * pointing at staging doesn't send people from a staging dashboard to
- * the live site. Note the base includes the region path ("/uk"): the
- * sidebar has no event in scope to take a region from, so it lands on
- * whichever the deployment is configured for, matching the API's own
- * default.
+ * The two regions are different URLs, not different paths off one:
+ * `carevents.com` is the US site and `carevents.com/uk` is the UK one,
+ * because the network's main site is the US one and so carries no path
+ * prefix. Both come off the region table so a third site declares its
+ * URL alongside its currency rather than in a switch here.
+ *
+ * `NEXT_PUBLIC_CAREVENTS_URL` still wins when set: a staging dashboard
+ * must not send people to the live site, whichever region they're in.
  */
-export function careventsHomeUrl(): string {
-  return CAREVENTS_BASE;
+export function careventsHomeUrl(region: Region): string {
+  if (process.env.NEXT_PUBLIC_CAREVENTS_URL) {
+    return process.env.NEXT_PUBLIC_CAREVENTS_URL;
+  }
+  return region.publicSiteUrl;
 }
