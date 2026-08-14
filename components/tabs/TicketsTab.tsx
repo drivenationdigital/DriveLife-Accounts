@@ -6,7 +6,9 @@ import type { SoldTicket } from "@/context/types";
 import { currency } from "@/lib/utils";
 import { useEventTickets } from "@/lib/eventTickets";
 import { mapSoldTicket } from "@/lib/eventMapper";
-import { SearchIcon } from "@/components/ui/Icons";
+import { useExportTickets } from "@/lib/ticketsExport";
+import { useAction } from "@/context/ActionContext";
+import { DownloadIcon, SearchIcon } from "@/components/ui/Icons";
 import { Pagination } from "@/components/ui/Pagination";
 
 const PER_PAGE = 50;
@@ -86,6 +88,26 @@ export function TicketsTab() {
       : "Loading..."
     : buildSubtitle(page, PER_PAGE, total, debouncedSearch.trim() !== "");
 
+  // Export ALL tickets, honouring the active search but not the page -
+  // the point of an export is the whole set. Goes through the shared
+  // action flow, so it gets the full-screen loader and the confirmation
+  // notification every other mutating action uses.
+  const exportTickets = useExportTickets();
+  const runAction = useAction();
+  const handleExport = () =>
+    runAction({
+      loadingLabel: "Preparing your CSV...",
+      successTitle: "Tickets exported",
+      successMessage: "The CSV has been downloaded.",
+      errorTitle: "Export failed",
+      run: () =>
+        exportTickets.mutateAsync({
+          eid: event.encryptedId,
+          site: event.region.key,
+          search: debouncedSearch.trim() || undefined,
+        }),
+    });
+
   const goToPage = (next: number) => {
     setPage(next);
     if (typeof window !== "undefined") {
@@ -99,6 +121,16 @@ export function TicketsTab() {
         <div>
           <div className="section-title">All Tickets</div>
           <div className="section-subtitle">{subtitle}</div>
+        </div>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={exportTickets.isPending || total === 0}
+          >
+            <DownloadIcon /> Export CSV
+          </button>
         </div>
       </div>
 

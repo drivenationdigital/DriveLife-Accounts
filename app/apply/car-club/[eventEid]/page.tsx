@@ -10,6 +10,12 @@ import {
 } from "react";
 
 import { ConfettiBurst } from "@/components/apply/ConfettiBurst";
+import { useSearchParams } from "next/navigation";
+import {
+  APPLY_THEME_PARAM,
+  applyShellClass,
+  parseApplyTheme,
+} from "@/lib/applyTheme";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
 import { formatRegionCurrency, regionFromSite } from "@/lib/regions";
@@ -330,8 +336,15 @@ export default function CarClubApplyPage({
 }
 
 function PageShell({ children }: { children: ReactNode }) {
+  // `?theme=dark` inverts the palette - see lib/applyTheme.ts. Read
+  // here rather than passed down so the standalone page and the
+  // embedded copy pick it up identically: the iframe's own src carries
+  // the param, and useSearchParams reads whatever URL it was framed at.
+  const theme = parseApplyTheme(useSearchParams()?.get(APPLY_THEME_PARAM));
   return (
-    <div className="apply-shell min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40 py-8 sm:py-14 px-4">
+    <div
+      className={`${applyShellClass(theme)} min-h-screen bg-gradient-to-b from-ink-50 to-ink-100/40 py-8 sm:py-14 px-4`}
+    >
       <style>{`
         .apply-shell .input,
         .apply-shell input.input,

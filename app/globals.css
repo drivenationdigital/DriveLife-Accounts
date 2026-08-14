@@ -4219,6 +4219,103 @@
   min-height: 0;
 }
 
+/* ── Dark scheme for the public application forms ────────────────────
+ *
+ * Opted into with `?theme=dark` (see lib/applyTheme.ts), because these
+ * forms are embedded in other people's sites and the host page decides
+ * what reads correctly - not the visitor's OS.
+ *
+ * Implemented by REDEFINING the ink scale rather than restyling each
+ * element. Tailwind v4 compiles `text-ink-900` to
+ * `color: var(--color-ink-900)`, so overriding those variables on the
+ * shell re-points every ink utility inside it in one go - including any
+ * added to these forms later, which is the reason to do it this way
+ * rather than with a list of per-element overrides.
+ *
+ * The scale is inverted, not replaced: 50 (lightest) becomes the
+ * darkest, 900 (darkest) becomes the lightest, so "50 is a background
+ * and 900 is body text" still holds and the markup doesn't change.
+ *
+ * Gold is left alone. It's the brand accent and already carries enough
+ * contrast on a #131313 ground; flipping it would make the buttons
+ * muddy. */
+.apply-shell.is-dark {
+  --color-ink-50: #131313;
+  --color-ink-100: #1c1c1c;
+  --color-ink-200: #2c2c2c;
+  --color-ink-300: #4a4a4a;
+  /* 400/500 are the muted-text steps. Lifted rather than mirrored -
+     a true mirror (#8a8a8a → #757575) fails contrast on this ground. */
+  --color-ink-400: #8f8f8f;
+  --color-ink-500: #a8a8a8;
+  --color-ink-700: #dcdcdc;
+  --color-ink-900: #f4f4f4;
+
+  /* The gradient the shell paints resolves from the vars above, but
+     state it outright so the page has a solid ground even before the
+     gradient renders. */
+  background-color: #131313;
+  color: var(--color-ink-900);
+  color-scheme: dark;
+}
+
+/* `bg-white` is an absolute, not a scale step, so the variable swap
+   above can't reach it. Unlayered, so it beats Tailwind's own utility
+   layer without needing !important. */
+.apply-shell.is-dark .bg-white {
+  background-color: var(--color-ink-100);
+}
+
+/* Form controls. The three apply pages each inline a <style> block for
+   `.input`; these selectors are one class more specific, so they win
+   regardless of source order and the pages don't need touching. */
+.apply-shell.is-dark .input,
+.apply-shell.is-dark input.input,
+.apply-shell.is-dark select.input,
+.apply-shell.is-dark textarea.input {
+  color: var(--color-ink-900);
+  background: #1c1c1c;
+  border-color: #383838;
+}
+.apply-shell.is-dark .input::placeholder {
+  color: #7a7a7a;
+}
+.apply-shell.is-dark .input:hover {
+  border-color: #4a4a4a;
+}
+.apply-shell.is-dark .input:focus {
+  background: #232323;
+  border-color: var(--color-gold-400);
+  box-shadow: 0 0 0 3px rgba(203, 167, 95, 0.2);
+}
+/* The select chevron is a data-URI SVG with a baked-in stroke colour,
+   so it needs its own light-on-dark copy. */
+.apply-shell.is-dark select.input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8a8a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+}
+
+/* Tinted status blocks. Amber (closed / warning) and red (errors) are
+   semantic, so they keep their hue and swap to a dark-ground pairing
+   rather than inverting to something unrecognisable. */
+.apply-shell.is-dark .bg-amber-50 {
+  background-color: #2a2010;
+}
+.apply-shell.is-dark .border-amber-200 {
+  border-color: #4a3a18;
+}
+.apply-shell.is-dark .text-amber-800 {
+  color: #e8c07a;
+}
+.apply-shell.is-dark .text-red-600 {
+  color: #f28b82;
+}
+.apply-shell.is-dark .bg-gold-50 {
+  background-color: #241f14;
+}
+.apply-shell.is-dark .border-gold-200 {
+  border-color: #4a3f24;
+}
+
 .spaces-view {
   display: inline-flex;
   align-items: center;

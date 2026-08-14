@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { withApplyTheme, type ApplyTheme } from "@/lib/applyTheme";
+
 /**
  * "Application links" card used at the bottom of the Show Cars,
  * Car Clubs and Traders panels.
@@ -31,8 +33,22 @@ export function ApplicationLinksCard({
    *  for screen readers). E.g. "Show car applications". */
   iframeTitle: string;
 }) {
-  const directUrl = `https://account.drive-life.com/apply/${applicationKind}/${slug}`;
-  const embedSrc = `https://account.drive-life.com/embed/${applicationKind}/${slug}`;
+  // Colour scheme for the public form. Light is the default and is
+  // left out of the URL entirely, so an embed copied before this
+  // existed keeps working and a light link stays clean.
+  const [theme, setTheme] = useState<ApplyTheme>("light");
+
+  // Applied to BOTH links, not just the embed. They point at the same
+  // public form, and a toggle that silently changed one of two adjacent
+  // URLs would be a trap.
+  const directUrl = withApplyTheme(
+    `https://account.drive-life.com/apply/${applicationKind}/${slug}`,
+    theme,
+  );
+  const embedSrc = withApplyTheme(
+    `https://account.drive-life.com/embed/${applicationKind}/${slug}`,
+    theme,
+  );
   const embedSnippet = `<iframe
   src="${embedSrc}"
   width="100%"
@@ -71,6 +87,36 @@ export function ApplicationLinksCard({
       </div>
 
       <div className="space-y-3">
+        {/* Colour scheme. Sits above both fields because it governs
+            both - the direct link and the embed open the same form. */}
+        <div>
+          <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+            Colour scheme
+          </label>
+          <div className="seg w-full" role="group">
+            <button
+              type="button"
+              className={`seg-btn ${theme === "light" ? "is-active" : ""}`}
+              aria-pressed={theme === "light"}
+              onClick={() => setTheme("light")}
+            >
+              Light
+            </button>
+            <button
+              type="button"
+              className={`seg-btn ${theme === "dark" ? "is-active" : ""}`}
+              aria-pressed={theme === "dark"}
+              onClick={() => setTheme("dark")}
+            >
+              Dark
+            </button>
+          </div>
+          <p className="text-xs text-ink-500 mt-2">
+            Match the site you&apos;re embedding into. Both links below
+            update.
+          </p>
+        </div>
+
         <div>
           <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
             Direct URL

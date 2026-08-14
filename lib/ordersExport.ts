@@ -10,6 +10,7 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { apiPost } from "./apiClient";
+import { downloadCsv } from "./csvDownload";
 
 interface OrdersExportResponse {
   success: true;
@@ -21,20 +22,6 @@ interface OrdersExportResponse {
 interface ExportVars {
   eid: string;
   search?: string;
-}
-
-/** Trigger a browser download of a CSV string. */
-function downloadCsv(filename: string, csv: string) {
-  // Prepend a BOM so Excel opens UTF-8 correctly.
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
 }
 
 /**
