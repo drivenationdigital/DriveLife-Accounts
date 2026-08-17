@@ -12,7 +12,13 @@
     "cloudways:logs": "pm2 logs ce-nextadmin-app",
     "cloudways:reload": "pm2 reload ce-nextadmin-app --update-env",
     "cloudways:deploy": "npm run build && npm run cloudways:reload",
-    "pm2:create": "pm2 start npm --name ce-nextadmin-app -- start"
+    "pm2:create": "pm2 start npm --name ce-nextadmin-app -- start",
+    "cloudways:restart-staging": "pm2 restart ce-nextadmin-app-staging",
+    "cloudways:stop-staging": "pm2 stop ce-nextadmin-app-staging",
+    "cloudways:logs-staging": "pm2 logs ce-nextadmin-app-staging",
+    "cloudways:reload-staging": "pm2 reload ce-nextadmin-app-staging --update-env",
+    "cloudways:deploy-staging": "npm run build && npm run cloudways:reload-staging",
+    "pm2:create-staging": "pm2 start npm --name ce-nextadmin-app-staging -- start"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.2",
