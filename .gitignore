@@ -44,3 +44,6 @@ Thumbs.db
 
 # production
 /build
+
+## PHP
+gitautodeploy-config.php
