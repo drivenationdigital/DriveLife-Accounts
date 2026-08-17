@@ -3,6 +3,11 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
+import { careventsHomeUrl } from "@/lib/eventPageUrl";
+import { REGIONS } from "@/lib/regions";
+import { useVisitorRegion } from "@/lib/useVisitorRegion";
+import { ChevLeftIcon } from "@/components/ui/Icons";
+
 /**
  * Shared chrome for the signed-out pages: sign in, register, forgot
  * password.
@@ -74,6 +79,29 @@ export function AuthAltPanel({
       <Link href={href} className="btn btn-secondary auth-alt-btn">
         {actionLabel}
       </Link>
+    </div>
+  );
+}
+
+/**
+ * "Back to CarEvents.com" - the way out of the signed-out pages.
+ *
+ * A plain `<a>`, not a Next `Link`: it leaves the app entirely, so it
+ * should be a real navigation rather than something Next tries to route
+ * internally.
+ *
+ * The destination follows the visitor's likely region, same as the
+ * dashboard sidebar - see lib/visitorRegion.ts. Nobody is signed in
+ * here, so a browser guess is the only signal there is.
+ */
+export function AuthBackToSite() {
+  const region = useVisitorRegion();
+  return (
+    <div className="auth-back">
+      <a href={careventsHomeUrl(REGIONS[region])}>
+        <ChevLeftIcon aria-hidden />
+        Back to CarEvents.com
+      </a>
     </div>
   );
 }
