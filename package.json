@@ -6,6 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start -p 3005",
+<<<<<<< HEAD
+=======
+    "start:staging": "next start -p 3009",
+>>>>>>> 5d421f1b1cf7e31953de6591ad9af003c7439a53
     "lint": "eslint",
     "cloudways:restart": "pm2 restart ce-nextadmin-app",
     "cloudways:stop": "pm2 stop ce-nextadmin-app",
@@ -18,7 +22,11 @@
     "cloudways:logs-staging": "pm2 logs ce-nextadmin-app-staging",
     "cloudways:reload-staging": "pm2 reload ce-nextadmin-app-staging --update-env",
     "cloudways:deploy-staging": "npm run build && npm run cloudways:reload-staging",
+<<<<<<< HEAD
     "pm2:create-staging": "pm2 start npm --name ce-nextadmin-app-staging -- start"
+=======
+    "pm2:create-staging": "pm2 start npm --name ce-nextadmin-app-staging -- run start:staging"
+>>>>>>> 5d421f1b1cf7e31953de6591ad9af003c7439a53
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.2",
