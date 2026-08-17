@@ -5,7 +5,12 @@ import { useRef, useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate, type EditorImage } from "@/context/EventCreateContext";
-import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
+import {
+  imageSrc,
+  makeLocalImage,
+  needsServerDelete,
+  revokeIfLocal,
+} from "@/lib/editorImage";
 import { useUploadEventImage, useRemoveEventImage } from "@/lib/imageMutations";
 import { ApiError } from "@/lib/apiClient";
 
@@ -132,8 +137,9 @@ export function DescriptionPanel() {
     setCoverError(null);
 
     // Server-side delete only matters for CF-backed covers. Legacy
-    // remote covers without a cloudflareId just drop from local state.
-    if (current.kind === "remote" && current.cloudflareId && eid) {
+    // remote covers without a cloudflareId, and WordPress-sourced
+    // ones, just drop from local state.
+    if (needsServerDelete(current) && eid) {
       setCoverBusy(true);
       try {
         await remover.mutateAsync({ eid, site, mediaId: current.cloudflareId });

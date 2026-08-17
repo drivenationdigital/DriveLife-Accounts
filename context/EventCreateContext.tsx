@@ -69,11 +69,19 @@ export type EditorImage =
   | {
       kind: "remote";
       url: string;
-      /** Cloudflare Images id when the image came from a CF upload.
-       *  Optional so legacy ACF-backed images (which only have a url)
-       *  stay valid. Required for the DELETE /event-image flow -
-       *  the remove handlers check for it before calling the server. */
+      /** Media id used by the DELETE /event-image flow - the
+       *  Cloudflare image hash for CF uploads, a `wp:<attachment_id>`
+       *  handle for WordPress rows. Optional so legacy ACF-backed
+       *  images (which only have a url) stay valid; the remove
+       *  handlers check for it before calling the server. */
       cloudflareId?: string;
+      /** Where the file lives. Only "cloudflare" images are ours to
+       *  delete server-side - WordPress attachments are dropped from
+       *  local state and the shortened gallery is written on save.
+       *  Undefined means "assume cloudflare", which keeps images
+       *  uploaded through this editor (and older /event-edit payloads
+       *  without the field) on the delete path. */
+      source?: "cloudflare" | "wordpress" | string;
     }
   | { kind: "local"; previewUrl: string; file: File };
 

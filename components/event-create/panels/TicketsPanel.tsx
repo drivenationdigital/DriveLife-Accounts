@@ -30,7 +30,12 @@ import {
   useUploadEventImage,
   useRemoveEventImage,
 } from "@/lib/imageMutations";
-import { imageSrc, makeLocalImage, revokeIfLocal } from "@/lib/editorImage";
+import {
+  imageSrc,
+  makeLocalImage,
+  needsServerDelete,
+  revokeIfLocal,
+} from "@/lib/editorImage";
 
 import { PanelHeader } from "../PanelHeader";
 import { PerDateNotice } from "../PerDateNotice";
@@ -1143,8 +1148,9 @@ function TicketLogoField() {
     dispatch({ type: "SET_FIELD", key: "ticketLogo", value: null });
     revokeIfLocal(current);
     // Only Cloudflare-backed images need a server-side delete; a local
-    // one that never uploaded is gone the moment we drop it.
-    if (eid && current?.kind === "remote" && current.cloudflareId) {
+    // one that never uploaded is gone the moment we drop it, and a
+    // WordPress attachment isn't ours to delete.
+    if (eid && current && needsServerDelete(current)) {
       try {
         await remove.mutateAsync({ eid, site, mediaId: current.cloudflareId });
       } catch {

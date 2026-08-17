@@ -11,6 +11,7 @@ import {
 import {
   imageSrc,
   makeLocalImage,
+  needsServerDelete,
   revokeIfLocal,
 } from "@/lib/editorImage";
 import {
@@ -236,7 +237,12 @@ export function GalleryPanel() {
     // server first and only remove from local state on success - so a
     // server-side failure leaves the tile visible with an error
     // message rather than silently vanishing.
-    if (removed.kind === "remote" && removed.cloudflareId && eid) {
+    //
+    // WordPress-sourced rows skip the request entirely and just drop
+    // the tile - the attachment isn't ours to delete. That removal is
+    // local-only (media isn't in the /event-update payload), so the
+    // row reappears on the next hydrate.
+    if (needsServerDelete(removed) && eid) {
       try {
         await remover.mutateAsync({ eid, site, mediaId: removed.cloudflareId });
       } catch (err) {

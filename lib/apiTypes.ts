@@ -889,6 +889,30 @@ export interface ApiEventDiscount {
   discount_given?: number;
 }
 
+/**
+ * One media row on /event-edit.
+ *
+ * `source` tells us where the file actually lives, which decides
+ * whether removing it is a server-side operation:
+ *
+ *   - "cloudflare" - row in `ce_cf_events_media`, `id` is the CF image
+ *     hash. DELETE /event-image removes it from CF and the table.
+ *   - "wordpress"  - legacy WP attachment, `id` is a `wp:<id>` handle
+ *     and `attachment_id` the raw post id. These aren't ours to
+ *     delete, so the editor just drops them from local state and lets
+ *     the save write the shortened gallery back.
+ *
+ * Optional so older /event-edit deploys that only send { id, url }
+ * still parse - absence is treated as "cloudflare" by the mapper,
+ * which matches how those deploys behaved.
+ */
+export interface ApiEventEditImage {
+  id: string | null;
+  url: string;
+  source?: "cloudflare" | "wordpress" | string;
+  attachment_id?: number | null;
+}
+
 export interface ApiEventEditResponse {
   success: true;
   event_id: number;
@@ -926,17 +950,18 @@ export interface ApiEventEditResponse {
     tiktok_url: string;
   };
   media: {
-    /** Editor-form media. `id` is the Cloudflare image id when the
-     *  row comes from `ce_cf_events_media`; null for legacy ACF
-     *  uploads where we only have a URL. The id is what powers
-     *  server-side deletion (DELETE /event-image expects it). */
-    cover_image: { id: string | null; url: string } | null;
-    gallery: Array<{ id: string | null; url: string }>;
+    /** Editor-form media. `id` is the Cloudflare image id for rows
+     *  from `ce_cf_events_media`, or a `wp:<attachment_id>` handle for
+     *  WordPress-backed rows; null for legacy ACF uploads where we
+     *  only have a URL. The id is what powers server-side deletion
+     *  (DELETE /event-image expects it). */
+    cover_image: ApiEventEditImage | null;
+    gallery: ApiEventEditImage[];
     /** Logo printed on this event's tickets (media_group
      *  "ticket_logo"). Optional so older /event-edit deploys that
      *  pre-date the ticket-logo rollout still parse; the mapper
      *  treats absence as "no logo set". */
-    ticket_logo?: { id: string | null; url: string } | null;
+    ticket_logo?: ApiEventEditImage | null;
   };
   tickets: {
     ticket_type: 1 | 2 | 3; // 1=none, 2=CE, 3=external

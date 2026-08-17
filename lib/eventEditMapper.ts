@@ -27,6 +27,7 @@
 
 import type {
   ApiEventDiscount,
+  ApiEventEditImage,
   ApiEventEditResponse,
   ApiEventTicket,
   ApiShowCarCategory,
@@ -34,6 +35,7 @@ import type {
 } from "@/lib/apiTypes";
 import type {
   Discount,
+  EditorImage,
   DiscountId,
   DiscountKind,
   EventCreateState,
@@ -150,25 +152,16 @@ export function mapEventEditResponse(
     tiktokUrl: response.description.tiktok_url,
 
     // ---- Media --------------------------------------------------------
-    // The API returns image rows as { id, url } pairs - `id` is the
-    // Cloudflare image id (or null for legacy ACF images that have a
-    // URL but no removable backing). We carry it through as
-    // cloudflareId so removal in the editor can hit DELETE /event-image
-    // for CF-backed rows and just drop locally for legacy ones.
+    // The API returns image rows as { id, url, source } - `id` is the
+    // Cloudflare image id, or a `wp:<attachment_id>` handle for
+    // WordPress rows, or null for legacy ACF images that have a URL
+    // but no removable backing. We carry both id and source through so
+    // removal in the editor can hit DELETE /event-image for CF-backed
+    // rows and just drop locally for the rest.
     coverImage: response.media.cover_image
-      ? {
-          kind: "remote",
-          url: response.media.cover_image.url,
-          ...(response.media.cover_image.id
-            ? { cloudflareId: response.media.cover_image.id }
-            : {}),
-        }
+      ? mapEditorImage(response.media.cover_image)
       : null,
-    gallery: response.media.gallery.map((row) => ({
-      kind: "remote" as const,
-      url: row.url,
-      ...(row.id ? { cloudflareId: row.id } : {}),
-    })),
+    gallery: response.media.gallery.map(mapEditorImage),
 
     // ---- Tickets ------------------------------------------------------
     ticketSource: mapTicketSource(response.tickets.ticket_type),
@@ -180,13 +173,7 @@ export function mapEventEditResponse(
     externalTicketInfo: response.tickets.external_entry_details,
     freeEntryInfo: response.tickets.entry_details,
     ticketLogo: response.media.ticket_logo
-      ? {
-          kind: "remote",
-          url: response.media.ticket_logo.url,
-          ...(response.media.ticket_logo.id
-            ? { cloudflareId: response.media.ticket_logo.id }
-            : {}),
-        }
+      ? mapEditorImage(response.media.ticket_logo)
       : null,
     ticketInfo: response.tickets.event_tickets_information,
     ticketTerms: response.tickets.ticket_terms_and_conditions,
@@ -218,6 +205,23 @@ export function mapEventEditResponse(
 
     // ---- Publish ------------------------------------------------------
     ...mapPublish(response.publish),
+  };
+}
+
+/**
+ * Map one API media row onto the editor's remote EditorImage.
+ *
+ * Both `cloudflareId` and `source` are only set when the API sends
+ * them - an image with no id has no removable backing at all, and a
+ * missing `source` is left undefined so the remove handlers fall back
+ * to their pre-existing "assume cloudflare" behaviour.
+ */
+function mapEditorImage(row: ApiEventEditImage): EditorImage {
+  return {
+    kind: "remote",
+    url: row.url,
+    ...(row.id ? { cloudflareId: row.id } : {}),
+    ...(row.source ? { source: row.source } : {}),
   };
 }
 
