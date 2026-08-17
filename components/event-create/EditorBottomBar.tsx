@@ -4,7 +4,6 @@ import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { eventDetailPath } from "@/lib/siteRoutes";
 import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
 import {
   DEFAULT_STEP,
@@ -48,13 +47,11 @@ export function EditorBottomBar() {
 
   // On the last step there's no "next" - the primary button becomes the
   // save/publish action instead of dead-ending as a disabled Continue.
+  // Saving stays in the editor; useEditorSave shows the success toast.
   const onSave = async () => {
     if (isSaving) return;
     try {
-      const res = await run();
-      if (res.post_status !== "draft") {
-        router.push(eventDetailPath(res.encrypted_id, state.site));
-      }
+      await run();
     } catch {
       // The PublishPanel surfaces the error message; here we just
       // re-enable the button (isSaving flips back via the mutation).
@@ -97,7 +94,10 @@ export function EditorBottomBar() {
           ) : (
             <>
               <i className="fa-solid fa-rocket text-xs" aria-hidden />{" "}
-              {saveLabelForStatus(state.status)}
+              {saveLabelForStatus(
+                state.status,
+                state.livePostStatus === "publish",
+              )}
             </>
           )}
         </button>

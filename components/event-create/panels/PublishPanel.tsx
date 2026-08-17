@@ -6,8 +6,7 @@ import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { eventDetailPath } from "@/lib/siteRoutes";
-import { useEditorSave } from "@/lib/useEditorSave";
+import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
 import { ApiError } from "@/lib/apiClient";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
@@ -55,15 +54,18 @@ export function PublishPanel() {
   // the topbar "Saved" pill reflects a save triggered from here too.
   const { run, isSaving, error } = useEditorSave();
 
+  // Already live on the server → the big CTA reads "Save", not
+  // "Publish event". (livePostStatus tracks the persisted status,
+  // independent of the radio above.)
+  const alreadyPublished = state.livePostStatus === "publish";
+
   const onSave = async () => {
     if (isSaving) return;
     try {
       // Save with the status the user picked in this panel's radio.
-      const res = await run();
-      // Draft → stay so they can keep editing; live/scheduled → view.
-      if (res.post_status !== "draft") {
-        router.push(eventDetailPath(res.encrypted_id, state.site));
-      }
+      // Stays in the editor either way - useEditorSave shows the
+      // success toast.
+      await run();
     } catch {
       // Surfaced inline below via `error`.
     }
@@ -297,11 +299,7 @@ export function PublishPanel() {
         />
         {isSaving
           ? "Saving…"
-          : state.status === "scheduled"
-            ? "Schedule event"
-            : state.status === "draft"
-              ? "Save draft"
-              : "Publish event"}
+          : saveLabelForStatus(state.status, alreadyPublished)}
       </button>
 
       {/* Save error - only rendered on failure. */}

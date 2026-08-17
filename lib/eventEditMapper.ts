@@ -108,6 +108,7 @@ export type HydratedEventState = Pick<
   | "ticketsOnGateInfo"
   | "discounts"
   | "status"
+  | "livePostStatus"
   | "scheduledDate"
   | "scheduledTime"
   | "visibility"
@@ -778,7 +779,7 @@ function mapPublish(
   api: ApiEventEditResponse["publish"],
 ): Pick<
   HydratedEventState,
-  "status" | "scheduledDate" | "scheduledTime" | "visibility"
+  "status" | "livePostStatus" | "scheduledDate" | "scheduledTime" | "visibility"
 > {
   let status: "draft" | "published" | "scheduled";
   switch (api.status) {
@@ -800,6 +801,13 @@ function mapPublish(
 
   return {
     status,
+    // Keep the raw server status alongside the radio mapping - the
+    // editor chrome uses it to tell "already live" apart from "user
+    // has picked Publish now but not saved yet".
+    livePostStatus:
+      api.status === "future" || api.status === "draft"
+        ? api.status
+        : "publish",
     scheduledDate: api.scheduled_date,
     scheduledTime: api.scheduled_time ?? "09:00",
     visibility: api.visibility === 2 ? "private" : "public",

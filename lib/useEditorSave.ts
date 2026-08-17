@@ -5,6 +5,7 @@ import {
   type EventCreateState,
 } from "@/context/EventCreateContext";
 import { useSaveEvent } from "@/lib/eventMutations";
+import { useToast } from "@/context/ToastContext";
 import type { ApiEventUpdateResponse } from "@/lib/eventSaveMapper";
 
 /**
@@ -21,6 +22,14 @@ import type { ApiEventUpdateResponse } from "@/lib/eventSaveMapper";
  * panel. `run({ overrideStatus })` forces a status first - e.g. the
  * topbar's rocket button publishes regardless of the panel selection -
  * and keeps the panel radio in sync so the UI reflects what was saved.
+ *
+ * Every save stays on the editor page (no redirect to the event
+ * overview) and surfaces a success toast here, so all three controls
+ * behave identically. After the response lands we sync the server
+ * identity (encryptedId / postId - a brand-new event only gets these
+ * on its first save, and without them the next save would create a
+ * duplicate) and `livePostStatus`, which drives the Publish-vs-Save
+ * CTA labels.
  */
 export type EditorSavePhase = "idle" | "saving" | "saved" | "error";
 
@@ -31,8 +40,9 @@ type RunOptions = {
 export function useEditorSave() {
   const { state, dispatch } = useEventCreate();
   const mutation = useSaveEvent();
+  const toast = useToast();
 
-  const run = (opts: RunOptions = {}): Promise<ApiEventUpdateResponse> => {
+  const run = async (opts: RunOptions = {}): Promise<ApiEventUpdateResponse> => {
     const { overrideStatus } = opts;
 
     // Sync the panel radio when a control forces a status, so the UI
@@ -48,7 +58,37 @@ export function useEditorSave() {
       ? { ...state, status: overrideStatus }
       : state;
 
-    return mutation.mutateAsync(effective);
+    // Whether the event was live before this save decides the toast
+    // wording below - read it before we overwrite livePostStatus.
+    const wasLive = state.livePostStatus === "publish";
+
+    const res = await mutation.mutateAsync(effective);
+
+    const liveStatus =
+      res.post_status === "future" || res.post_status === "draft"
+        ? res.post_status
+        : "publish";
+
+    dispatch({
+      type: "HYDRATE",
+      partial: {
+        encryptedId: res.encrypted_id,
+        postId: res.event_id,
+        livePostStatus: liveStatus,
+      },
+    });
+
+    toast.success(
+      liveStatus === "draft"
+        ? "Draft saved."
+        : liveStatus === "future"
+          ? "Event scheduled."
+          : wasLive
+            ? "Event saved."
+            : "Event published.",
+    );
+
+    return res;
   };
 
   const phase: EditorSavePhase = mutation.isPending
@@ -69,9 +109,14 @@ export function useEditorSave() {
 }
 
 /** Button label for a given status - shared by the bottombar + panel
- *  so the wording stays consistent. */
-export function saveLabelForStatus(status: EventCreateState["status"]): string {
+ *  so the wording stays consistent. `alreadyPublished` flips the
+ *  publish wording to a plain "Save": pushing changes to an event
+ *  that's already live isn't a publish, it's an update. */
+export function saveLabelForStatus(
+  status: EventCreateState["status"],
+  alreadyPublished = false,
+): string {
   if (status === "draft") return "Save draft";
   if (status === "scheduled") return "Schedule event";
-  return "Publish event";
+  return alreadyPublished ? "Save" : "Publish event";
 }

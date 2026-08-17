@@ -396,6 +396,14 @@ export type EventCreateState = {
   // the topbar Preview link (WP preview URL), which only shows when set.
   postId: number | null;
 
+  // The post status the event actually has on the server right now
+  // ("publish" | "draft" | "future"), as opposed to `status` below
+  // which is the radio selection in the Publish panel. Hydrated on
+  // load and refreshed after every save. null = never saved. Used to
+  // decide whether the CTA reads "Publish" (going live is a change)
+  // or "Save" (already live, this is just an update).
+  livePostStatus: "publish" | "draft" | "future" | null;
+
   // ---- Create-flow result ----
   // Who the event is hosted by, chosen from the "Hosted by" dropdown
   // under the title. Replaces the old three-card event-type step.
@@ -602,6 +610,7 @@ const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
   site: null,
   postId: null,
+  livePostStatus: null,
   hostType: "me",
   hostId: null,
   hostName: "Me",
@@ -693,6 +702,7 @@ const INITIAL_STATE: EventCreateState = {
 type ScalarStateKey =
   | "encryptedId"
   | "site"
+  | "livePostStatus"
   | "hostType"
   | "hostId"
   | "hostName"

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
@@ -24,25 +23,26 @@ import { useEditorSave } from "@/lib/useEditorSave";
  */
 export function EditorTopBar() {
   const { state } = useEventCreate();
-  const router = useRouter();
   const { run, phase, isSaving } = useEditorSave();
   const region = useEventRegion();
+
+  // Whether the event is already live on the server. Drives the CTA
+  // wording: publishing is a one-way moment; after that the same
+  // button is just saving changes.
+  const alreadyPublished = state.livePostStatus === "publish";
 
   // The topbar's rocket is an explicit "go live" - it publishes
   // regardless of the panel selection, except when the user has set up
   // a schedule (in which case we honour it and save as scheduled).
+  // Saving keeps you in the editor; useEditorSave pops the success
+  // toast and refreshes the save-state pill.
   const onPublish = async () => {
     if (isSaving) return;
     try {
-      const res = await run({
+      await run({
         overrideStatus:
           state.status === "scheduled" ? "scheduled" : "published",
       });
-      // Drafts stay in the editor; anything live/scheduled goes to the
-      // event view. (post_status from the API: publish | future | draft.)
-      if (res.post_status !== "draft") {
-        router.push(eventDetailPath(res.encrypted_id, state.site));
-      }
     } catch {
       // Error surfaces via `phase` on the status pill below.
     }
@@ -54,7 +54,7 @@ export function EditorTopBar() {
   const backHref = state.encryptedId
     ? eventDetailPath(state.encryptedId, state.site)
     : "/";
-  const backLabel = state.encryptedId ? "Event" : "Dashboard";
+  const backLabel = state.encryptedId ? "Event Overview" : "Dashboard";
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-200">
@@ -138,7 +138,8 @@ export function EditorTopBar() {
           </a>
         )} */}
 
-        {/* Publish - primary CTA. Label hides on phones, icon stays. */}
+        {/* Publish/Save - primary CTA. Label hides on phones, icon
+            stays. Reads "Save" once the event is already live. */}
         <button
           type="button"
           onClick={onPublish}
@@ -152,7 +153,13 @@ export function EditorTopBar() {
             aria-hidden
           />
           <span className="hidden sm:inline">
-            {isSaving ? "Publishing…" : "Publish"}
+            {isSaving
+              ? alreadyPublished
+                ? "Saving…"
+                : "Publishing…"
+              : alreadyPublished
+                ? "Save"
+                : "Publish"}
           </span>
         </button>
       </div>
