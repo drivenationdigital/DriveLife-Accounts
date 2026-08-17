@@ -67,14 +67,63 @@ async function safeFetch(url: string, init: RequestInit): Promise<Response> {
     return await fetch(url, init);
   } catch (err) {
     if (typeof console !== "undefined") {
-      console.error("[apiClient] fetch failed for", url, err);
+      console.error(
+        "[apiClient] fetch failed for",
+        url,
+        err,
+        "- usually a network problem or a CORS-blocked response; see the Network tab.",
+      );
     }
     throw new ApiError(
-      "Couldn't reach the server. This usually means a network problem or a CORS-blocked response - check the browser console and Network tab for details.",
+      "Couldn't reach the server. Please check your internet connection and try again.",
       0,
       null,
     );
   }
+}
+
+// ============================================================
+// Response envelope
+// ============================================================
+
+/**
+ * Every request opts into WP REST's `_envelope` mode: the response
+ * leaves the server as HTTP 200 with the real status inside the JSON
+ * body ({ body, status, headers }).
+ *
+ * This is not cosmetic. The hosting proxy in front of WordPress strips
+ * `Access-Control-Allow-Origin` from non-2xx responses, so every REST
+ * error (a wrong-password 401, an expired-token 401, a 404) was
+ * CORS-blocked in the browser and surfaced as a fake "network error" -
+ * and the 401 auto-logout could never fire. Enveloped responses are
+ * always 200 on the wire, so they keep their CORS headers and the real
+ * status is read from the body instead.
+ */
+function withEnvelope(url: string): string {
+  return url.includes("?") ? `${url}&_envelope=1` : `${url}?_envelope=1`;
+}
+
+/**
+ * The effective { payload, status } of a response, whether or not the
+ * server enveloped it. Falls back to the raw response status so a
+ * non-enveloped reply (e.g. an error emitted before the REST server
+ * dispatched) still behaves like before.
+ */
+function unwrapEnvelope(
+  parsed: unknown,
+  res: Response,
+): { payload: unknown; status: number } {
+  if (
+    parsed &&
+    typeof parsed === "object" &&
+    "body" in parsed &&
+    "status" in parsed &&
+    typeof (parsed as { status: unknown }).status === "number"
+  ) {
+    const env = parsed as { body: unknown; status: number };
+    return { payload: env.body, status: env.status };
+  }
+  return { payload: parsed, status: res.status };
 }
 
 /** Try to read JSON. Non-JSON responses (e.g. a PHP fatal that emitted
@@ -237,7 +286,7 @@ export async function apiPost<TResponse, TBody = unknown>(
 ): Promise<TResponse> {
   assertSite(path, opts.site);
   const url = `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
-  const res = await safeFetch(url, {
+  const res = await safeFetch(withEnvelope(url), {
     method: "POST",
     headers: buildHeaders(),
     // `site` rides in the body for POST/PUT. Merged here rather than by
@@ -248,20 +297,17 @@ export async function apiPost<TResponse, TBody = unknown>(
   });
 
   const parsed = await safeParseJson(res);
+  const { payload, status } = unwrapEnvelope(parsed, res);
 
-  if (res.status === 401 && !opts.skipAuthRedirect) {
+  if (status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
-  if (!res.ok) {
-    throw new ApiError(
-      extractErrorMessage(parsed, res.status),
-      res.status,
-      parsed,
-    );
+  if (status < 200 || status >= 300) {
+    throw new ApiError(extractErrorMessage(payload, status), status, payload);
   }
 
-  return parsed as TResponse;
+  return payload as TResponse;
 }
 
 export async function apiGet<TResponse>(
@@ -272,23 +318,23 @@ export async function apiGet<TResponse>(
   // GET has no body, so `site` goes in the query string.
   const withSite = withSiteParam(path, opts.site);
   const url = `${API_BASE}${withSite.startsWith("/") ? withSite : `/${withSite}`}`;
-  const res = await safeFetch(url, { method: "GET", headers: buildHeaders() });
+  const res = await safeFetch(withEnvelope(url), {
+    method: "GET",
+    headers: buildHeaders(),
+  });
 
   const parsed = await safeParseJson(res);
+  const { payload, status } = unwrapEnvelope(parsed, res);
 
-  if (res.status === 401 && !opts.skipAuthRedirect) {
+  if (status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
-  if (!res.ok) {
-    throw new ApiError(
-      extractErrorMessage(parsed, res.status),
-      res.status,
-      parsed,
-    );
+  if (status < 200 || status >= 300) {
+    throw new ApiError(extractErrorMessage(payload, status), status, payload);
   }
 
-  return parsed as TResponse;
+  return payload as TResponse;
 }
 
 /**
@@ -305,24 +351,21 @@ export async function apiDelete<TResponse>(
   // Our DELETE routes take everything in the URL - see the note above.
   const withSite = withSiteParam(path, opts.site);
   const url = `${API_BASE}${withSite.startsWith("/") ? withSite : `/${withSite}`}`;
-  const res = await safeFetch(url, {
+  const res = await safeFetch(withEnvelope(url), {
     method: "DELETE",
     headers: buildHeaders(),
   });
 
   const parsed = await safeParseJson(res);
+  const { payload, status } = unwrapEnvelope(parsed, res);
 
-  if (res.status === 401 && !opts.skipAuthRedirect) {
+  if (status === 401 && !opts.skipAuthRedirect) {
     unauthorizedHandler();
   }
 
-  if (!res.ok) {
-    throw new ApiError(
-      extractErrorMessage(parsed, res.status),
-      res.status,
-      parsed,
-    );
+  if (status < 200 || status >= 300) {
+    throw new ApiError(extractErrorMessage(payload, status), status, payload);
   }
 
-  return parsed as TResponse;
+  return payload as TResponse;
 }

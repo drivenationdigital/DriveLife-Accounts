@@ -5,9 +5,15 @@ import { MenuIcon, PlusIcon } from "@/components/ui/Icons";
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { UserMenu } from "./UserMenu";
 import { Logo } from "./Logo";
+import { useVisitorRegion } from "@/lib/useVisitorRegion";
+import { careventsHomeUrl } from "@/lib/eventPageUrl";
+import { REGIONS } from "@/lib/regions";
 
 export function TopBar() {
   const { toggleSidebar, openCreateModal } = useUI();
+  // Same region guess the sidebar's "Back to CarEvents.com" uses, so
+  // the logo lands on the visitor's own homepage (US or /uk).
+  const visitorRegion = useVisitorRegion();
 
   return (
     <header className="topbar">
@@ -27,7 +33,13 @@ export function TopBar() {
       </div>
 
       <div className="topbar-center">
-        <Logo />
+        <a
+          className="topbar-logo-link"
+          href={careventsHomeUrl(REGIONS[visitorRegion])}
+          aria-label="Go to CarEvents.com"
+        >
+          <Logo />
+        </a>
       </div>
 
       <div className="topbar-right">

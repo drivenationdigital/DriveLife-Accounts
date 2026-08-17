@@ -44,7 +44,8 @@ export function MyEventsSummary() {
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
             gap: 20,
-            alignItems: "start",
+            // Default (stretch) so every card in a row shares the
+            // tallest card's height.
           }}
         >
           {/* Create card always first - matches the live dashboard. */}

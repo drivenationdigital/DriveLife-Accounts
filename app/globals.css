@@ -214,6 +214,13 @@
   height: 20px;
 }
 
+/* The logo links out to the public site (region-aware, like the
+   sidebar's "Back to CarEvents.com"). Inline-flex so the anchor hugs
+   the logo and adds no stray line-height to the topbar. */
+.topbar-logo-link {
+  display: inline-flex;
+  align-items: center;
+}
 .topbar-logo {
   flex-shrink: 0;
   display: flex;
@@ -4067,7 +4074,9 @@
    screens, which made the cards too narrow to read the date line under
    the title. Desktop-first to match the rest of this file: 3 is the
    base, and the breakpoints step it down rather than up. */
-.se-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; align-items: start; transition: opacity .15s; }
+/* No align-items: start here - the grid default (stretch) keeps every
+   card in a row at the tallest card's height. */
+.se-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; transition: opacity .15s; }
 @media (max-width: 900px) { .se-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .se-grid { grid-template-columns: minmax(0, 1fr); } }
 .se-card { display: block; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; overflow: hidden; text-decoration: none; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s; }
