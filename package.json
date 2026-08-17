@@ -1,0 +1,44 @@
+{
+  "name": "drivelife-account",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start -p 3005",
+    "start:staging": "next start -p 3009",
+    "lint": "eslint",
+    "cloudways:restart": "pm2 restart ce-nextadmin-app",
+    "cloudways:stop": "pm2 stop ce-nextadmin-app",
+    "cloudways:logs": "pm2 logs ce-nextadmin-app",
+    "cloudways:reload": "pm2 reload ce-nextadmin-app --update-env",
+    "cloudways:deploy": "npm run build && npm run cloudways:reload",
+    "pm2:create": "pm2 start npm --name ce-nextadmin-app -- start",
+    "cloudways:restart-staging": "pm2 restart ce-nextadmin-app-staging",
+    "cloudways:stop-staging": "pm2 stop ce-nextadmin-app-staging",
+    "cloudways:logs-staging": "pm2 logs ce-nextadmin-app-staging",
+    "cloudways:reload-staging": "pm2 reload ce-nextadmin-app-staging --update-env",
+    "cloudways:deploy-staging": "npm run build && npm run cloudways:reload-staging",
+    "pm2:create-staging": "pm2 start npm --name ce-nextadmin-app-staging -- run start:staging"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.99.2",
+    "@tiptap/extension-link": "^3.22.5",
+    "@tiptap/react": "^3.22.5",
+    "@tiptap/starter-kit": "^3.22.5",
+    "next": "16.2.4",
+    "nextjs-toploader": "^3.9.17",
+    "react": "19.2.4",
+    "react-dom": "19.2.4"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.4",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^5"
+  }
+}

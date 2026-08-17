@@ -1,0 +1,43 @@
+# WordPress
+wp-content/cache/
+wp-content/uploads/cache/
+wp-content/upgrade/
+wp-content/backup*
+wp-content/backups/
+ 
+# Logs
+*.log
+debug.log
+ 
+# Backups
+*.zip
+*.tar
+*.tar.gz
+*.sql
+ 
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+ 
+# Environment/secrets
+.env
+.env.*
+
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+

@@ -1,0 +1,228 @@
+/**
+ * Club applications for the event view (Clubs tab).
+ *
+ * Wraps GET /event-car-club-applications and maps rows to the Club
+ * type the tab renders. Same dedicated-query approach as
+ * useShowCarApplications - applications churn independently of the
+ * rest of the event payload, so they get their own key + tab-focus
+ * refetch.
+ */
+
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiGet, apiPost } from "./apiClient";
+import type { Club, ApplicationStatus } from "@/context/types";
+import { formatRelativeDate, type Region } from "./regions";
+
+/** Server status is already collapsed to pending|approved|rejected. */
+export interface ApiCarClubRecord {
+  id: number;
+  event_id: number;
+  status: ApplicationStatus;
+  club: {
+    name: string;
+    website: string | null;
+    instagram: string | null;
+    tiktok: string | null;
+    members: number;
+  };
+  contact: {
+    name: string;
+    email: string;
+    phone: string;
+  };
+  /** Per-club ticket + sales. Populated for confirmed clubs (each
+   *  gets its own ticket); zeros/null for pending/rejected. */
+  ticket: {
+    id: number | null;
+    tickets_sold: number;
+    price: number;
+    sales: number;
+  };
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface ClubSalesSummary {
+  /** Sum of per-club ticket sales across confirmed clubs. */
+  total: number;
+  /** Attending members: real tickets sold (paid) or confirmed slots
+   *  (free) - not total applied. */
+  attending: number;
+}
+
+export interface ClubApplicationsResponse {
+  success: true;
+  event_id: number;
+  sales: ClubSalesSummary;
+  applications: ApiCarClubRecord[];
+}
+
+/** Shaped result the tab consumes: mapped clubs + the sales summary. */
+export interface ClubApplicationsData {
+  clubs: Club[];
+  sales: ClubSalesSummary;
+}
+
+/** Relative status-change label, prefixed by the verb for the status. */
+function statusLabel(
+  status: ApplicationStatus,
+  iso: string | null,
+  region: Region,
+): string {
+  const verb =
+    status === "approved"
+      ? "Confirmed"
+      : status === "rejected"
+        ? "Rejected"
+        : "Updated";
+  return formatRelativeDate(iso, region, verb);
+}
+
+export function mapClub(r: ApiCarClubRecord, region: Region): Club {
+  return {
+    id: String(r.id),
+    name: r.club.name || "Unnamed club",
+    membersAttending: r.club.members,
+    contactName: r.contact.name,
+    contactEmail: r.contact.email,
+    contactPhone: r.contact.phone,
+    description: r.notes ?? "",
+    appliedLabel: formatRelativeDate(
+      r.created_at,
+      region,
+      "Applied",
+      "Applied recently",
+    ),
+    updatedLabel: statusLabel(r.status, r.updated_at ?? r.created_at, region),
+    status: r.status,
+    ticketsSold: r.ticket?.tickets_sold ?? 0,
+    ticketSales: r.ticket?.sales ?? 0,
+  };
+}
+
+/** @param region the event's region - dates in the "Applied" labels are
+ *  rendered in it. Pass `event.region` from the tab. */
+export function useClubApplications(eid: string | undefined, region: Region) {
+  return useQuery<ClubApplicationsResponse, Error, ClubApplicationsData>({
+    queryKey: ["event-car-club-applications", eid],
+    queryFn: () =>
+      apiGet<ClubApplicationsResponse>(
+        `/event-car-club-applications?eid=${encodeURIComponent(eid ?? "")}`,
+      ),
+    enabled: !!eid,
+    staleTime: 30_000,
+    select: (data) => ({
+      clubs: data.applications.map((r) => mapClub(r, region)),
+      sales: data.sales,
+    }),
+  });
+}
+
+// ============================================================
+// Approve / reject mutations
+// ============================================================
+
+/**
+ * Approve response. Clubs are confirmed in a single step now, so
+ * status is always "confirmed".
+ */
+export interface ClubApproveResponse {
+  success: true;
+  application_id: number;
+  status: "confirmed";
+  ticket_id: number;
+}
+
+export interface ClubRejectResponse {
+  success: true;
+  application_id: number;
+  status: "rejected";
+}
+
+/**
+ * Approve mutation. No eid needed - invalidation is by query prefix,
+ * so the call works from the global DetailModal without EventContext.
+ * Also invalidates ["event"] because a free-club approval bumps
+ * car_club_confirmed_slots, which the Clubs KPIs / capacity read.
+ */
+export function useApproveClubApplication() {
+  const qc = useQueryClient();
+  return useMutation<ClubApproveResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<ClubApproveResponse, { application_id: number }>(
+        "/event-car-club-application-approve",
+        { application_id: applicationId },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}
+
+export function useRejectClubApplication() {
+  const qc = useQueryClient();
+  return useMutation<ClubRejectResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<ClubRejectResponse, { application_id: number }>(
+        "/event-car-club-application-reject",
+        { application_id: applicationId },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}
+
+// ============================================================
+// Allocated-spaces edit
+// ============================================================
+
+/**
+ * NOT YET IMPLEMENTED SERVER-SIDE.
+ *
+ * The endpoint below doesn't exist yet - the types and hook are here
+ * so the DetailModal edit control can be built and wired now, with
+ * only the route left to add. Once the WP side lands, this should
+ * work unchanged provided it accepts { application_id, spaces } and
+ * returns the shape in ClubUpdateSpacesResponse.
+ *
+ * Behaviour expected of the endpoint:
+ *   - Approved clubs only (the UI only offers the control there).
+ *   - Resizes the club's ticket stock to `spaces`.
+ *   - Should reject a value below the club's tickets_sold rather than
+ *     orphaning already-sold spaces. The UI blocks this too, but the
+ *     count can move between render and submit.
+ */
+export interface ClubUpdateSpacesResponse {
+  success: true;
+  application_id: number;
+  /** The allocation the server settled on - echo it back rather than
+   *  trusting the requested number, in case it clamps. */
+  spaces: number;
+}
+
+export function useUpdateClubSpaces() {
+  const qc = useQueryClient();
+  return useMutation<
+    ClubUpdateSpacesResponse,
+    Error,
+    { applicationId: number; spaces: number }
+  >({
+    mutationFn: ({ applicationId, spaces }) =>
+      apiPost<
+        ClubUpdateSpacesResponse,
+        { application_id: number; spaces: number }
+      >("/event-car-club-application-update-spaces", {
+        application_id: applicationId,
+        spaces,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
+      // Capacity KPIs read confirmed slots off the event payload.
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}
