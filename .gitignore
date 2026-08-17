@@ -47,3 +47,7 @@ Thumbs.db
 
 ## PHP
 gitautodeploy-config.php
+gitautodeploy.php
+
+.htaccess
+
