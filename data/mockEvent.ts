@@ -777,4 +777,14 @@ export const mockEventData: EventData = {
       counts: { applied: 0, approved: 0, confirmed: 0, rejected: 0, total: 0, pending: 0 },
     },
   },
+
+  // Mirrors the KPI / feature-count values above so the mock tab bar
+  // agrees with the rest of the fixture.
+  tabCounts: {
+    orders: 220,
+    tickets: 240,
+    showCars: 42,
+    clubs: 7,
+    traders: 0,
+  },
 };

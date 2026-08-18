@@ -286,6 +286,23 @@ export interface EventFeatures {
   traders: FeatureSection;
 }
 
+/**
+ * Full per-tab totals for the tab bar, straight from the API's
+ * `tab_counts`.
+ *
+ * Needed because the loaded arrays aren't complete: `showCars` and
+ * `clubs` hold only the recent slice the /event payload carries, and
+ * `traders` isn't in that payload at all. Counting them undercounts
+ * every application tab.
+ */
+export interface TabCounts {
+  orders: number;
+  tickets: number;
+  showCars: number;
+  clubs: number;
+  traders: number;
+}
+
 export interface EventData {
   event: EventDetail;
   /** Non-null ONLY when this eid resolved to a recurring series parent.
@@ -319,6 +336,8 @@ export interface EventData {
   notifications: Notification[];
   categoryStats: CategoryStat[];
   features: EventFeatures;
+  /** Counts shown on the tab bar - see TabCounts. */
+  tabCounts: TabCounts;
 }
 
 /** "overview" is the lead tab on a normal event; a series parent has no

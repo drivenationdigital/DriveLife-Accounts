@@ -26,6 +26,7 @@ import type {
   SoldTicket,
   ShowCar,
   ShowCarStatus,
+  TabCounts,
   Ticket,
 } from "@/context/types";
 import {
@@ -523,6 +524,32 @@ function extractFeatures(resp: EventResponse): EventFeatures {
   };
 }
 
+/**
+ * Tab-bar counts, preferring the API's `tab_counts` and falling back
+ * per key when a deployment doesn't send it (or sends it partially).
+ *
+ * The fallbacks are what the tab bar used to compute for itself:
+ * order/ticket totals off the sales KPIs, and application totals off
+ * the per-section `counts` block. Those application totals cover every
+ * status (pending + approved + confirmed + rejected), which is what a
+ * tab badge should say - it counts rows in the tab, not rows needing
+ * attention.
+ */
+function extractTabCounts(
+  resp: EventResponse,
+  sales: ApiSales,
+  features: EventFeatures,
+): TabCounts {
+  const api = resp.tab_counts ?? {};
+  return {
+    orders: api.orders ?? sales.kpis.order_count,
+    tickets: api.tickets ?? sales.kpis.ticket_count,
+    showCars: api.show_cars ?? features.show_cars.counts.total,
+    clubs: api.clubs ?? features.car_clubs.counts.total,
+    traders: api.traders ?? features.traders.counts.total,
+  };
+}
+
 // ─────────────────────────────────────────────────────────────────────────
 // Top-level mapper - EventResponse → EventData
 // ─────────────────────────────────────────────────────────────────────────
@@ -552,6 +579,10 @@ export function mapEventResponse(
   const clubs: Club[] = resp.clubs.enabled
     ? collectRecentCarClubs(resp.clubs, region)
     : [];
+
+  // Resolved before the return because the tab counts fall back to it
+  // when the API doesn't send `tab_counts`.
+  const features = extractFeatures(resp);
 
   return {
     event,
@@ -598,7 +629,8 @@ export function mapEventResponse(
       { category: "modern", confirmed: 0, capacity: 0 },
       { category: "supercar", confirmed: 0, capacity: 0 },
     ],
-    features: extractFeatures(resp),
+    features,
+    tabCounts: extractTabCounts(resp, sales, features),
   };
 }
 

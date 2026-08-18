@@ -23,17 +23,7 @@ interface TabDef {
 
 export function EventTabs() {
   const { activeTab, setActiveTab } = useUI();
-  const {
-    event,
-    occurrences,
-    kpis,
-    orders,
-    tickets,
-    soldTickets,
-    showCars,
-    clubs,
-    traders,
-  } = useEventData();
+  const { event, occurrences, tickets, tabCounts } = useEventData();
   const tabsRef = useRef<HTMLDivElement | null>(null);
 
   // A series parent has no sales dashboard of its own - the KPIs,
@@ -85,8 +75,12 @@ export function EventTabs() {
   const hasTickets = isSeriesParent || tickets.length > 0;
   const ordersVisible = ticketingVisible && hasTickets;
 
-  // Orders tab shows the *total* order count (from KPIs, not the loaded page).
-  // Other tabs show entity count, or nothing when coming-soon stubbed.
+  // Every count comes from `tabCounts` - the server's totals for the
+  // whole event, not the length of whatever slice this page happens to
+  // have loaded. That matters most for the application tabs: /event
+  // ships only a recent slice of show cars and clubs, and no traders at
+  // all, so counting the arrays showed a badge that was too low or
+  // missing entirely.
   const tabs: TabDef[] = [
     ...(isSeriesParent
       ? ([
@@ -96,18 +90,18 @@ export function EventTabs() {
       : ([{ key: "overview", label: "Overview" }] as TabDef[])),
     ...(ordersVisible
       ? ([
-          { key: "orders",   label: "Orders",    count: kpis.totalOrders || orders.length },
+          { key: "orders",   label: "Orders",    count: tabCounts.orders },
           // Tickets sits next to Orders and shares its visibility: both
           // need ticket types to exist. The count is tickets SOLD, not
           // orders - a two-ticket order contributes two.
-          { key: "tickets",  label: "Tickets",   count: kpis.ticketsSold || soldTickets.length },
+          { key: "tickets",  label: "Tickets",   count: tabCounts.tickets },
         ] as TabDef[])
       : []),
     ...(ticketingVisible
       ? ([
-          { key: "showcars", label: "Show Cars", count: showCars.length },
-          { key: "clubs",    label: "Clubs",     count: clubs.length },
-          { key: "traders",  label: "Traders",   count: traders.length },
+          { key: "showcars", label: "Show Cars", count: tabCounts.showCars },
+          { key: "clubs",    label: "Clubs",     count: tabCounts.clubs },
+          { key: "traders",  label: "Traders",   count: tabCounts.traders },
         ] as TabDef[])
       : []),
   ];

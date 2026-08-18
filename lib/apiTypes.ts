@@ -654,6 +654,25 @@ export type ApiTradersStub =
   | (DisabledSection & { counts?: ApiApplicationCounts })
   | ComingSoonStub;
 
+/**
+ * Authoritative per-tab totals for the event view's tab bar.
+ *
+ * The /event payload only carries a recent slice of each application
+ * list (and none at all for traders), so counting the mapped arrays
+ * undercounts every tab. These are the server's full totals.
+ *
+ * Optional as a whole, and per key, for back-compat with deployments
+ * that predate the field - the mapper falls back to what it can
+ * derive locally when a key is missing.
+ */
+export interface ApiTabCounts {
+  orders?: number;
+  tickets?: number;
+  show_cars?: number;
+  clubs?: number;
+  traders?: number;
+}
+
 export interface EventResponse {
   success: true;
   /** The region the API actually resolved this eid on. Authoritative -
@@ -669,6 +688,8 @@ export interface EventResponse {
   show_cars: ApiShowCars;
   clubs: ApiCarClubs;
   traders: ApiTradersStub;
+  /** Full per-tab totals - see ApiTabCounts. */
+  tab_counts?: ApiTabCounts;
 }
 
 /**
