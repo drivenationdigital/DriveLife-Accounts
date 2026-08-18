@@ -105,6 +105,11 @@ export function useSaveEvent() {
   const qc = useQueryClient();
 
   return useMutation<ApiEventUpdateResponse, Error, EventCreateState>({
+    // Shared key so useEditorSave can observe save state fired from ANY
+    // of the editor's save buttons via useMutationState - each hook call
+    // creates its own mutation instance, but they all report under this
+    // key.
+    mutationKey: ["save-event"],
     mutationFn: async (state) => {
       let eid = state.encryptedId;
       // Resolved rather than raw: `state.site` is null on an event

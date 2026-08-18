@@ -3,7 +3,6 @@
 import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
-import { useEventCreate } from "@/context/EventCreateContext";
 import {
   DEFAULT_STEP,
   type EventCreateStepKey,
@@ -29,7 +28,6 @@ export function EditorSidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { state } = useEventCreate();
 
   const activeStep =
     (searchParams.get("step") as EventCreateStepKey | null) ?? DEFAULT_STEP;
@@ -53,17 +51,6 @@ export function EditorSidebar() {
 
   return (
     <aside className="hidden lg:flex lg:flex-col lg:sticky lg:top-16 lg:h-[calc(100vh-4rem)] lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white">
-      {/* Event title block - desktop only because the topbar already
-          shows the title on smaller breakpoints. */}
-      <div className="px-6 pt-6 pb-5 border-b border-ink-200">
-        <p className="text-[11px] uppercase tracking-widest text-gold-600 font-semibold mb-1.5">
-          Editing event
-        </p>
-        <h2 className="font-display text-xl text-ink-900 leading-snug">
-          {state.title}
-        </h2>
-      </div>
-
       {/* Step navigation - vertical list. */}
       <nav
         className="flex-1 overflow-y-auto px-3 py-4"

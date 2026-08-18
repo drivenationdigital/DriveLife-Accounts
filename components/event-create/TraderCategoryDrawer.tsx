@@ -285,7 +285,7 @@ export function TraderCategoryDrawer({
           <EditorTextarea
             value={info}
             onChange={setInfo}
-            placeholder="3m × 3m pitch. Arrival from 6am for setup. Power and water at extra cost. Public liability insurance required."
+            placeholder="e.g. 3m × 3m pitch. Arrival from 6am for setup. Power and water at extra cost. Public liability insurance required."
           />
         </div>
       </EditorDrawer>

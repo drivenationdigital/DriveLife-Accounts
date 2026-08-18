@@ -291,7 +291,7 @@ export function CarClubsPanel() {
               onChange={(value) =>
                 dispatch({ type: "SET_FIELD", key: "carClubsInfo", value })
               }
-              placeholder="Clubs can book a dedicated stand for groups of 10+. Arrival from 7:30am for club stands. Minimum of 6 cars required."
+              placeholder="e.g. Clubs can book a dedicated stand for groups of 10+. Arrival from 7:30am for club stands. Minimum of 6 cars required."
             />
           </div>
 

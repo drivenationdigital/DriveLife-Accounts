@@ -647,6 +647,9 @@ body.editor-drawer-open {
   border: none;
   background: transparent;
   transition: all 0.18s;
+  /* Labels are short ("Single Event", "Light") - never let them break
+     onto a second line inside the pill. */
+  white-space: nowrap;
 }
 .seg-btn.is-active {
   background: #fff;

@@ -1,5 +1,7 @@
 "use client";
 
+import { useMutationState } from "@tanstack/react-query";
+
 import {
   useEventCreate,
   type EventCreateState,
@@ -91,19 +93,35 @@ export function useEditorSave() {
     return res;
   };
 
-  const phase: EditorSavePhase = mutation.isPending
-    ? "saving"
-    : mutation.isError
-      ? "error"
-      : mutation.isSuccess
-        ? "saved"
-        : "idle";
+  // Save state is read via useMutationState rather than this hook's own
+  // mutation instance. The topbar, bottombar and Publish panel each call
+  // useEditorSave() and get their OWN useMutation - reading only the
+  // local instance meant a save fired from the Publish panel never
+  // updated the topbar's "Saved" pill. The shared mutationKey makes
+  // every instance's runs visible to every consumer.
+  const saveStates = useMutationState({
+    filters: { mutationKey: ["save-event"] },
+    select: (m) => ({
+      status: m.state.status,
+      error: m.state.error,
+    }),
+  });
+  const latest = saveStates[saveStates.length - 1];
+
+  const phase: EditorSavePhase =
+    !latest || latest.status === "idle"
+      ? "idle"
+      : latest.status === "pending"
+        ? "saving"
+        : latest.status === "error"
+          ? "error"
+          : "saved";
 
   return {
     run,
     phase,
-    isSaving: mutation.isPending,
-    error: mutation.error as Error | null,
+    isSaving: phase === "saving",
+    error: (latest?.error as Error | null) ?? null,
     reset: mutation.reset,
   };
 }
@@ -119,4 +137,16 @@ export function saveLabelForStatus(
   if (status === "draft") return "Save draft";
   if (status === "scheduled") return "Schedule event";
   return alreadyPublished ? "Save" : "Publish event";
+}
+
+/** Icon classes to pair with saveLabelForStatus: a floppy disk when the
+ *  action is a plain save (draft, or updating an already-live event),
+ *  the rocket only when the button will actually take the event live. */
+export function saveIconForStatus(
+  status: EventCreateState["status"],
+  alreadyPublished = false,
+): string {
+  if (status === "draft") return "fa-solid fa-floppy-disk";
+  if (status === "scheduled") return "fa-solid fa-rocket";
+  return alreadyPublished ? "fa-solid fa-floppy-disk" : "fa-solid fa-rocket";
 }

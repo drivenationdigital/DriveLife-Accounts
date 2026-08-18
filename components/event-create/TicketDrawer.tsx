@@ -254,7 +254,7 @@ export function TicketDrawer({
               type="number"
               inputMode="numeric"
               className="input"
-              placeholder="100"
+              placeholder="e.g. 100"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
               min={0}

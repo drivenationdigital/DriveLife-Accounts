@@ -95,18 +95,22 @@ export function BasicsPanel() {
       />
 
       {/* Host callout - read-only context, identifies which org the
-          event is being created under. Hardcoded to the host on the
-          state for now; the create-event flow will pull this from the
-          authed user's organisation. */}
-      <div className="flex items-center gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl mb-8">
-        <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center">
-          <i className="fa-solid fa-bolt text-gold-600" aria-hidden />
-        </div>
-        <div>
-          <p className="text-xs text-ink-500">Hosted by</p>
-          <p className="font-semibold text-ink-900">{state.hostName}</p>
-        </div>
-      </div>
+          event is being created under. Only shown when there IS a real
+          host (a club, venue or organisation - the ACF host fields on
+          the event). Self-hosted events map to "Me" (create flow and
+          edit hydration both), which carries no information, so the
+          box stays hidden for them. */}
+      {state.hostName && state.hostName !== "Me" && (
+          <div className="flex items-center gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl mb-8">
+            <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center">
+              <i className="fa-solid fa-bolt text-gold-600" aria-hidden />
+            </div>
+            <div>
+              <p className="text-xs text-ink-500">Hosted by</p>
+              <p className="font-semibold text-ink-900">{state.hostName}</p>
+            </div>
+          </div>
+        )}
 
       {/* Title field. */}
       <div className="mb-8">

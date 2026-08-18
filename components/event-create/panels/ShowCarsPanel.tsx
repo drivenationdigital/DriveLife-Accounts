@@ -329,7 +329,7 @@ export function ShowCarsPanel() {
               onChange={(value) =>
                 dispatch({ type: "SET_FIELD", key: "showCarsInfo", value })
               }
-              placeholder="Arrival from 8am. Dedicated show parking on the main lawn. Complimentary breakfast rolls for drivers. Judging from 11am."
+              placeholder="e.g. Arrival from 8am. Dedicated show parking on the main lawn. Complimentary breakfast rolls for drivers. Judging from 11am."
             />
           </div>
 

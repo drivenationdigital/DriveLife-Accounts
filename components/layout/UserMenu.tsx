@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import { useAuth } from "@/context/AuthContext";
 import { useAccount } from "@/lib/account";
+import { HelpSupportModal } from "@/components/modals/HelpSupportModal";
 import {
   Dropdown,
   DropdownMenu,
@@ -32,6 +35,7 @@ export function UserMenu() {
   const { user, signOut } = useAuth();
   const { data } = useAccount();
   const account = data?.account;
+  const [helpOpen, setHelpOpen] = useState(false);
 
   // Prefer the richer account profile; fall back to auth while it loads.
   const fullName =
@@ -45,6 +49,7 @@ export function UserMenu() {
   const initials = initialsOf(fullName ?? user?.display_name, email);
 
   return (
+    <>
     <Dropdown>
       <DropdownTrigger className="avatar-btn" ariaLabel="Account menu">
         {profileImage ? (
@@ -78,7 +83,9 @@ export function UserMenu() {
         <DropdownItem as="a" href="/settings">
           <SettingsIcon /> Settings
         </DropdownItem>
-        <DropdownItem as="a" href="mailto:info@carevents.com">
+        {/* Opens the support lightbox rather than a bare mailto - the
+            popup carries phone numbers alongside the email address. */}
+        <DropdownItem onClick={() => setHelpOpen(true)}>
           <HelpIcon /> Help &amp; Support
         </DropdownItem>
         <DropdownItem danger onClick={signOut}>
@@ -86,5 +93,8 @@ export function UserMenu() {
         </DropdownItem>
       </DropdownMenu>
     </Dropdown>
+
+    <HelpSupportModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </>
   );
 }

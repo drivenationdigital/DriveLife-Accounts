@@ -389,7 +389,7 @@ export function TicketsPanel() {
               id="ext-url"
               type="url"
               className="input"
-              placeholder="https://example.com/buy-tickets"
+              placeholder="e.g. https://example.com/buy-tickets"
               value={state.externalTicketUrl}
               onChange={(e) =>
                 dispatch({
@@ -627,7 +627,7 @@ export function TicketsPanel() {
               onChange={(value) =>
                 dispatch({ type: "SET_FIELD", key: "ticketInfo", value })
               }
-              placeholder="Gates open at 9am. Entry includes parking for one vehicle. Under 12s go free."
+              placeholder="e.g. Gates open at 9am. Entry includes parking for one vehicle. Under 12s go free."
             />
           </div>
 
@@ -644,7 +644,7 @@ export function TicketsPanel() {
               onChange={(value) =>
                 dispatch({ type: "SET_FIELD", key: "ticketTerms", value })
               }
-              placeholder="Tickets are non-refundable within 14 days of the event. Tickets may be transferred to another attendee at any time by contacting us."
+              placeholder="e.g. Tickets are non-refundable within 14 days of the event. Tickets may be transferred to another attendee at any time by contacting us."
             />
           </div>
 

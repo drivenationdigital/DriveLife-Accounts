@@ -3,6 +3,10 @@
 import { useState } from "react";
 import Link from "next/link";
 
+import { useAccount, useDisconnectStripe } from "@/lib/account";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
+
 /**
  * Settings & Integrations - dashboard settings page (UI only).
  * Sections: top nav cards, Payment Settings (Stripe), Website Widgets
@@ -59,22 +63,7 @@ export default function SettingsPage() {
 
       {/* Payment Settings */}
       <Section title="Payment Settings">
-        <Card>
-          <h3 className="text-lg font-bold text-ink-900">Stripe Integration</h3>
-          <p className="mt-1 text-sm text-ink-500">
-            Connect your Stripe account to collect payments when creating car
-            events.
-          </p>
-          <button
-          onClick={() => {
-            window.location.href = "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_Ln2o2ZGab16J09GztcAtEnWt1JJd94HS&scope=read_write";
-          }}
-            type="button"
-            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700"
-          >
-            Connect to Stripe
-          </button>
-        </Card>
+        <StripeCard />
       </Section>
 
       {/* Website Widgets */}
@@ -104,6 +93,116 @@ export default function SettingsPage() {
         </Card>
       </Section>
     </div>
+  );
+}
+
+// ─── Stripe integration card ──────────────────────────────────────────
+
+/**
+ * Stripe Connect status + actions. Linked-ness comes from the account
+ * query (`stripe_connected`, i.e. whether the user's stripe_account_id
+ * profile field is set):
+ *
+ *   loading   → neutral "checking" line, no buttons (prevents a flash
+ *               of "Connect" for users who are already linked)
+ *   linked    → green confirmation + Disconnect (with confirm dialog)
+ *   unlinked  → the original Connect to Stripe OAuth button
+ */
+function StripeCard() {
+  const { data, isLoading } = useAccount();
+  const disconnect = useDisconnectStripe();
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  const connected = Boolean(data?.account.stripe_connected);
+
+  const onDisconnect = async () => {
+    if (disconnect.isPending) return;
+    const ok = await confirm({
+      title: "Disconnect Stripe?",
+      message:
+        "You won't be able to collect card payments for your events until you connect a Stripe account again.",
+      confirmLabel: "Disconnect",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await disconnect.mutateAsync();
+      toast.success("Stripe account disconnected.");
+    } catch {
+      toast.error("Couldn't disconnect Stripe. Please try again.");
+    }
+  };
+
+  return (
+    <Card>
+      <h3 className="text-lg font-bold text-ink-900">Stripe Integration</h3>
+
+      {isLoading ? (
+        <p className="mt-1 text-sm text-ink-400">
+          Checking your Stripe connection…
+        </p>
+      ) : connected ? (
+        <>
+          <div className="mt-3 flex items-start gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+            <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
+              <CheckIcon />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-emerald-900">
+                Your Stripe account is connected
+              </p>
+              <p className="mt-0.5 text-sm text-emerald-800/80">
+                Ticket payments for your events are paid out to your
+                connected Stripe account.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnect.isPending}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {disconnect.isPending ? "Disconnecting…" : "Disconnect Stripe"}
+          </button>
+        </>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-ink-500">
+            Connect your Stripe account to collect payments when creating car
+            events.
+          </p>
+          <button
+            onClick={() => {
+              window.location.href =
+                "https://connect.stripe.com/oauth/authorize?response_type=code&client_id=ca_Ln2o2ZGab16J09GztcAtEnWt1JJd94HS&scope=read_write";
+            }}
+            type="button"
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700"
+          >
+            Connect to Stripe
+          </button>
+        </>
+      )}
+    </Card>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <polyline points="20 6 9 17 4 12" />
+    </svg>
   );
 }
 

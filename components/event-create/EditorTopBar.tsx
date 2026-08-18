@@ -149,11 +149,18 @@ export function EditorTopBar() {
         >
           <i
             className={`text-xs ${
-              isSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-rocket"
+              isSaving
+                ? "fa-solid fa-spinner fa-spin"
+                : alreadyPublished
+                  ? "fa-solid fa-floppy-disk"
+                  : "fa-solid fa-rocket"
             }`}
             aria-hidden
           />
-          <span className="hidden sm:inline">
+          {/* Label shows on all breakpoints - a bare icon on phones
+              read as ambiguous, and "Save"/"Publish" is short enough
+              to fit the mobile topbar. */}
+          <span>
             {isSaving
               ? alreadyPublished
                 ? "Saving…"

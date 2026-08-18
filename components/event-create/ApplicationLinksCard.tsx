@@ -71,14 +71,35 @@ export function ApplicationLinksCard({
   };
 
   return (
-    <div className="app-links-card mb-4">
+    <>
+      {/* Live-status callout. Same colour scheme as the links card
+          below - it announces that the public form is already active
+          on the event's carevents.com listing, no extra setup needed. */}
+      <div className="app-links-card mb-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center flex-shrink-0">
+            <i className="fa-solid fa-circle-check text-gold-600" aria-hidden />
+          </div>
+          <div>
+            <h3 className="text-sm font-semibold text-ink-900">
+              Applications are live
+            </h3>
+            <p className="text-xs text-ink-500 mt-0.5">
+              This form is now enabled on your CarEvents listing for people
+              to submit an application.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="app-links-card mb-4">
       <div className="flex items-start gap-3 mb-4">
         <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center flex-shrink-0">
           <i className="fa-solid fa-link text-gold-600" aria-hidden />
         </div>
         <div>
           <h3 className="text-sm font-semibold text-ink-900">
-            Application links
+            Link or embed form
           </h3>
           <p className="text-xs text-ink-500 mt-0.5">
             Share directly or embed on your own website.
@@ -119,7 +140,7 @@ export function ApplicationLinksCard({
 
         <div>
           <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-            Direct URL
+            Application Link
           </label>
           <div className="link-row">
             <span className="link-icon">
@@ -154,6 +175,7 @@ export function ApplicationLinksCard({
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

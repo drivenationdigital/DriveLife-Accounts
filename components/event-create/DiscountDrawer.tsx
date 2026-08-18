@@ -267,7 +267,7 @@ export function DiscountDrawer({
           <input
             type="text"
             className="input font-mono uppercase tracking-wide"
-            placeholder="EARLYBIRD15"
+            placeholder="e.g. EARLYBIRD15"
             value={code}
             onChange={(e) => onCodeChange(e.target.value)}
             autoFocus

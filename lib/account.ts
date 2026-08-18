@@ -38,6 +38,12 @@ export interface AccountData {
   about_contents?: number[];
   /** True while `about_contents` is empty, i.e. a brand-new account. */
   needs_onboarding?: boolean;
+  /**
+   * True when a Stripe Connect account is linked (the user's
+   * `stripe_account_id` ACF field is set). Optional so the app still
+   * builds against a WP deployment that predates it.
+   */
+  stripe_connected?: boolean;
 }
 
 interface AccountResponse {
@@ -91,6 +97,30 @@ export function useUpdateAccount() {
 export interface ChangePasswordResponse {
   success: true;
   message: string;
+}
+
+export interface StripeDisconnectResponse {
+  success: true;
+  stripe_connected: false;
+}
+
+/**
+ * Unlink the user's Stripe Connect account. The server revokes the
+ * OAuth grant at Stripe and clears the profile field; invalidating the
+ * account query flips the settings page back to "not connected".
+ */
+export function useDisconnectStripe() {
+  const qc = useQueryClient();
+  return useMutation<StripeDisconnectResponse, Error, void>({
+    mutationFn: () =>
+      apiPost<StripeDisconnectResponse, Record<string, never>>(
+        "/stripe/disconnect",
+        {},
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["account"] });
+    },
+  });
 }
 
 /** Change password (server verifies the current one). */

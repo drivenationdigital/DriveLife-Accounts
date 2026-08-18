@@ -239,7 +239,7 @@ export function DatesPanel() {
         >
           <button
             type="button"
-            className={`seg-btn ${isSingle ? "is-active" : ""}`}
+            className={`seg-btn min-w-[150px] ${isSingle ? "is-active" : ""}`}
             onClick={() =>
               dispatch({
                 type: "SET_FIELD",
@@ -249,11 +249,11 @@ export function DatesPanel() {
             }
           >
             <i className="fa-regular fa-calendar mr-2" aria-hidden />
-            Single event
+            Single Event
           </button>
           <button
             type="button"
-            className={`seg-btn ${isRecurring ? "is-active" : ""}`}
+            className={`seg-btn min-w-[150px] ${isRecurring ? "is-active" : ""}`}
             onClick={() =>
               dispatch({
                 type: "SET_FIELD",
@@ -263,7 +263,7 @@ export function DatesPanel() {
             }
           >
             <i className="fa-solid fa-repeat mr-2" aria-hidden />
-            Recurring event
+            Recurring
           </button>
         </div>
       </div>

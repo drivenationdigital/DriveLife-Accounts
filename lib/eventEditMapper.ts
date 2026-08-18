@@ -131,14 +131,17 @@ export function mapEventEditResponse(
     // ---- Host eyebrow -------------------------------------------------
     // The WP form renders one of three hosts (club / venue /
     // organisation). The editor only stores a single string, so we pick
-    // the first non-empty one in priority order. If nothing's set we
-    // fall back to the title, which matches the editor topbar's
-    // existing default.
+    // the first non-empty one in priority order. No host set means the
+    // event is hosted by the organiser personally - "Me", matching the
+    // create flow's default. Deliberately NOT the event title: the
+    // Basics panel hides the "Hosted by" callout for self-hosted
+    // events, and a title fallback made that check depend on the
+    // (editable) title.
     hostName:
       response.host.venue ??
       response.host.club ??
       response.host.organisation ??
-      response.basics.title,
+      "Me",
 
     // ---- Dates --------------------------------------------------------
     ...mapDates(response.dates),

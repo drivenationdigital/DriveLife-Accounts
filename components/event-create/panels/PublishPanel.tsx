@@ -6,7 +6,11 @@ import { useState } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
+import {
+  useEditorSave,
+  saveLabelForStatus,
+  saveIconForStatus,
+} from "@/lib/useEditorSave";
 import { ApiError } from "@/lib/apiClient";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
@@ -294,7 +298,11 @@ export function PublishPanel() {
         onClick={onSave}
       >
         <i
-          className={isSaving ? "fa-solid fa-spinner fa-spin" : "fa-solid fa-rocket"}
+          className={
+            isSaving
+              ? "fa-solid fa-spinner fa-spin"
+              : saveIconForStatus(state.status, alreadyPublished)
+          }
           aria-hidden
         />
         {isSaving

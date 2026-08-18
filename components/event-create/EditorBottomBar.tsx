@@ -4,7 +4,11 @@ import { useEventSteps } from "@/lib/useEventSteps";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { useEditorSave, saveLabelForStatus } from "@/lib/useEditorSave";
+import {
+  useEditorSave,
+  saveLabelForStatus,
+  saveIconForStatus,
+} from "@/lib/useEditorSave";
 import {
   DEFAULT_STEP,
   type EventCreateStepKey,
@@ -93,7 +97,13 @@ export function EditorBottomBar() {
             </>
           ) : (
             <>
-              <i className="fa-solid fa-rocket text-xs" aria-hidden />{" "}
+              <i
+                className={`${saveIconForStatus(
+                  state.status,
+                  state.livePostStatus === "publish",
+                )} text-xs`}
+                aria-hidden
+              />{" "}
               {saveLabelForStatus(
                 state.status,
                 state.livePostStatus === "publish",
