@@ -20,10 +20,18 @@ import {
 import { ApiError } from "@/lib/apiClient";
 import {
   formatRegionCurrency,
+  formatRegionDateRange,
   formatRegionShortDate,
   regionFromSite,
   type Region,
 } from "@/lib/regions";
+import { SubmitOverlay } from "@/components/apply/SubmitOverlay";
+import {
+  ArrowRightIcon,
+  ButtonSpinner,
+  CameraIcon,
+  CheckIcon,
+} from "@/components/apply/ApplyIcons";
 import {
   useShowCarPublic,
   useSubmitShowCarApplication,
@@ -106,6 +114,14 @@ export default function ShowCarApplyPage({
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
+  // The form is long, so the user is at the bottom of the page when
+  // they submit - without this the success panel renders "above" them
+  // and all they see is empty background. Jump to the top so the
+  // confirmation is the first thing in view.
+  useEffect(() => {
+    if (submit.isSuccess) window.scrollTo(0, 0);
+  }, [submit.isSuccess]);
+
   // ----- Loading + error states ----------------------------------
   if (isLoading) {
     return (
@@ -168,7 +184,7 @@ export default function ShowCarApplyPage({
         <ConfettiBurst />
         <div className="flex flex-col items-center text-center py-6">
           <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gold-500 text-white mb-5 shadow-sm shadow-gold-500/30">
-            <i className="fa-solid fa-check text-2xl" aria-hidden />
+            <CheckIcon />
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-900 tracking-tight mb-3">
             Application received
@@ -184,7 +200,7 @@ export default function ShowCarApplyPage({
             className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
           >
             Continue
-            <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
+            <ArrowRightIcon />
           </a>
         </div>
       </PageShell>
@@ -270,6 +286,10 @@ export default function ShowCarApplyPage({
   // ----- Form ----------------------------------------------------
   return (
     <PageShell>
+      <SubmitOverlay
+        show={photoUploading || submit.isPending}
+        label={photoUploading ? "Uploading your photo…" : "Submitting your application…"}
+      />
       <header className="mb-7">
         <p className="text-[11px] uppercase tracking-[0.18em] text-gold-600 font-bold mb-2">
           Show Car Application
@@ -277,10 +297,28 @@ export default function ShowCarApplyPage({
         <h1 className="text-3xl sm:text-4xl font-extrabold text-ink-900 tracking-tight mb-3 leading-[1.05]">
           {data.event_title}
         </h1>
-        <p className="text-sm text-ink-600 leading-relaxed">
-          Apply to display your car at this event. Approved applicants will be
-          emailed next steps.
-        </p>
+        {data.event_start_date && (
+          <p className="text-sm font-semibold text-ink-700 mb-2">
+            {formatRegionDateRange(
+              data.event_start_date,
+              data.event_end_date,
+              region,
+            )}
+          </p>
+        )}
+        {/* The organiser's own "Show car information" copy when set
+            (sanitised server-side); the generic line otherwise. */}
+        {data.event_info ? (
+          <div
+            className="text-sm text-ink-600 leading-relaxed"
+            dangerouslySetInnerHTML={{ __html: data.event_info }}
+          />
+        ) : (
+          <p className="text-sm text-ink-600 leading-relaxed">
+            Apply to display your car at this event. Approved applicants will
+            be emailed next steps.
+          </p>
+        )}
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
@@ -495,10 +533,9 @@ export default function ShowCarApplyPage({
                   className="sr-only"
                   onChange={handlePhotoChange}
                 />
-                <i
-                  className="fa-solid fa-camera text-2xl text-ink-400 mb-2"
-                  aria-hidden
-                />
+                <span className="inline-block text-ink-400 mb-2">
+                  <CameraIcon />
+                </span>
                 <p className="text-sm text-ink-600">
                   Click to upload a photo of your car
                 </p>
@@ -550,9 +587,7 @@ export default function ShowCarApplyPage({
           }
           className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
         >
-          {(submit.isPending || photoUploading) && (
-            <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
-          )}
+          {(submit.isPending || photoUploading) && <ButtonSpinner />}
           {photoUploading
             ? "Uploading photo…"
             : submit.isPending
@@ -819,9 +854,8 @@ function SelectedCategoryDetails({
             ? `${formatRegionCurrency(category.ticket_cost, region)} on approval`
             : "Free entry on approval"}
         </span>
-        {category.spaces_remaining !== null && (
-          <span>{category.spaces_remaining} spaces remaining</span>
-        )}
+        {/* Deliberately no remaining-space count here - capacity
+            numbers stay off the public form. */}
         {category.applications_close && (
           <span>
             Applications close{" "}

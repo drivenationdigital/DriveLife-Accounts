@@ -51,7 +51,7 @@ export function HelpSupportModal({
           <div className="space-y-2">
             <ContactRow
               icon={<MailIcon />}
-              label="E"
+              label="Email"
               display="info@carevents.com"
               href="mailto:info@carevents.com"
             />

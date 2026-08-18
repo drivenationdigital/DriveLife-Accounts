@@ -341,6 +341,15 @@ export function CarClubsPanel() {
               key: "carClubsApplicationsOpen",
               value: next,
             });
+            // Pre-fill an empty close date with the open date; a value
+            // the user already picked is never overwritten.
+            if (next && !state.carClubsApplicationsClose) {
+              dispatch({
+                type: "SET_FIELD",
+                key: "carClubsApplicationsClose",
+                value: next,
+              });
+            }
           } else if (pickerTarget === "close") {
             dispatch({
               type: "SET_FIELD",

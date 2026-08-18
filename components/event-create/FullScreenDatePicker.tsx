@@ -45,6 +45,7 @@ export function FullScreenDatePicker({
   onChange,
   onClose,
   title = "Select date",
+  disablePast = true,
 }: {
   /** Current committed date in `yyyy-mm-dd` format, or null. */
   value: string | null;
@@ -57,6 +58,11 @@ export function FullScreenDatePicker({
   /** Header title - small distinguishing copy when multiple pickers
    *  are wired (e.g. "Start date" vs "End date"). */
   title?: string;
+  /** Grey out days before today (default). Every date the editor asks
+   *  for is future-facing - event dates, sale windows, application
+   *  windows, go-live dates - so past days are never a valid pick.
+   *  Pass false if a genuinely historical date field ever appears. */
+  disablePast?: boolean;
 }) {
   // Locale for the month header and the per-day accessible labels.
   const region = useEventRegion();
@@ -185,9 +191,12 @@ export function FullScreenDatePicker({
           {/* Day grid */}
           <div className="fsdp-days">
             {cells.map((cell) => {
+              // ISO strings compare correctly as plain strings.
+              const isPast = disablePast && cell.iso < todayIso;
               const classes = [
                 "fsdp-day",
                 cell.muted && "is-muted",
+                isPast && "is-disabled",
                 cell.iso === todayIso && "is-today",
                 cell.iso === draft && "is-selected",
               ]
@@ -199,6 +208,7 @@ export function FullScreenDatePicker({
                   type="button"
                   className={classes}
                   onClick={() => commit(cell.iso)}
+                  disabled={isPast}
                   aria-label={cell.label}
                   aria-pressed={cell.iso === draft}
                 >

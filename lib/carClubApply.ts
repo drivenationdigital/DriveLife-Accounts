@@ -21,6 +21,9 @@ export interface CarClubPublicResponse {
    *  showed before. Nothing here needs changing when it lands. */
   site?: EventSite;
   event_location?: string;
+  /** Event date range, Y-m-d. Optional until the API echoes them. */
+  event_start_date?: string | null;
+  event_end_date?: string | null;
   event_info?: string;
   car_clubs_enabled: boolean;
   require_ticket?: boolean;

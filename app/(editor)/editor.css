@@ -487,6 +487,13 @@ input[type="date"]::-webkit-date-and-time-value {
 .fsdp-day.is-muted {
   color: #d4d4d4;
 }
+/* Past days (disablePast) - visibly unavailable, no hover, no pointer. */
+.fsdp-day.is-disabled,
+.fsdp-day:disabled {
+  color: #d4d4d4;
+  cursor: not-allowed;
+  background: transparent !important;
+}
 .fsdp-day.is-today {
   box-shadow: inset 0 0 0 1.5px #b89855;
   color: #5c4c2b;
@@ -554,6 +561,23 @@ body.editor-drawer-open {
   background: transparent;
   font-family: inherit;
   color: #292929;
+}
+/* Clickable variant of the value - same footprint as the input it
+   replaced, single line with ellipsis, underline on hover. */
+.link-row a.link-value {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #292929;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  align-self: center;
+}
+.link-row a.link-value:hover {
+  color: #b89855;
+  text-decoration: underline;
 }
 .link-row .link-icon {
   padding: 0 14px;

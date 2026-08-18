@@ -356,8 +356,12 @@ export function TicketDrawer({
         }
         onClose={() => setPickerTarget(null)}
         onChange={(next) => {
-          if (pickerTarget === "saleStart") setSaleStart(next);
-          else if (pickerTarget === "saleEnd") setSaleEnd(next);
+          if (pickerTarget === "saleStart") {
+            setSaleStart(next);
+            // Pre-fill an empty end date with the start date; a value
+            // the user already picked is never overwritten.
+            if (next && !saleEnd) setSaleEnd(next);
+          } else if (pickerTarget === "saleEnd") setSaleEnd(next);
         }}
       />
     </>

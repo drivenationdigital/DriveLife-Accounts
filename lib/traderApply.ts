@@ -33,6 +33,9 @@ export interface TraderPublicResponse {
   /** The blog this event lives on - see the note in carClubApply.ts.
    *  Optional until the public endpoints echo one back. */
   site?: EventSite;
+  /** Event date range, Y-m-d. Optional until the API echoes them. */
+  event_start_date?: string | null;
+  event_end_date?: string | null;
   traders_enabled: boolean;
   categories?: TraderPublicCategory[];
 }

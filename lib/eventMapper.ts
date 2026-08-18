@@ -395,7 +395,13 @@ export function mapShowCar(r: ApiShowCarRecord, region: Region): ShowCar {
     clubInstagram,
     description: r.notes ?? "",
     photoClass: pickPhotoClass(r.id),
-    photoUrl: r.car.photo_url ?? null,
+    // Some stored Cloudflare URLs carry the "blurred" variant (the
+    // upload used to take variants[0] blindly) - swap it for the
+    // sharp public variant when displaying. Newly uploaded photos
+    // store the public variant directly.
+    photoUrl: r.car.photo_url
+      ? r.car.photo_url.replace(/\/blurred$/, "/public")
+      : null,
     // Category comes straight from the server now - it's the ticket
     // name the organiser set, not a heuristic guess. Empty string
     // fallback for the edge case where the ticket was deleted after

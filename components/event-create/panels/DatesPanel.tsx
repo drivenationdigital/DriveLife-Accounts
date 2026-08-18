@@ -100,6 +100,13 @@ export function DatesPanel() {
       key: pickerTarget.key,
       value: next,
     });
+    // Picking a start date pre-fills an empty end date with the same
+    // day - most events are single-day, so this saves a second trip
+    // into the picker. An end date the user has already set is never
+    // overwritten.
+    if (pickerTarget.key === "startDate" && next && !state.endDate) {
+      dispatch({ type: "SET_FIELD", key: "endDate", value: next });
+    }
   };
 
   const goTo = (key: string) => {

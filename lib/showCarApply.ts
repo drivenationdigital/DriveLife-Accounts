@@ -43,6 +43,12 @@ export interface ShowCarPublicCategory {
 export interface ShowCarPublicResponse {
   event_id: number;
   event_title: string;
+  /** Event date range, Y-m-d. Optional so the page still builds against
+   *  a WP deployment that predates these fields. */
+  event_start_date?: string | null;
+  event_end_date?: string | null;
+  /** The organiser's "Show car information" copy (sanitised HTML). */
+  event_info?: string | null;
   /** The blog this event lives on - see the note in carClubApply.ts.
    *  Optional until the public endpoints echo one back. */
   site?: EventSite;
@@ -152,17 +158,27 @@ export async function uploadShowCarPhoto(
     throw new Error(message);
   }
 
-  // Cloudflare's success body includes the delivery URL(s) in
-  // result.variants[]. We take the first (public) variant.
+  // Cloudflare's success body includes one delivery URL per configured
+  // variant in result.variants[], in NO guaranteed order - this account
+  // has "public", "thumbnail" and "blurred" variants, and taking [0]
+  // blindly stored blurred URLs for some applications (which then
+  // rendered blurred in the organiser dashboard). Pick "public"
+  // explicitly, fall back to any non-blurred variant, then to [0].
   const cfBody = (await cfRes.json()) as {
     result?: { variants?: unknown };
   };
-  const variants = cfBody?.result?.variants;
-  if (!Array.isArray(variants) || typeof variants[0] !== "string") {
+  const variants = (
+    Array.isArray(cfBody?.result?.variants) ? cfBody.result.variants : []
+  ).filter((v): v is string => typeof v === "string");
+  if (variants.length === 0) {
     throw new Error("Cloudflare didn't return a delivery URL.");
   }
 
-  return variants[0];
+  return (
+    variants.find((v) => v.endsWith("/public")) ??
+    variants.find((v) => !v.endsWith("/blurred")) ??
+    variants[0]
+  );
 }
 
 // ============================================================
@@ -222,9 +238,10 @@ export function isCategoryOpenToday(c: ShowCarPublicCategory): boolean {
 }
 
 /**
- * Build the suffix shown next to a category name in the dropdown.
- * Captures the three signals the user cares about: price, capacity,
- * window state.
+ * Build the suffix shown next to a category name in the dropdown:
+ * price plus, where relevant, "full"/"closed". Deliberately no
+ * remaining-space counts - the organiser asked for capacity numbers
+ * to stay off the public form.
  */
 export function categoryAvailabilityLabel(
   c: ShowCarPublicCategory,
@@ -236,12 +253,5 @@ export function categoryAvailabilityLabel(
   );
   if (c.is_full) bits.push("full");
   else if (!isCategoryOpenToday(c)) bits.push("closed");
-  else if (
-    c.spaces_remaining !== null &&
-    c.spaces_remaining > 0 &&
-    c.spaces_remaining <= 5
-  ) {
-    bits.push(`${c.spaces_remaining} left`);
-  }
   return bits.join(" · ");
 }

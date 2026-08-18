@@ -75,11 +75,6 @@ export function OverviewTab() {
           grids, so dropping the sales half doesn't leave a gap. */}
       <EventStatStrip event={event} kpis={kpis} showSales={hasTickets} />
 
-      {/* A listing has no sales breakdown, so the description takes the
-          place of the tickets card rather than leaving the page empty
-          below the traffic row. */}
-      {!hasTickets && <DescriptionSection html={event.description} />}
-
       {/* Tickets breakdown + (optional) Needs Attention.
           Two columns only when BOTH are present - a listing event with
           pending applications still shows Needs Attention, it just gets
@@ -268,6 +263,12 @@ export function OverviewTab() {
           </div>
         )}
       </div>
+
+      {/* A listing has no sales breakdown, so the description fills the
+          space the tickets card would have used. Rendered AFTER the
+          Needs Attention block so pending applications surface first -
+          the description is static content the organiser already knows. */}
+      {!hasTickets && <DescriptionSection html={event.description} />}
 
       {/* Recent orders. Ticketed events only - with no tickets there is
           nothing to order, so the table could only ever be empty, and

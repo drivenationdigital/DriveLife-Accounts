@@ -109,12 +109,15 @@ export function PublishPanel() {
       : "No tickets yet";
 
   const summarySlug = slugify(state.title);
+  // Display is truncated so long titles don't blow out the card; the
+  // href and the clipboard both carry the FULL url.
   const summaryUrl = `carevents.com/${summarySlugTrunc(summarySlug, 28)}`;
+  const fullUrl = `https://carevents.com/${summarySlug || "your-event"}`;
 
   const [copied, setCopied] = useState(false);
   const onCopyUrl = async () => {
     try {
-      await navigator.clipboard.writeText(`https://${summaryUrl}`);
+      await navigator.clipboard.writeText(fullUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -276,9 +279,14 @@ export function PublishPanel() {
               className="fa-solid fa-link text-gold-400 text-xs"
               aria-hidden
             />
-            <span className="text-xs font-mono text-ink-200 truncate min-w-0 flex-1">
+            <a
+              href={fullUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-mono text-ink-200 hover:text-white hover:underline transition truncate min-w-0 flex-1"
+            >
               {summaryUrl}
-            </span>
+            </a>
             <button
               type="button"
               onClick={onCopyUrl}

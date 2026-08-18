@@ -2,6 +2,7 @@
 "use client";
 
 import {
+  useEffect,
   useState,
   use,
   type ChangeEvent,
@@ -18,7 +19,13 @@ import {
 } from "@/lib/applyTheme";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
-import { regionFromSite } from "@/lib/regions";
+import { formatRegionDateRange, regionFromSite } from "@/lib/regions";
+import { SubmitOverlay } from "@/components/apply/SubmitOverlay";
+import {
+  ArrowRightIcon,
+  ButtonSpinner,
+  CheckIcon,
+} from "@/components/apply/ApplyIcons";
 import {
   useTraderPublic,
   useSubmitTraderApplication,
@@ -68,6 +75,12 @@ export default function TraderApplyPage({
   const region = regionFromSite(data?.site);
   const submit = useSubmitTraderApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+
+  // The form is long, so the user is at the bottom of the page when
+  // they submit - jump to the top so the confirmation is in view.
+  useEffect(() => {
+    if (submit.isSuccess) window.scrollTo(0, 0);
+  }, [submit.isSuccess]);
 
   if (isLoading) {
     return (
@@ -130,7 +143,7 @@ export default function TraderApplyPage({
         <ConfettiBurst />
         <div className="flex flex-col items-center text-center py-6">
           <span className="flex items-center justify-center w-16 h-16 rounded-full bg-gold-500 text-white mb-5 shadow-sm shadow-gold-500/30">
-            <i className="fa-solid fa-check text-2xl" aria-hidden />
+            <CheckIcon />
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-900 tracking-tight mb-3">
             Application received
@@ -145,7 +158,7 @@ export default function TraderApplyPage({
             className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
           >
             Continue
-            <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
+            <ArrowRightIcon />
           </a>
         </div>
       </PageShell>
@@ -186,6 +199,10 @@ export default function TraderApplyPage({
 
   return (
     <PageShell>
+      <SubmitOverlay
+        show={submit.isPending}
+        label="Submitting your application…"
+      />
       <header className="mb-7">
         <p className="text-[11px] uppercase tracking-[0.18em] text-gold-600 font-bold mb-2">
           Trader Application
@@ -193,6 +210,15 @@ export default function TraderApplyPage({
         <h1 className="text-3xl sm:text-4xl font-extrabold text-ink-900 tracking-tight mb-3 leading-[1.05]">
           {data.event_title}
         </h1>
+        {data.event_start_date && (
+          <p className="text-sm font-semibold text-ink-700 mb-2">
+            {formatRegionDateRange(
+              data.event_start_date,
+              data.event_end_date,
+              region,
+            )}
+          </p>
+        )}
         <p className="text-sm text-ink-600 leading-relaxed">
           Apply for a trade stand at this event. Approved traders will be
           emailed next steps.
@@ -368,9 +394,7 @@ export default function TraderApplyPage({
           }
           className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
         >
-          {submit.isPending && (
-            <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />
-          )}
+          {submit.isPending && <ButtonSpinner />}
           {submit.isPending ? "Submitting…" : "Submit Trader Application"}
         </button>
       </form>

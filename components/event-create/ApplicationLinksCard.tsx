@@ -146,7 +146,16 @@ export function ApplicationLinksCard({
             <span className="link-icon">
               <i className="fa-solid fa-globe text-xs" aria-hidden />
             </span>
-            <input type="text" readOnly value={directUrl} />
+            {/* A real link rather than a read-only input - opens the
+                public form in a new tab; Copy still sits alongside. */}
+            <a
+              className="link-value"
+              href={directUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {directUrl}
+            </a>
             <button
               type="button"
               onClick={() => copy(directUrl, "url")}

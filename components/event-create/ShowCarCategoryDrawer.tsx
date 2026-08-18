@@ -307,8 +307,12 @@ export function ShowCarCategoryDrawer({
         }
         onClose={() => setPickerTarget(null)}
         onChange={(next) => {
-          if (pickerTarget === "open") setApplicationsOpen(next);
-          else if (pickerTarget === "close") setApplicationsClose(next);
+          if (pickerTarget === "open") {
+            setApplicationsOpen(next);
+            // Pre-fill an empty close date with the open date; a value
+            // the user already picked is never overwritten.
+            if (next && !applicationsClose) setApplicationsClose(next);
+          } else if (pickerTarget === "close") setApplicationsClose(next);
         }}
       />
     </>
