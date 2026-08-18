@@ -889,6 +889,9 @@
   gap: 8px;
   align-items: center;
   flex-shrink: 0;
+  /* Safety net: if the buttons still can't fit beside a long title/URL,
+     wrap onto a second row instead of overflowing the hero box. */
+  flex-wrap: wrap;
 }
 .btn {
   display: inline-flex;
@@ -2321,6 +2324,16 @@
   .app-card-grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   }
+  /* Stack the hero action buttons under the event URL well before
+     they'd collide with it - the side-by-side grid only has room on
+     wide desktops. Same layout the mobile breakpoint uses. */
+  .event-hero-grid {
+    grid-template-columns: 1fr;
+    display: block;
+  }
+  .event-hero-grid .event-actions {
+    margin: 20px 0 0 0;
+  }
 }
 @media (min-width: 901px) {
   body.sidebar-desktop-hidden .sidebar {
@@ -3621,6 +3634,16 @@
   .trader-grid {
     grid-template-columns: 1fr 1fr;
   }
+  /* Stack the hero action buttons under the event URL well before
+     they'd collide with it - the side-by-side grid only has room on
+     wide desktops. Same layout the mobile breakpoint uses. */
+  .event-hero-grid {
+    grid-template-columns: 1fr;
+    display: block;
+  }
+  .event-hero-grid .event-actions {
+    margin: 20px 0 0 0;
+  }
 }
 /* Desktop: burger collapses the sidebar */
 @media (min-width: 901px) {
@@ -4868,10 +4891,13 @@
 .auth-page {
   min-height: 100vh;
   display: flex;
-  align-items: center;
+  /* Top-aligned rather than vertically centred - centring left a
+     large empty band above the logo on tall screens. The clamp keeps
+     a small breathing space on phones and caps it on desktops. */
+  align-items: flex-start;
   justify-content: center;
   background: var(--bg);
-  padding: 32px 20px;
+  padding: clamp(24px, 7vh, 56px) 20px 32px;
 }
 .auth-wrap {
   width: 100%;

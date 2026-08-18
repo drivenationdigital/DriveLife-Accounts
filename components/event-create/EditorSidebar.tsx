@@ -62,10 +62,6 @@ export function EditorSidebar() {
         <h2 className="font-display text-xl text-ink-900 leading-snug">
           {state.title}
         </h2>
-        <p className="text-xs text-ink-500 mt-2 flex items-center gap-1.5">
-          <i className="fa-solid fa-mug-hot text-gold-600 text-[10px]" aria-hidden />
-          {state.hostName}
-        </p>
       </div>
 
       {/* Step navigation - vertical list. */}

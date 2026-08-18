@@ -9,7 +9,7 @@ import { ToastProvider } from "@/context/ToastContext";
 import { ActionProvider } from "@/context/ActionContext";
 
 export const metadata: Metadata = {
-  title: "CarEvents",
+  title: "My Account - CarEvents.com",
   description: "Manage your car events, orders, show cars, clubs and traders.",
 };
 

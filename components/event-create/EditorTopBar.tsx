@@ -117,8 +117,9 @@ export function EditorTopBar() {
         </span>
 
         {/* Save status pill - md+ only (mobile keeps the bar uncluttered).
-            Reflects the shared save mutation state. */}
-        <SaveStatusPill phase={phase} />
+            Reflects the shared save mutation state, plus whether edits
+            have been made since the last save. */}
+        <SaveStatusPill phase={phase} isDirty={state.isDirty} />
 
         {/* Preview button - sm+ (no value squeezing it onto a phone).
             Only shown once the event is saved and has a post id; opens
@@ -171,18 +172,30 @@ export function EditorTopBar() {
  * Live save indicator. Mirrors the four phases of the shared save
  * mutation. Idle (before the first save) reads "Not saved yet" so the
  * pill never claims a state that isn't true.
+ *
+ * `isDirty` overrides a stale "Saved": edits made after the last save
+ * flip the pill to "Not saved" until the user saves again. Saving and
+ * error phases still win - they describe the in-flight/failed save
+ * regardless of further edits.
  */
 function SaveStatusPill({
   phase,
+  isDirty,
 }: {
   phase: "idle" | "saving" | "saved" | "error";
+  isDirty: boolean;
 }) {
-  const config = {
-    idle: { dot: "bg-ink-300", label: "Not saved yet", pulse: false },
-    saving: { dot: "bg-amber-500", label: "Saving…", pulse: true },
-    saved: { dot: "bg-emerald-500", label: "Saved", pulse: false },
-    error: { dot: "bg-red-500", label: "Couldn’t save", pulse: false },
-  }[phase];
+  const config =
+    phase === "saving" || phase === "error"
+      ? {
+          saving: { dot: "bg-amber-500", label: "Saving…", pulse: true },
+          error: { dot: "bg-red-500", label: "Couldn’t save", pulse: false },
+        }[phase]
+      : isDirty
+        ? { dot: "bg-amber-500", label: "Not saved", pulse: false }
+        : phase === "saved"
+          ? { dot: "bg-emerald-500", label: "Saved", pulse: false }
+          : { dot: "bg-ink-300", label: "Not saved yet", pulse: false };
 
   return (
     <span className="hidden md:inline-flex items-center gap-1.5 text-xs text-ink-500">

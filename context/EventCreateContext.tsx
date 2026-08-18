@@ -597,6 +597,13 @@ export type EventCreateState = {
   scheduledDate: string | null;
   scheduledTime: string;
   visibility: "public" | "private";
+
+  // ---- Change tracking ----
+  // True when the user has edited anything since the last load/save.
+  // Maintained by the reducer wrapper (not dispatched directly): every
+  // editing action sets it, HYDRATE/RESET clear it. Drives the topbar
+  // "Not saved" indicator.
+  isDirty: boolean;
 };
 
 // ============================================================
@@ -689,6 +696,8 @@ const INITIAL_STATE: EventCreateState = {
   scheduledDate: null,
   scheduledTime: "09:00",
   visibility: "public",
+
+  isDirty: false,
 };
 
 // ============================================================
@@ -853,6 +862,25 @@ export type EventCreateAction =
 // ============================================================
 
 function reducer(
+  state: EventCreateState,
+  action: EventCreateAction,
+): EventCreateState {
+  const next = applyAction(state, action);
+
+  // Dirty flag, handled once here rather than per-case: HYDRATE and
+  // RESET represent server/pristine state (a load, a completed save,
+  // or a fresh editor), so they mark the state clean. Every other
+  // action is a user edit and marks it dirty.
+  if (action.type === "HYDRATE" || action.type === "RESET") {
+    return next.isDirty ? { ...next, isDirty: false } : next;
+  }
+  if (next === state) {
+    return state;
+  }
+  return next.isDirty ? next : { ...next, isDirty: true };
+}
+
+function applyAction(
   state: EventCreateState,
   action: EventCreateAction,
 ): EventCreateState {

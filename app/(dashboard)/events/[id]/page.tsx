@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useMemo } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import {
   useEvent,
@@ -45,6 +45,15 @@ function EventDetailContent() {
   const eid = params?.id;
   const { activeTab } = useUI();
   const searchParams = useSearchParams();
+
+  // Always open an event at the top of the page. Without this, the
+  // browser/router can carry over the scroll position from a long
+  // events list (or a previously-viewed event), landing the user
+  // mid-page or at the bottom. Keyed on eid so switching between
+  // events resets too, while tab changes within one event don't.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [eid]);
 
   // URL-driven page state for the orders tab. Not reset when the user
   // switches tabs - if they're on page 3, come back, still on page 3.

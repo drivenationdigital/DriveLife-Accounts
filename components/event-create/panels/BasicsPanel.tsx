@@ -100,7 +100,7 @@ export function BasicsPanel() {
           authed user's organisation. */}
       <div className="flex items-center gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl mb-8">
         <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center">
-          <i className="fa-solid fa-mug-hot text-gold-600" aria-hidden />
+          <i className="fa-solid fa-bolt text-gold-600" aria-hidden />
         </div>
         <div>
           <p className="text-xs text-ink-500">Hosted by</p>
