@@ -27,6 +27,19 @@ import { FullScreenDatePicker } from "./FullScreenDatePicker";
  */
 type DateTarget = "saleStart" | "saleEnd";
 
+/**
+ * Initial value for the quantity input: how many are still AVAILABLE,
+ * i.e. the stored total minus what's already sold. Empty string when
+ * the ticket is unlimited (NaN total) or brand new.
+ *
+ * Never negative - an oversold ticket (sold > total, possible after a
+ * manual stock reduction) shows 0 rather than a negative figure.
+ */
+function seedQuantity(editing: Ticket | null): string {
+  if (!editing || !Number.isFinite(editing.quantity)) return "";
+  return String(Math.max(0, editing.quantity - editing.quantitySold));
+}
+
 export function TicketDrawer({
   open,
   editing,
@@ -58,11 +71,12 @@ export function TicketDrawer({
   const [additionalInfo, setAdditionalInfo] = useState(
     () => editing?.additionalInfo ?? "",
   );
-  const [quantity, setQuantity] = useState(() =>
-    editing && Number.isFinite(editing.quantity)
-      ? String(editing.quantity)
-      : "",
-  );
+  // The quantity field is AVAILABLE stock (total minus sold), not the
+  // total the API stores. `initialQuantity` keeps the seeded string so
+  // handleSave can tell an untouched field from one the user retyped
+  // to the same number - see the dirty check there.
+  const [quantity, setQuantity] = useState(seedQuantity(editing));
+  const [initialQuantity] = useState(seedQuantity(editing));
   const [price, setPrice] = useState(() =>
     editing && Number.isFinite(editing.price) ? String(editing.price) : "",
   );
@@ -91,6 +105,36 @@ export function TicketDrawer({
   const [secretCode, setSecretCode] = useState(() => editing?.secretCode ?? "");
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
+
+  // ---- Quantity back-conversion -------------------------------------
+  // The field holds what's AVAILABLE; the API wants the TOTAL
+  // allocation.
+  //
+  //   - Untouched  → send the stored total back verbatim. Deriving it
+  //     from the field would quietly shrink the allocation by however
+  //     many have sold on every save that didn't mean to touch it.
+  //   - Edited     → the user is stating a new availability, so the
+  //     new total is that figure plus the tickets already sold.
+  //   - Cleared    → NaN, which the body mapper sends as null:
+  //     unlimited.
+  //
+  // A new ticket has no sold count, so both branches agree on it.
+  // Derived here rather than inside handleSave because the hint line
+  // under the input reports the same numbers - one calculation, so the
+  // preview can't disagree with what gets saved.
+  const sold = editing?.quantitySold ?? 0;
+  const quantityDirtied = quantity.trim() !== initialQuantity.trim();
+  const enteredAvailable = Math.max(0, parseFloat(quantity));
+  const nextQuantity =
+    !quantityDirtied && editing
+      ? editing.quantity
+      : Number.isFinite(enteredAvailable)
+        ? enteredAvailable + sold
+        : NaN;
+
+  /** Total-allocation figure for display - "Unlimited" for the NaN
+   *  sentinel, which is what an empty quantity field means. */
+  const totalText = (n: number) => (Number.isFinite(n) ? String(n) : "Unlimited");
 
   // Auto-fill a code when the user flips the secret toggle ON for the
   // first time. Wrapped so we don't overwrite a code the user already
@@ -122,7 +166,8 @@ export function TicketDrawer({
       id,
       name: trimmed,
       additionalInfo: additionalInfo.trim(),
-      quantity: Math.max(0, parseFloat(quantity)),
+      quantity: nextQuantity,
+      quantitySold: sold,
       price: Math.max(0, parseFloat(price)),
       limitPerOrder: parseFloat(limitPerOrder),
       saleStart,
@@ -248,7 +293,20 @@ export function TicketDrawer({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-              Quantity
+              Quantity available
+              {/* Asterisk marks an unsaved change to the allocation.
+                  Stock is the one field here where the saved value and
+                  the typed value mean different things (available vs
+                  total), so it earns an explicit "you changed this"
+                  cue that the other inputs don't need. */}
+              {quantityDirtied && (
+                <span
+                  className="text-gold-600 ml-0.5"
+                  title="Stock changed - not saved yet"
+                >
+                  *
+                </span>
+              )}
             </label>
             <input
               type="number"
@@ -259,6 +317,29 @@ export function TicketDrawer({
               onChange={(e) => setQuantity(e.target.value)}
               min={0}
             />
+            {/* Only for saved tickets: a new one has nothing sold and no
+                stored total, so the field says everything already. */}
+            {editing && (
+              <p
+                className={`mt-1.5 text-[11px] leading-snug ${
+                  quantityDirtied ? "text-gold-700" : "text-ink-500"
+                }`}
+              >
+                {quantityDirtied ? (
+                  <>
+                    Total stock {totalText(editing.quantity)} →{" "}
+                    <strong className="font-semibold">
+                      {totalText(nextQuantity)}
+                    </strong>{" "}
+                    · {sold} sold
+                  </>
+                ) : (
+                  <>
+                    Total stock {totalText(editing.quantity)} · {sold} sold
+                  </>
+                )}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">

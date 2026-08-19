@@ -116,8 +116,19 @@ export type Ticket = {
   name: string;
   /** Free-text additional info shown at checkout / on the ticket. */
   additionalInfo: string;
-  /** How many can be sold. Stored as number (NaN ⇒ unset). */
+  /** TOTAL allocation - the `stock` column, matching what the API
+   *  sends and expects back. Stored as number (NaN ⇒ unlimited).
+   *
+   *  NOT what the UI shows: the panel subtitle and the drawer's
+   *  quantity input both render `quantity - quantitySold`, i.e. how
+   *  many are still available. The drawer converts back to a total on
+   *  save. */
   quantity: number;
+  /** How many of `quantity` have already sold - the `stock_sold`
+   *  column. 0 for a ticket that hasn't been saved yet. Only used to
+   *  derive the available figure; never sent back to the server, which
+   *  owns this counter. */
+  quantitySold: number;
   /** Price in major units (£), e.g. 12.5 for £12.50. Stored as number. */
   price: number;
   /** ISO yyyy-mm-dd, or null if not set (defaults to "on sale now"). */
