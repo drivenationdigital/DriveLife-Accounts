@@ -2,7 +2,9 @@
 
 import { useEventSteps } from "@/lib/useEventSteps";
 import { useAutoTimezone } from "@/lib/useAutoTimezone";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { EVENT_CATEGORIES } from "@/lib/eventCategories";
@@ -26,7 +28,6 @@ const TITLE_MAX = 60;
  */
 export function BasicsPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -73,7 +74,7 @@ export function BasicsPanel() {
     if (!next) return;
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", next);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

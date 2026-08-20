@@ -2,7 +2,9 @@
 
 import { useEventSteps } from "@/lib/useEventSteps";
 import { useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   useEventCreate,
@@ -39,7 +41,6 @@ import { DiscountDrawer } from "../DiscountDrawer";
  */
 export function DiscountsPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -50,7 +51,7 @@ export function DiscountsPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

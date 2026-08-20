@@ -1,7 +1,9 @@
 "use client";
 
 import { useEventSteps } from "@/lib/useEventSteps";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import {
@@ -29,7 +31,6 @@ import {
  * disables - Publish will get its own logic when we wire mutations.
  */
 export function EditorBottomBar() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { state } = useEventCreate();
@@ -43,7 +44,7 @@ export function EditorBottomBar() {
   const goToStep = (key: EventCreateStepKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     // After navigating, scroll to top of the panel so the user sees the
     // header of the next step rather than landing mid-form.
     window.scrollTo({ top: 0, behavior: "smooth" });

@@ -37,9 +37,10 @@ export function isLocalImage(
  * /event-edit payload also returns WordPress-backed rows (source
  * "wordpress", id "wp:<attachment_id>") - those attachments belong to
  * the WP media library, so the editor just drops the tile from local
- * state. Note that media isn't part of the /event-update payload, so
- * that drop is local-only: the row comes back on the next hydrate
- * until the API supports removing WP-backed media.
+ * state. Note that /event-update only carries the gallery's ORDER
+ * (media.gallery_order), not its membership, so that drop is
+ * local-only: the row comes back on the next hydrate until the API
+ * supports removing WP-backed media.
  *
  * A remote row with no id has no removable backing either way, and a
  * missing `source` is treated as Cloudflare: that covers images

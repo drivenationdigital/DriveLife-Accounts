@@ -2,7 +2,9 @@
 
 import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useEffect, useMemo, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   useEventCreate,
@@ -57,7 +59,6 @@ type DatepickerTarget =
  */
 export function DatesPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -112,7 +113,7 @@ export function DatesPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

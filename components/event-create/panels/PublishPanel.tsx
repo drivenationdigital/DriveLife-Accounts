@@ -3,7 +3,9 @@
 import { useEventSteps } from "@/lib/useEventSteps";
 import { formatRegionShortDate, formatRegionTime } from "@/lib/regions";
 import { useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import {
@@ -12,6 +14,7 @@ import {
   saveIconForStatus,
 } from "@/lib/useEditorSave";
 import { ApiError } from "@/lib/apiClient";
+import { careventsHomeUrl } from "@/lib/eventPageUrl";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 
@@ -44,7 +47,6 @@ import { FullScreenDatePicker } from "../FullScreenDatePicker";
  */
 export function PublishPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -78,7 +80,7 @@ export function PublishPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -109,10 +111,15 @@ export function PublishPanel() {
       : "No tickets yet";
 
   const summarySlug = slugify(state.title);
+  // Region-aware base: the US site is the bare domain, the UK one lives
+  // under /uk (multisite subdirectory layout - see regions.ts). Without
+  // this a UK event's URL was missing its /uk/ segment.
+  const siteBase = careventsHomeUrl(region);
+  const displayBase = siteBase.replace(/^https?:\/\/(www\.)?/, "");
   // Display is truncated so long titles don't blow out the card; the
   // href and the clipboard both carry the FULL url.
-  const summaryUrl = `carevents.com/${summarySlugTrunc(summarySlug, 28)}`;
-  const fullUrl = `https://carevents.com/${summarySlug || "your-event"}`;
+  const summaryUrl = `${displayBase}/${summarySlugTrunc(summarySlug, 28)}`;
+  const fullUrl = `${siteBase}/${summarySlug || "your-event"}`;
 
   const [copied, setCopied] = useState(false);
   const onCopyUrl = async () => {

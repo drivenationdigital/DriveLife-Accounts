@@ -2,7 +2,9 @@
 
 import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   useEventCreate,
@@ -64,7 +66,6 @@ import { EditorTextarea } from "../EditorTextarea";
  */
 export function TicketsPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -75,7 +76,7 @@ export function TicketsPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -1061,11 +1062,25 @@ function RowActions({
 }
 
 /** Build the small subtitle text shown beneath each ticket name -
- *  available count + sale window in human form. */
+ *  stock summary + sale window in human form.
+ *
+ *  "Available" is what's LEFT (total allocation minus what's already
+ *  sold), not the allocation itself - a 100-ticket allocation with 40
+ *  sold reads "60 available of 100". The total is spelled out because
+ *  the drawer edits availability, so the organiser needs to see both
+ *  numbers to know what they're changing. Once anything has sold the
+ *  sold count is shown too.
+ *
+ *  A NaN quantity means unlimited, so no stock line is shown at all. */
 function ticketSubtitle(t: Ticket, region: Region): string {
   const parts: string[] = [];
-  if (Number.isFinite(t.quantity) && t.quantity > 0) {
-    parts.push(`${t.quantity} available`);
+  const available = t.quantity - t.quantitySold;
+  if (Number.isFinite(t.quantity) && available > 0) {
+    parts.push(
+      t.quantitySold > 0
+        ? `${available} available of ${t.quantity} (${t.quantitySold} sold)`
+        : `${available} available`,
+    );
   }
   if (t.requireCarDetails) {
     parts.push("Requires car details");

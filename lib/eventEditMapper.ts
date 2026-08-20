@@ -466,7 +466,13 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     additionalInfo: row.description,
     // parseFloat returns NaN for "" and other non-numeric, which is
     // exactly the sentinel the editor uses for "unset".
+    //
+    // `stock` is the TOTAL allocation, not the remainder - the UI
+    // subtracts `quantitySold` itself. Keeping the raw total here means
+    // an edit that never touches the quantity field can send `stock`
+    // back exactly as it arrived.
     quantity: parseFloat(row.stock),
+    quantitySold: parseCount(row.stock_sold),
     price: parseFloat(row.price),
     saleStart: extractIsoDate(row.ticket_date_start),
     saleEnd: extractIsoDate(row.ticket_date_end),
@@ -489,6 +495,16 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     encryptedTicketID: row.encrypted_ticket_id,
   };
   return ticket;
+}
+
+/**
+ * Parse a numeric counter column that the table stores as a string and
+ * may leave null. Anything unparseable counts as 0 - these are running
+ * totals, so "unknown" and "none yet" are the same thing to the editor.
+ */
+function parseCount(raw: string | null | undefined): number {
+  const n = parseFloat(raw ?? "");
+  return Number.isFinite(n) ? n : 0;
 }
 
 /** Map the full ticket array. The API returns rows already sorted

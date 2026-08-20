@@ -120,6 +120,14 @@ export interface ApiEventUpdateSection {
   ticket_cost?: number;
 }
 
+export interface ApiEventUpdateMedia {
+  /** Gallery display order as media handles - the Cloudflare image
+   *  hash for CF uploads, a `wp:<attachment_id>` handle for legacy
+   *  WordPress rows. The files themselves travel through the
+   *  /event-image* endpoints; this is only the sequence. */
+  gallery_order?: string[];
+}
+
 export interface ApiEventUpdatePublish {
   status?: "draft" | "publish" | "future";
   scheduled_date?: string | null; // "YYYY-MM-DD"
@@ -138,6 +146,7 @@ export interface ApiEventUpdateRequest {
    *  individually via /event-trader, so there are no per-section
    *  fields to persist. */
   traders?: { enabled: boolean };
+  media?: ApiEventUpdateMedia;
   publish?: ApiEventUpdatePublish;
 }
 
@@ -163,6 +172,7 @@ export function mapStateToUpdateRequest(
     car_clubs: mapCarClubs(state),
     show_cars: mapShowCars(state),
     traders: { enabled: state.tradersEnabled },
+    media: mapMedia(state),
     publish: mapPublish(state),
   };
 
@@ -414,6 +424,22 @@ function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
     // Secret codes moved per-category - see ShowCarCategoryDrawer.
     // The event-level secret_code field is gone; each show car
     // ticket carries its own code in the cc table now.
+  };
+}
+
+/**
+ * Media - the gallery's display order, as the handles the server
+ * already knows each image by. Local images still uploading have no
+ * server handle yet, so they're skipped; the upload flow swaps them
+ * for remote entries in place, and the next save records them where
+ * they sit. Sent even when empty so clearing the gallery clears the
+ * stored order with it.
+ */
+function mapMedia(state: EventCreateState): ApiEventUpdateMedia {
+  return {
+    gallery_order: state.gallery.flatMap((img) =>
+      img.kind === "remote" && img.cloudflareId ? [img.cloudflareId] : [],
+    ),
   };
 }
 

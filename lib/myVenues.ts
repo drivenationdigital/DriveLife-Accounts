@@ -117,9 +117,9 @@ export interface VenueImage {
 export interface VenueEditData {
   id: number;
   encrypted_id: string;
-  /** Region the vid belongs to, folded in from the `?site=` param on
-   *  the edit route. Not part of the /venue-edit payload - the editor
-   *  adds it on hydration so saving can send it back. */
+  /** Region the vid belongs to. Not part of the /venue-edit payload -
+   *  `useVenueEditQuery` folds in the site it resolved the vid against,
+   *  so anything reading this record can send it back on save. */
   site: SiteKey;
   title: string;
   location: string;
@@ -136,6 +136,17 @@ export interface VenueEditData {
   status: "publish" | "draft";
 }
 
+/** What /venue-edit actually returns. `site` is absent - the endpoint
+ *  is already scoped to one blog by the `site` the request carried, so
+ *  it doesn't echo it back. */
+export interface ApiVenueEditResponse {
+  success: true;
+  venue: Omit<VenueEditData, "site">;
+}
+
+/** What `useVenueEditQuery` hands back: the payload with `site` folded
+ *  in. Kept distinct from the raw response so the field can't be
+ *  assumed present on something that never had it. */
 export interface VenueEditResponse {
   success: true;
   venue: VenueEditData;
@@ -180,10 +191,17 @@ export interface VenueUpdateResponse {
 export function useVenueEditQuery(vid: string, site: SiteKey) {
   return useQuery<VenueEditResponse, Error>({
     queryKey: ["venue-edit", vid, { site }],
-    queryFn: () =>
-      apiGet<VenueEditResponse>(`/venue-edit?vid=${encodeURIComponent(vid)}`, {
-        site,
-      }),
+    queryFn: async () => {
+      const res = await apiGet<ApiVenueEditResponse>(
+        `/venue-edit?vid=${encodeURIComponent(vid)}`,
+        { site },
+      );
+      // Fold the region into the record here rather than at the page.
+      // Every save has to send it back (encrypted ids repeat across
+      // blogs, so /venue-update rejects a body without one) and this is
+      // the only layer that is guaranteed to know it.
+      return { ...res, venue: { ...res.venue, site } };
+    },
     enabled: Boolean(vid),
     staleTime: Infinity,
     refetchOnWindowFocus: false,
