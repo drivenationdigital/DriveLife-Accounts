@@ -119,9 +119,9 @@ export function TicketDrawer({
   //     unlimited.
   //
   // A new ticket has no sold count, so both branches agree on it.
-  // Derived here rather than inside handleSave because the hint line
-  // under the input reports the same numbers - one calculation, so the
-  // preview can't disagree with what gets saved.
+  // Derived here rather than inside handleSave because the label's
+  // dirty marker and the sold-count line under the input read the same
+  // values.
   const sold = editing?.quantitySold ?? 0;
   const quantityDirtied = quantity.trim() !== initialQuantity.trim();
   const enteredAvailable = Math.max(0, parseFloat(quantity));
@@ -131,10 +131,6 @@ export function TicketDrawer({
       : Number.isFinite(enteredAvailable)
         ? enteredAvailable + sold
         : NaN;
-
-  /** Total-allocation figure for display - "Unlimited" for the NaN
-   *  sentinel, which is what an empty quantity field means. */
-  const totalText = (n: number) => (Number.isFinite(n) ? String(n) : "Unlimited");
 
   // Auto-fill a code when the user flips the secret toggle ON for the
   // first time. Wrapped so we don't overwrite a code the user already
@@ -294,17 +290,18 @@ export function TicketDrawer({
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
               Quantity available
-              {/* Asterisk marks an unsaved change to the allocation.
-                  Stock is the one field here where the saved value and
-                  the typed value mean different things (available vs
-                  total), so it earns an explicit "you changed this"
-                  cue that the other inputs don't need. */}
+              {/* Marks an unsaved change to the allocation. Stock is the
+                  one field here where the saved value and the typed
+                  value mean different things (available vs total), so it
+                  earns a "you changed this" cue the other inputs don't
+                  need. A bare asterisk would read as "required" - that's
+                  what the gold * on Ticket name above means. */}
               {quantityDirtied && (
                 <span
-                  className="text-gold-600 ml-0.5"
+                  className="ml-1.5 align-middle text-[9px] tracking-wider bg-gold-50 text-gold-700 border border-gold-200 px-1.5 py-0.5 rounded"
                   title="Stock changed - not saved yet"
                 >
-                  *
+                  Changed
                 </span>
               )}
             </label>
@@ -317,27 +314,11 @@ export function TicketDrawer({
               onChange={(e) => setQuantity(e.target.value)}
               min={0}
             />
-            {/* Only for saved tickets: a new one has nothing sold and no
-                stored total, so the field says everything already. */}
+            {/* Only for saved tickets: a new one has sold nothing, so
+                the line would always read zero. */}
             {editing && (
-              <p
-                className={`mt-1.5 text-[11px] leading-snug ${
-                  quantityDirtied ? "text-gold-700" : "text-ink-500"
-                }`}
-              >
-                {quantityDirtied ? (
-                  <>
-                    Total stock {totalText(editing.quantity)} →{" "}
-                    <strong className="font-semibold">
-                      {totalText(nextQuantity)}
-                    </strong>{" "}
-                    · {sold} sold
-                  </>
-                ) : (
-                  <>
-                    Total stock {totalText(editing.quantity)} · {sold} sold
-                  </>
-                )}
+              <p className="mt-1.5 text-[11px] leading-snug text-ink-500">
+                {sold} ticket{sold === 1 ? "" : "s"} sold so far
               </p>
             )}
           </div>

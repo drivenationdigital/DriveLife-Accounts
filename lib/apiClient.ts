@@ -258,6 +258,8 @@ function assertSite(path: string, site: string | undefined): void {
     );
   }
   if (SITE_REQUIRED_ROUTES.has(route) && !site) {
+    console.log(route);
+    
     throw new ApiError(
       `[apiClient] "${route}" requires a site ("uk" | "us"). ` +
         `Without it the API resolves the id against the UK blog and may ` +
