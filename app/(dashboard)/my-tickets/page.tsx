@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CardGridSkeleton } from "@/components/ui/CardGridSkeleton";
 import Link from "next/link";
 import { useMyTickets, type TicketScope, type MyTicket } from "@/lib/myTickets";
+import { orderDetailPath } from "@/lib/siteRoutes";
 
 export default function MyTicketsPage() {
   const [scope, setScope] = useState<TicketScope>("active");
@@ -145,7 +146,12 @@ function TicketCard({ ticket }: { ticket: MyTicket }) {
           </div>
         </div>
 
-        <Link href={`/orders/${ticket.encrypted_id}`} className="mt-view-btn">
+        {/* No region on the /my-tickets payload, so this mints a
+            region-less ref and the API falls back to its default blog -
+            the documented behaviour for a link with nothing to go on.
+            Routed through the helper anyway so the URL shape stays in
+            one place. */}
+        <Link href={orderDetailPath(ticket.encrypted_id)} className="mt-view-btn">
           View Tickets
         </Link>
       </div>

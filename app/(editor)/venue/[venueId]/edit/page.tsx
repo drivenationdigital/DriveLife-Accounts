@@ -1,6 +1,7 @@
 "use client";
 
-import { resolveRegion } from "@/lib/regions";
+import { resolveRegion, type RegionKey } from "@/lib/regions";
+import { parseRef } from "@/lib/siteRef";
 import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -48,24 +49,36 @@ export default function EditVenuePage({
 }: {
   params: Promise<{ venueId: string }>;
 }) {
-  const { venueId } = use(params);
+  // The route param is a ref - "uk{vid}" - so the region can't get
+  // separated from the vid it belongs to. Split once, here, and pass
+  // the two halves down; nothing below re-reads the URL.
+  const { venueId: venueRef } = use(params);
+  const { id: venueId, site: refSite } = parseRef(venueRef);
   return (
     <VenueEditProvider>
       <Suspense fallback={<VenueEditorSkeleton />}>
-        <EditVenueEditor venueId={venueId} />
+        <EditVenueEditor venueId={venueId} refSite={refSite} />
       </Suspense>
     </VenueEditProvider>
   );
 }
 
-function EditVenueEditor({ venueId }: { venueId: string }) {
+function EditVenueEditor({
+  venueId,
+  refSite,
+}: {
+  venueId: string;
+  /** Region from the ref, or null on a link that carried none. */
+  refSite: RegionKey | null;
+}) {
   const { hydrate } = useVenueEdit();
-  // Region the vid belongs to, carried in on the link that opened this
-  // page. Encrypted ids repeat across regions, so it goes up on the
-  // load and on every mutation below.
-  // resolveRegion falls back to UK - the same blog the API would
-  // have picked for an omitted site, so old links behave as before.
-  const site = resolveRegion(useSearchParams().get("site")).key;
+  // Region the vid belongs to. Encrypted ids repeat across regions, so
+  // it goes up on the load and on every mutation below. `?site=` is
+  // honoured as a fallback for links minted before refs; resolveRegion
+  // then falls back to UK - the same blog the API would have picked for
+  // an omitted site, so old links behave as before.
+  const urlSite = useSearchParams().get("site");
+  const site = resolveRegion(refSite ?? urlSite).key;
   const { data, isLoading, error } = useVenueEditQuery(venueId, site);
 
   useEffect(() => {
@@ -211,12 +224,11 @@ function DeleteVenueButton() {
   const router = useRouter();
   const runAction = useAction();
   const deleteVenue = useDeleteVenue();
-  // Read the region straight off the URL rather than threading it down
-  // - this button is mounted several levels below the page component,
-  // and the vid alone would resolve against the API's default region.
-  // resolveRegion falls back to UK - the same blog the API would
-  // have picked for an omitted site, so old links behave as before.
-  const site = resolveRegion(useSearchParams().get("site")).key;
+  // The region comes off the loaded record, which useVenueEditQuery
+  // stamps with the site it resolved the vid against. This button sits
+  // several levels below the page component, and the vid alone would
+  // resolve against the API's default region.
+  const site = resolveRegion(venue.site).key;
 
   const handleDelete = async () => {
     const res = await runAction({

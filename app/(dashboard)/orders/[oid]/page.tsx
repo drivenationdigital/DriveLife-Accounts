@@ -18,6 +18,7 @@ import {
   type Region,
 } from "@/lib/regions";
 import { eventDetailPath } from "@/lib/siteRoutes";
+import { parseRef } from "@/lib/siteRef";
 import { useAction } from "@/context/ActionContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
@@ -44,22 +45,31 @@ export default function OrderPage() {
   const params = useParams<{ oid: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const oid = params?.oid;
 
-  // The order's region. It arrives on the link from whichever list the
-  // user clicked (see orderDetailPath); there's no event in scope here
-  // to infer it from. The response's own site block wins when the API
-  // starts sending one.
-  const site = searchParams.get("site");
+  // The route param is a ref - "uk{oid}". Orders are WooCommerce posts,
+  // so an encrypted order id repeats across blogs exactly as an eid
+  // does, and this page has no event in scope to infer a region from -
+  // it has to travel with the link.
+  const { id: oid, site: refSite } = parseRef(params?.oid);
+
+  // `?site=` is honoured as a fallback for links minted before refs.
+  // The response's own site block wins over both when the API starts
+  // sending one.
+  const site = refSite ?? searchParams.get("site");
   const { data: order, isLoading, error } = useOrderDetail(oid, site);
   const region = order?.site ? regionFromSite(order.site) : resolveRegion(site);
 
   // Where the back link goes: the event the user came from, carried on
-  // the link as `from` (see orderDetailPath). Absent when the order was
-  // opened from somewhere with no event in scope - My Tickets, or a
-  // pasted URL - and then the dashboard root is the honest fallback.
-  const fromEventEid = searchParams.get("from");
-  const backHref = fromEventEid ? eventDetailPath(fromEventEid, site) : "/";
+  // the link as `from` (see orderDetailPath) and itself a ref. Absent
+  // when the order was opened from somewhere with no event in scope -
+  // My Tickets, or a pasted URL - and then the dashboard root is the
+  // honest fallback. Parsed and re-minted rather than passed through
+  // verbatim so the back link is built the one way every other event
+  // link is.
+  const from = parseRef(searchParams.get("from"));
+  const backHref = from.id
+    ? eventDetailPath(from.id, from.site ?? site)
+    : "/";
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();

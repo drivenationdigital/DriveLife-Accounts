@@ -15,6 +15,7 @@ import {
   mergeAdditionalCarClubs,
 } from "@/lib/eventMapper";
 import { ticketingEnabled } from "@/lib/regions";
+import { parseRef } from "@/lib/siteRef";
 import { useUI } from "@/context/UIContext";
 import { EventProvider } from "@/context/EventContext";
 import { Breadcrumb } from "@/components/event/Breadcrumb";
@@ -42,9 +43,14 @@ export default function EventDetailPage() {
 
 function EventDetailContent() {
   const params = useParams<{ id: string }>();
-  const eid = params?.id;
   const { activeTab } = useUI();
   const searchParams = useSearchParams();
+
+  // The route param is a ref - "uk{eid}" - so the region can't get
+  // separated from the id it belongs to. `refSite` is null on a
+  // pre-multisite link, or one minted under the old `?site=` scheme;
+  // the fallback below covers both.
+  const { id: eid, site: refSite } = parseRef(params?.id);
 
   // Always open an event at the top of the page. Without this, the
   // browser/router can carry over the scroll position from a long
@@ -62,11 +68,11 @@ function EventDetailContent() {
     parseInt(searchParams?.get("ordersPage") ?? "1", 10) || 1
   );
 
-  // Which multisite blog the event lives on. Set by the events list when
-  // it navigates here (`/events/{eid}?site=us`); an eid alone is
-  // ambiguous across sites. Undefined on older links - the API then
-  // resolves against its default site, same as before multisite.
-  const site = searchParams?.get("site") || undefined;
+  // Which multisite blog the event lives on. From the ref, falling back
+  // to a `?site=` param for links minted before refs existed. Undefined
+  // when neither is present - the API then resolves against its default
+  // site, same as before multisite.
+  const site = refSite ?? searchParams?.get("site") ?? undefined;
 
   const eventQuery = useEvent(eid, { site });
 

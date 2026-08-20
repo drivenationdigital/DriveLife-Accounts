@@ -1,6 +1,7 @@
 "use client";
 
-import { resolveRegion } from "@/lib/regions";
+import { resolveRegion, type RegionKey } from "@/lib/regions";
+import { parseRef } from "@/lib/siteRef";
 import { Suspense, use, useEffect } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
@@ -52,26 +53,38 @@ export default function EditClubPage({
 }: {
   params: Promise<{ clubId: string }>;
 }) {
-  const { clubId } = use(params);
+  // The route param is a ref - "uk{cid}" - so the region can't get
+  // separated from the cid it belongs to. Split once, here, and pass
+  // the two halves down; nothing below re-reads the URL.
+  const { clubId: clubRef } = use(params);
+  const { id: clubId, site: refSite } = parseRef(clubRef);
   return (
     <ClubEditProvider>
       <ClubSaveProvider>
         <Suspense fallback={<ClubEditorSkeleton />}>
-          <EditClubEditor clubId={clubId} />
+          <EditClubEditor clubId={clubId} refSite={refSite} />
         </Suspense>
       </ClubSaveProvider>
     </ClubEditProvider>
   );
 }
 
-function EditClubEditor({ clubId }: { clubId: string }) {
+function EditClubEditor({
+  clubId,
+  refSite,
+}: {
+  clubId: string;
+  /** Region from the ref, or null on a link that carried none. */
+  refSite: RegionKey | null;
+}) {
   const { hydrate } = useClubEdit();
   // Region the cid belongs to, carried in on the link that opened this
   // page. Encrypted ids repeat across regions, so it has to go up on
   // both the load and every save.
   // resolveRegion falls back to UK - the same blog the API would
   // have picked for an omitted site, so old links behave as before.
-  const site = resolveRegion(useSearchParams().get("site")).key;
+  const urlSite = useSearchParams().get("site");
+  const site = resolveRegion(refSite ?? urlSite).key;
   const { data, isLoading, error } = useClubEditQuery(clubId, site);
 
   useEffect(() => {
@@ -159,10 +172,12 @@ function PanelFooter({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { club, isDirty } = useClubEdit();
   // Region the cid belongs to - the delete below resolves against the
-  // API's default region without it.
-  const site = resolveRegion(searchParams.get("site")).key;
-  const { isDirty } = useClubEdit();
+  // API's default region without it. Read off the loaded record, which
+  // the editor stamps with the site it resolved the cid against, so
+  // this footer doesn't have to re-read the URL.
+  const site = resolveRegion(club.site).key;
   const { save, isSaving, error } = useClubSave();
 
   // ── Delete ──────────────────────────────────────────────────────

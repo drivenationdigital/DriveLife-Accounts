@@ -7,28 +7,37 @@
  * an event therefore has to carry its region, and every page that
  * receives one has to send it back up on its API calls.
  *
- * We keep the region in a `?site=` query param rather than a path
- * segment (`/events/[site]/[eid]`) so links minted before the multisite
- * rollout still resolve: an old `/events/{eid}` URL simply arrives with
- * no site, and the API falls back to its default region exactly as it
- * did before. Restructuring the path would have broken every one of
- * those saved links and bookmarks.
+ * @see lib/siteRef.ts for the ref format these helpers produce.
  *
- * Pass `undefined` when the region genuinely isn't known - it's better
- * to omit the param than to guess a region and silently open the wrong
- * event.
+ * The region is folded into the id itself - `uk{eid}` - rather than
+ * riding alongside it in a `?site=` query param. See lib/siteRef.ts for
+ * why: a separate param kept going missing, and losing it is silent.
+ * One token can't come apart. No separator is needed because the ids
+ * are base64 of ASCII, which can never begin with "u" - siteRef.ts has
+ * the working.
+ *
+ * Old `?site=` links still work. A pre-multisite `/events/{eid}` has no
+ * region anywhere and falls back to the API's default exactly as it did
+ * before; a `/events/{eid}?site=us` link minted under the old scheme
+ * still has its param, and every reader below honours it as a fallback
+ * when the ref carries no region.
+ *
+ * Pass `undefined` for `site` when the region genuinely isn't known -
+ * better an ambiguous link than one asserting a region we guessed.
  */
 
-/** Append `?site=` (or `&site=`) only when we actually have a region. */
-function withSite(path: string, site?: string | null): string {
-  if (!site) return path;
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}site=${encodeURIComponent(site)}`;
+import { formatRef } from "./siteRef";
+
+/** URL-safe ref for a path segment. `encodeURIComponent` escapes the
+ *  `+`, `/` and `=` that base64 ids can contain; the region prefix is
+ *  plain letters and passes through untouched. */
+function ref(id: string, site?: string | null): string {
+  return encodeURIComponent(formatRef(id, site));
 }
 
 /** The dashboard event view: overview, orders, applications. */
 export function eventDetailPath(eid: string, site?: string | null): string {
-  return withSite(`/events/${encodeURIComponent(eid)}`, site);
+  return `/events/${ref(eid, site)}`;
 }
 
 /**
@@ -77,24 +86,27 @@ export function orderDetailPath(
    */
   fromEventEid?: string | null,
 ): string {
-  const path = withSite(`/orders/${encodeURIComponent(oid)}`, site);
+  const path = `/orders/${ref(oid, site)}`;
   if (!fromEventEid) return path;
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}from=${encodeURIComponent(fromEventEid)}`;
+  // The back link's event is a ref too - it's the same event id in the
+  // same region, and the order page hands it straight to
+  // eventDetailPath.
+  return `${path}?from=${ref(fromEventEid, site)}`;
 }
 
-/** The editor. `eid` rides in the query string here, not the path. */
+/** The editor. `eid` rides in the query string here, not the path -
+ *  it's still a ref, just in a different slot. */
 export function eventEditorPath(eid: string, site?: string | null): string {
-  return withSite(`/events/new?eid=${encodeURIComponent(eid)}`, site);
+  return `/events/new?eid=${ref(eid, site)}`;
 }
 
 /** The club edit wizard. Clubs carry a region for the same reason
  *  events do - `/my-clubs` merges both, and cids repeat across them. */
 export function clubEditPath(cid: string, site?: string | null): string {
-  return withSite(`/club/${encodeURIComponent(cid)}/edit`, site);
+  return `/club/${ref(cid, site)}/edit`;
 }
 
 /** The venue edit wizard. */
 export function venueEditPath(vid: string, site?: string | null): string {
-  return withSite(`/venue/${encodeURIComponent(vid)}/edit`, site);
+  return `/venue/${ref(vid, site)}/edit`;
 }

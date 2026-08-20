@@ -23,6 +23,7 @@ import {
   type EventCreateStepKey,
 } from "@/lib/eventCreateSteps";
 import { mapEventEditResponse } from "@/lib/eventEditMapper";
+import { parseRef } from "@/lib/siteRef";
 import { useEventForEdit } from "@/lib/queries";
 import { useEventSteps } from "@/lib/useEventSteps";
 import { isStepVisible } from "@/lib/eventCreateSteps";
@@ -123,11 +124,15 @@ export default function EventCreatePage() {
 
 function PageInner() {
   const searchParams = useSearchParams();
-  const eid = searchParams.get("eid");
-  // The region the eid belongs to, carried in from wherever linked
-  // here. An eid on its own is ambiguous across regions, so this has to
-  // go up on both the load and every subsequent save.
-  const site = searchParams.get("site") || undefined;
+  // `?eid=` is a ref - "uk{eid}" - so the region travels as part of the
+  // id rather than as a separate param that can go missing. Null when
+  // there's no eid at all: a brand-new event from the create wizard.
+  const parsedEid = parseRef(searchParams.get("eid"));
+  const eid = parsedEid.id || null;
+  // The region the eid belongs to. From the ref, falling back to a
+  // `?site=` param on links minted before refs existed. It has to go up
+  // on both the load and every subsequent save.
+  const site = parsedEid.site ?? searchParams.get("site") ?? undefined;
 
   // Drives the load. The hook stays idle when eid is null/empty
   // (brand-new event from the create wizard - context is already
