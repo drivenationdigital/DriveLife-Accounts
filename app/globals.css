@@ -1131,6 +1131,101 @@
   padding: 0;
 }
 
+/* ------------------------------------------------------------------
+ * Organiser-authored rich text (event description).
+ *
+ * Preflight is deliberately not imported (see the top of this file),
+ * so browser defaults already give headings, lists and blockquotes
+ * their structure. These rules only tame the parts that look wrong
+ * inside a card: oversized headings, and the leading/trailing margins
+ * that would double up with .section-body's own padding.
+ *
+ * Scoped to .event-description so it can't leak into the dashboard's
+ * own markup - the sanitiser strips author classes precisely so this
+ * boundary holds.
+ * ------------------------------------------------------------------ */
+.event-description {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--ink);
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+.event-description > :first-child {
+  margin-top: 0;
+}
+.event-description > :last-child {
+  margin-bottom: 0;
+}
+.event-description p,
+.event-description ul,
+.event-description ol,
+.event-description blockquote,
+.event-description pre {
+  margin: 0 0 12px;
+}
+.event-description h1,
+.event-description h2,
+.event-description h3,
+.event-description h4,
+.event-description h5,
+.event-description h6 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1.25;
+  margin: 20px 0 8px;
+}
+.event-description h1 {
+  font-size: 20px;
+}
+.event-description h2 {
+  font-size: 18px;
+}
+.event-description h3 {
+  font-size: 16px;
+}
+.event-description h4,
+.event-description h5,
+.event-description h6 {
+  font-size: 14px;
+}
+.event-description ul,
+.event-description ol {
+  padding-left: 22px;
+}
+.event-description li {
+  margin-bottom: 4px;
+}
+.event-description a {
+  color: var(--gold-deep);
+  text-decoration: underline;
+}
+.event-description a:hover {
+  color: var(--gold-hover);
+}
+.event-description blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 14px;
+  color: var(--muted);
+}
+.event-description pre {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  font-size: 13px;
+}
+.event-description code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 13px;
+}
+.event-description hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 16px 0;
+}
+
 .two-col {
   display: grid;
   grid-template-columns: 1.55fr 1fr;
