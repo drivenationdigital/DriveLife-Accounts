@@ -499,17 +499,15 @@ export function OverviewTab() {
  * The event description card, shown on the overview only when the event
  * has no tickets.
  *
- * Rendered as text rather than markup: `event.description` is the API's
- * `description_plain`, so there's no HTML to inject and no sanitiser
- * needed. Blank lines become paragraphs, which is the one bit of
- * structure the plain-text version keeps.
+ * Rendered as markup: organisers write these in a rich text editor, so
+ * headings, lists and links are the author's own structure and dropping
+ * them (which is what showing `description_plain` did) loses meaning,
+ * not just styling.
+ *
+ * `event.description` is sanitised by the mapper - see
+ * lib/sanitizeHtml.ts. Nothing else may be passed here.
  */
-function DescriptionSection({ html: text }: { html: string }) {
-  const paragraphs = text
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
-
+function DescriptionSection({ html }: { html: string }) {
   return (
     <div className="section">
       <div className="section-header">
@@ -518,26 +516,15 @@ function DescriptionSection({ html: text }: { html: string }) {
         </div>
       </div>
       <div className="section-body">
-        {paragraphs.length === 0 ? (
+        {html ? (
+          <div
+            className="event-description"
+            dangerouslySetInnerHTML={{ __html: html }}
+          />
+        ) : (
           <p className="text-sm text-ink-500" style={{ margin: 0 }}>
             No description has been added to this event yet.
           </p>
-        ) : (
-          paragraphs.map((p, i) => (
-            <p
-              key={i}
-              style={{
-                margin: i === 0 ? "0 0 12px" : "0 0 12px",
-                // Single newlines inside a paragraph are the author's
-                // own line breaks - keep them rather than collapsing
-                // an address or a schedule onto one line.
-                whiteSpace: "pre-wrap",
-                lineHeight: 1.7,
-              }}
-            >
-              {p}
-            </p>
-          ))
         )}
       </div>
     </div>

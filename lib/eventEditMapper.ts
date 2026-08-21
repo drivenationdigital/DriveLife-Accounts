@@ -64,6 +64,7 @@ export type HydratedEventState = Pick<
   EventCreateState,
   | "encryptedId"
   | "postId"
+  | "permalink"
   | "title"
   | "categoryIds"
   | "location"
@@ -798,7 +799,12 @@ function mapPublish(
   api: ApiEventEditResponse["publish"],
 ): Pick<
   HydratedEventState,
-  "status" | "livePostStatus" | "scheduledDate" | "scheduledTime" | "visibility"
+  | "status"
+  | "livePostStatus"
+  | "scheduledDate"
+  | "scheduledTime"
+  | "visibility"
+  | "permalink"
 > {
   let status: "draft" | "published" | "scheduled";
   switch (api.status) {
@@ -830,5 +836,10 @@ function mapPublish(
     scheduledDate: api.scheduled_date,
     scheduledTime: api.scheduled_time ?? "09:00",
     visibility: api.visibility === 2 ? "private" : "public",
+    // The event's real public URL. WP owns the slug - it dedupes one
+    // that's already taken, and leaves it alone when an event is
+    // renamed - so this is the only trustworthy source for it. Absent
+    // on older deploys; the Publish panel falls back to a preview.
+    permalink: api.permalink ?? "",
   };
 }

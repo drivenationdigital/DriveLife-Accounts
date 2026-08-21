@@ -110,16 +110,33 @@ export function PublishPanel() {
       ? `${ticketCount} type${ticketCount === 1 ? "" : "s"}`
       : "No tickets yet";
 
-  const summarySlug = slugify(state.title);
-  // Region-aware base: the US site is the bare domain, the UK one lives
-  // under /uk (multisite subdirectory layout - see regions.ts). Without
-  // this a UK event's URL was missing its /uk/ segment.
+  // The event's public URL.
+  //
+  // WordPress owns the slug and is the only thing that knows it: it
+  // dedupes a slug that's already taken ("summer-meet-2" when
+  // "summer-meet" exists), and it does NOT re-slug an event that gets
+  // renamed. Deriving the URL from the title therefore points at
+  // another event's page, or at nothing at all - which is what this
+  // used to do.
+  //
+  // The slugified title survives only as a preview for an event that
+  // genuinely has no permalink yet: a brand-new one, created in this
+  // session and never loaded from /event-edit. There's nothing better
+  // to show there, and it's a guess either way until the server
+  // assigns the real slug.
+  //
+  // Region-aware base for that fallback: the US site is the bare
+  // domain, the UK one lives under /uk (multisite subdirectory layout -
+  // see regions.ts). Without it a UK event's URL was missing its /uk/
+  // segment.
   const siteBase = careventsHomeUrl(region);
-  const displayBase = siteBase.replace(/^https?:\/\/(www\.)?/, "");
-  // Display is truncated so long titles don't blow out the card; the
-  // href and the clipboard both carry the FULL url.
-  const summaryUrl = `${displayBase}/${summarySlugTrunc(summarySlug, 28)}`;
-  const fullUrl = `${siteBase}/${summarySlug || "your-event"}`;
+  const fullUrl =
+    state.permalink.trim() ||
+    `${siteBase}/${slugify(state.title) || "your-event"}`;
+  // Display drops the scheme and truncates the last path segment so a
+  // long slug doesn't blow out the card. The href and the clipboard
+  // both carry the FULL url.
+  const summaryUrl = displayUrl(fullUrl, 28);
 
   const [copied, setCopied] = useState(false);
   const onCopyUrl = async () => {
@@ -459,6 +476,19 @@ function SummaryItem({
 // ============================================================
 // Helpers
 // ============================================================
+
+/**
+ * Strip the scheme (and a leading "www.") for display, then truncate
+ * the final path segment. Keeps the domain and any region prefix fully
+ * visible - those are the parts that tell an organiser which site the
+ * event is on.
+ */
+function displayUrl(url: string, max: number): string {
+  const bare = url.replace(/^https?:\/\/(www\.)?/, "").replace(/\/+$/, "");
+  const cut = bare.lastIndexOf("/");
+  if (cut === -1) return bare;
+  return `${bare.slice(0, cut)}/${summarySlugTrunc(bare.slice(cut + 1), max)}`;
+}
 
 /** Truncate a slug for the preview URL display so long titles don't
  *  blow out the dark card on narrow screens. */

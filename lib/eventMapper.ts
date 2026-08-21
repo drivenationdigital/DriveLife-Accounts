@@ -29,6 +29,7 @@ import type {
   TabCounts,
   Ticket,
 } from "@/context/types";
+import { sanitizeRichText } from "./sanitizeHtml";
 import {
   formatRegionDate,
   formatRegionShortDate,
@@ -149,11 +150,16 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     url: core.link.replace(/^https?:\/\//, ""),
     slug: core.slug,
     encryptedId: core.encrypted_id,
-    // description_plain, not description. The HTML version would need
-    // a sanitiser before it could go through dangerouslySetInnerHTML,
-    // and there isn't one in the project - adding a dependency is a
-    // call for the repo owner, not a side effect of a layout change.
-    description: core.description_plain || "",
+    // The HTML version, sanitised - organisers write these in a rich
+    // text editor, so the formatting is the point. Sanitised here at
+    // the mapper boundary rather than at the render site so every
+    // consumer of EventDetail.description gets a safe string, the same
+    // way decodeEntities is applied once on the way in.
+    //
+    // Falls back to description_plain when the HTML is empty or is
+    // entirely markup the allowlist drops.
+    description:
+      sanitizeRichText(core.description) || core.description_plain || "",
     // The response wins over the URL - it's the server's own answer for
     // which blog it resolved the eid on.
     site: core.site?.key ?? fallbackSite ?? "",
