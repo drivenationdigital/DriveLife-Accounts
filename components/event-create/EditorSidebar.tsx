@@ -1,7 +1,9 @@
 "use client";
 
 import { useEventSteps } from "@/lib/useEventSteps";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   DEFAULT_STEP,
@@ -25,7 +27,6 @@ import {
  * `1 / 10` since we don't track visits yet - to be extended.
  */
 export function EditorSidebar() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -35,7 +36,7 @@ export function EditorSidebar() {
   const goToStep = (key: EventCreateStepKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
   };
 
   // Steps come from the hook rather than the module constant: a

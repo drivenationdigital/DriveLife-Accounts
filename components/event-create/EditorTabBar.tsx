@@ -2,7 +2,9 @@
 
 import { useEventSteps } from "@/lib/useEventSteps";
 import { useEffect, useRef } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   DEFAULT_STEP,
@@ -20,7 +22,6 @@ import {
  * after a "Continue" click.
  */
 export function EditorTabBar() {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +34,7 @@ export function EditorTabBar() {
   const goToStep = (key: EventCreateStepKey) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
   };
 
   // Scroll active tab into view. Runs after every step change. Block:

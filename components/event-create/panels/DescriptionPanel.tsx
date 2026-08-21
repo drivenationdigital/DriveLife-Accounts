@@ -2,7 +2,9 @@
 
 import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventCreate, type EditorImage } from "@/context/EventCreateContext";
 import {
@@ -41,7 +43,6 @@ import { EditorTextarea } from "../EditorTextarea";
  */
 export function DescriptionPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -52,7 +53,7 @@ export function DescriptionPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 

@@ -2,7 +2,9 @@
 
 import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useEffect, useRef, useState } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import {
   useEventCreate,
@@ -18,6 +20,7 @@ import {
   useUploadEventImage,
   useRemoveEventImage,
 } from "@/lib/imageMutations";
+import { useUpdateEvent } from "@/lib/eventMutations";
 import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
@@ -47,7 +50,6 @@ import { PanelHeader } from "../PanelHeader";
  */
 export function GalleryPanel() {
   const { state, dispatch } = useEventCreate();
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -58,7 +60,7 @@ export function GalleryPanel() {
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -91,6 +93,54 @@ export function GalleryPanel() {
   // down.
   const liveGalleryRef = useRef(state.gallery);
   liveGalleryRef.current = state.gallery;
+
+  // ============================================================
+  // Order persistence.
+  //
+  // Uploads and removals hit the server immediately, so a reorder has
+  // to as well - otherwise dragging tiles and refreshing (without a
+  // full Save) silently loses the arrangement. Debounced so a burst of
+  // chevron clicks or drags collapses into one PATCH; the full save
+  // flow also sends the order (eventSaveMapper.mapMedia), so the two
+  // paths can never disagree.
+  //
+  // The first observed order after mount is the baseline (hydrated
+  // from the server, or empty on a brand-new event) and is NOT saved -
+  // only a change the user makes here triggers the request.
+  // ============================================================
+  const updateEvent = useUpdateEvent();
+  const saveOrder = updateEvent.mutate;
+  const orderKey = state.gallery
+    .flatMap((i) => (i.kind === "remote" && i.cloudflareId ? [i.cloudflareId] : []))
+    .join(",");
+  const lastSavedOrder = useRef<string | null>(null);
+  useEffect(() => {
+    if (!eid) return;
+    if (lastSavedOrder.current === null || lastSavedOrder.current === orderKey) {
+      lastSavedOrder.current = orderKey;
+      return;
+    }
+    const timer = setTimeout(() => {
+      lastSavedOrder.current = orderKey;
+      saveOrder(
+        {
+          eid,
+          site,
+          body: {
+            media: { gallery_order: orderKey === "" ? [] : orderKey.split(",") },
+          },
+        },
+        {
+          onError: (err) =>
+            setUploadErrors((p) => [
+              ...p,
+              `Couldn't save the image order: ${errorText(err)}`,
+            ]),
+        },
+      );
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [orderKey, eid, site, saveOrder]);
 
   const markUploading = (key: string, on: boolean) => {
     setUploadingKeys((prev) => {
@@ -240,8 +290,8 @@ export function GalleryPanel() {
     //
     // WordPress-sourced rows skip the request entirely and just drop
     // the tile - the attachment isn't ours to delete. That removal is
-    // local-only (media isn't in the /event-update payload), so the
-    // row reappears on the next hydrate.
+    // local-only (/event-update only carries the gallery's order, not
+    // its membership), so the row reappears on the next hydrate.
     if (needsServerDelete(removed) && eid) {
       try {
         await remover.mutateAsync({ eid, site, mediaId: removed.cloudflareId });

@@ -1,6 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
+
+import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventSteps } from "@/lib/useEventSteps";
 import type { EventCreateStepKey } from "@/lib/eventCreateSteps";
@@ -94,7 +96,6 @@ export function PerDatePanel({
   subtitle: string;
   feature: PerDateFeature;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { stepCount, adjacent, stepNumber } = useEventSteps();
@@ -105,7 +106,7 @@ export function PerDatePanel({
   const goTo = (key: string) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStepUrl(`${pathname}?${params.toString()}`);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
