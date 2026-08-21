@@ -407,6 +407,17 @@ export type EventCreateState = {
   // the topbar Preview link (WP preview URL), which only shows when set.
   postId: number | null;
 
+  // The event's real public URL, exactly as WordPress has it. Empty
+  // until the event has been loaded from /event-edit - a brand-new
+  // event has no permalink yet, and the Publish panel falls back to a
+  // slugified-title preview there.
+  //
+  // Must come from the server rather than be derived from the title:
+  // WP dedupes a slug that's already taken ("summer-meet-2"), and an
+  // organiser can rename an event without its slug following. Both make
+  // a client-side guess point at the wrong page, or at nothing.
+  permalink: string;
+
   // The post status the event actually has on the server right now
   // ("publish" | "draft" | "future"), as opposed to `status` below
   // which is the radio selection in the Publish panel. Hydrated on
@@ -628,6 +639,7 @@ const INITIAL_STATE: EventCreateState = {
   encryptedId: null,
   site: null,
   postId: null,
+  permalink: "",
   livePostStatus: null,
   hostType: "me",
   hostId: null,
