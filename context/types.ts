@@ -107,6 +107,10 @@ export interface SoldTicket {
   carReg: string;
   carClub: string;
   isConcours: boolean;
+  /** Checkout vehicle-photo URL, "" when none was uploaded. */
+  vehiclePhoto: string;
+  /** Encrypted order id for deep links; "" on older backends. */
+  orderEid: string;
 }
 
 export interface Order {

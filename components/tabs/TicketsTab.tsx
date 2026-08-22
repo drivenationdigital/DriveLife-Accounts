@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import type { SoldTicket } from "@/context/types";
 import { currency } from "@/lib/utils";
@@ -8,8 +9,11 @@ import { useEventTickets } from "@/lib/eventTickets";
 import { mapSoldTicket } from "@/lib/eventMapper";
 import { useExportTickets } from "@/lib/ticketsExport";
 import { useAction } from "@/context/ActionContext";
+import { orderDetailPath } from "@/lib/siteRoutes";
 import { DownloadIcon, SearchIcon } from "@/components/ui/Icons";
 import { Pagination } from "@/components/ui/Pagination";
+import { clickableRow } from "@/components/ui/clickableRow";
+import { Lightbox, PhotoThumb } from "@/components/ui/Lightbox";
 
 const PER_PAGE = 50;
 
@@ -39,9 +43,13 @@ function useDebounced<T>(value: T, delay = 350): T {
  */
 export function TicketsTab() {
   const { event, soldTickets } = useEventData();
+  const router = useRouter();
 
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+
+  // Full-size view of a clicked vehicle-photo thumbnail.
+  const [lightbox, setLightbox] = useState<string | null>(null);
 
   // Debounce typing before it hits the network.
   const debouncedSearch = useDebounced(search, 350);
@@ -168,11 +176,30 @@ export function TicketsTab() {
                 <th>Subtotal</th>
                 <th>Car</th>
                 <th>Car Club</th>
+                <th>Photo</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((t) => (
-                <tr key={t.id}>
+                <tr
+                  key={t.id}
+                  // The whole row opens the ticket's order. orderEid is
+                  // "" on a backend that predates the field - those rows
+                  // simply stay non-clickable rather than 404ing.
+                  {...(t.orderEid
+                    ? clickableRow(
+                        () =>
+                          router.push(
+                            orderDetailPath(
+                              t.orderEid,
+                              event.region.key,
+                              event.encryptedId,
+                            ),
+                          ),
+                        { label: `Open order #${t.orderId}` },
+                      )
+                    : {})}
+                >
                   <td>
                     <span className="mono order-id">#{t.orderId}</span>
                   </td>
@@ -198,13 +225,24 @@ export function TicketsTab() {
                   </td>
                   <td>{carLabel(t)}</td>
                   <td>{t.carClub || "-"}</td>
+                  <td>
+                    {t.vehiclePhoto ? (
+                      <PhotoThumb
+                        src={t.vehiclePhoto}
+                        label={`View vehicle photo for ticket ${t.id}`}
+                        onOpen={() => setLightbox(t.vehiclePhoto)}
+                      />
+                    ) : (
+                      <span style={{ color: "var(--muted)" }}>-</span>
+                    )}
+                  </td>
                 </tr>
               ))}
 
               {rows.length === 0 && !isFirstLoad && (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     style={{
                       textAlign: "center",
                       padding: "32px 16px",
@@ -230,6 +268,14 @@ export function TicketsTab() {
           />
         )}
       </div>
+
+      {lightbox && (
+        <Lightbox
+          src={lightbox}
+          alt="Vehicle photo"
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   );
 }

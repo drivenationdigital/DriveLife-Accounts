@@ -50,6 +50,8 @@ export const mockEventData: EventData = {
       carReg: "ABC123",
       carClub: "Mustang Owners",
       isConcours: false,
+      vehiclePhoto: "",
+      orderEid: "",
     },
     {
       id: 77442,
@@ -65,6 +67,8 @@ export const mockEventData: EventData = {
       carReg: "",
       carClub: "",
       isConcours: false,
+      vehiclePhoto: "",
+      orderEid: "",
     },
     {
       id: 51664,
@@ -80,6 +84,8 @@ export const mockEventData: EventData = {
       carReg: "",
       carClub: "",
       isConcours: false,
+      vehiclePhoto: "",
+      orderEid: "",
     },
   ],
   tickets: [

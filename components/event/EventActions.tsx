@@ -173,15 +173,17 @@ export function EventActions({
 
         {menuOpen && (
           <div role="menu" style={menuStyle}>
-            {/* <MenuItem
-              onClick={() => {
-                setMenuOpen(false);
-                onAddManualOrder?.();
-              }}
-              icon={<PlusCircleIcon />}
-            >
-              Add Manual Order
-            </MenuItem> */}
+            {onAddManualOrder && (
+              <MenuItem
+                onClick={() => {
+                  setMenuOpen(false);
+                  onAddManualOrder();
+                }}
+                icon={<PlusCircleIcon />}
+              >
+                Add Order
+              </MenuItem>
+            )}
             <MenuItem
               onClick={handleDuplicate}
               icon={<CopyIcon />}

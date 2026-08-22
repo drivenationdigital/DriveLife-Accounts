@@ -10,6 +10,7 @@ import {
 } from "@/components/tabs/ApplicationsSkeleton";
 import { DownloadIcon } from "@/components/ui/Icons";
 import { useClubApplications } from "@/lib/clubApplications";
+import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
 import type { Club } from "@/context/types";
@@ -23,8 +24,18 @@ import type { Club } from "@/context/types";
  * the detail modal, which owns the mutation.
  */
 export function ClubsTab() {
-  const { event } = useEventData();
+  const { event, features } = useEventData();
   const eid = event.encryptedId;
+
+  // Shareable public application-form link, shown whenever the
+  // feature is switched on for the event.
+  const linkBar = features.car_clubs.enabled ? (
+    <ApplicationLinkBar
+      kind="car-club"
+      eid={eid}
+      title="Car club application form"
+    />
+  ) : null;
   const { data, isLoading, error, refetch, isFetching } =
     useClubApplications(eid, event.region);
 
@@ -62,10 +73,17 @@ export function ClubsTab() {
 
   if (clubs.length === 0) {
     return (
-      <ComingSoonBanner
-        title="Club applications not enabled for this event"
-        message="Applications will appear here as car clubs apply through your event's club application link."
-      />
+      <>
+        {linkBar}
+        <ComingSoonBanner
+          title={
+            features.car_clubs.enabled
+              ? "No club applications yet"
+              : "Club applications not enabled for this event"
+          }
+          message="Applications will appear here as car clubs apply through your event's club application link."
+        />
+      </>
     );
   }
 
@@ -86,6 +104,7 @@ export function ClubsTab() {
 
   return (
     <>
+      {linkBar}
       <div className="kpi-grid">
         <KpiCard label="Total Clubs" value={clubs.length} />
         <KpiCard

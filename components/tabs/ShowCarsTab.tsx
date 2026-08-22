@@ -10,6 +10,7 @@ import {
   ApplicationsError,
 } from "@/components/tabs/ApplicationsSkeleton";
 import { useShowCarApplications } from "@/lib/showCarApplications";
+import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
 import type { ShowCar, Ticket } from "@/context/types";
@@ -48,8 +49,21 @@ import type { ShowCar, Ticket } from "@/context/types";
  *     yet" inline message.
  */
 export function ShowCarsTab() {
-  const { event, showCarTickets } = useEventData();
+  const { event, showCarTickets, features } = useEventData();
   const eid = event.encryptedId;
+
+  // Shareable public application-form link. Requires BOTH the enable
+  // flag and at least one show car ticket category - with no
+  // categories the tab below says "not enabled", and a share link
+  // above that banner would contradict it.
+  const linkBar =
+    features.show_cars.enabled && showCarTickets.length > 0 ? (
+      <ApplicationLinkBar
+        kind="show-car"
+        eid={eid}
+        title="Show car application form"
+      />
+    ) : null;
 
   const exportApps = useExportApplications();
   const runAction = useAction();
@@ -168,6 +182,7 @@ export function ShowCarsTab() {
 
   return (
     <>
+      {linkBar}
       <div className="kpi-grid">
         <KpiCard
           label="Pending Review"

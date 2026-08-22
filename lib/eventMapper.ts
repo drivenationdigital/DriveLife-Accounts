@@ -231,12 +231,18 @@ function mapTicket(t: ApiTicketType): Ticket {
     id: t.id != null ? String(t.id) : t.name,
     name: t.name,
     sold: t.stock_sold,
-    // `stock` IS the total capacity in this schema (not remaining),
-    // so display sold/stock directly. The old `stock_sold + stock`
-    // formula double-counted - it assumed stock meant "remaining",
-    // giving e.g. 1 sold + 10 stock = 11 instead of 10. `capacity`
-    // (when the API sends it) still wins as an explicit override.
-    capacity: t.capacity ?? t.stock,
+    // `stock` is REMAINING stock in this schema: every completed sale
+    // runs cc_update_ticket_stock('remove'), which decrements stock
+    // and increments stock_sold in the same UPDATE (ticketing/
+    // tickets.php), and cancellations add it back. So total capacity
+    // is remaining + sold. A previous edit switched this to bare
+    // `stock` after observing stock "never changing" - but that data
+    // was produced by a since-fixed bug where completed orders were
+    // immediately part-cancelled, restoring their stock. With that
+    // fixed, bare `stock` shrinks by one per sale (25/50 → 26/49).
+    // `capacity` (when the API sends it) still wins as an explicit
+    // override.
+    capacity: t.capacity ?? t.stock + t.stock_sold,
     status: t.sale_status === "sold_out" ? "soldout" : "active",
   };
 }
@@ -325,6 +331,8 @@ export function mapSoldTicket(a: ApiAttendee): SoldTicket {
     carReg: text(a.car?.reg),
     carClub: text(a.car_club),
     isConcours: a.is_concours === true,
+    vehiclePhoto: text(a.vehicle_photo),
+    orderEid: text(a.order_eid),
   };
 }
 

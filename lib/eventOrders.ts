@@ -52,6 +52,8 @@ export interface EventAttendee {
   line_total: number;
   car: OrderCar;
   car_club: string | null;
+  /** Checkout vehicle-photo URL (Cloudflare Images), or null/absent. */
+  vehicle_photo?: string | null;
 }
 
 interface OrdersResponse {

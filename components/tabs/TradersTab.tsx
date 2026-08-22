@@ -10,16 +10,17 @@ import {
   ApplicationsError,
 } from "@/components/tabs/ApplicationsSkeleton";
 import { useTraderApplications } from "@/lib/traderApplications";
+import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
+import { applyFormUrl } from "@/lib/applyFormUrl";
 import type { Trader } from "@/context/types";
 
 /**
- * Public trader application link for an event. Route is
- * /apply/trader/[eventEid] (singular "trader" - the plural "traders"
- * 404s). Built on the current origin so it works in any environment.
+ * Public trader application link for an event - the shared helper
+ * yields the apply.carevents.com short form in production and the
+ * current origin's /apply path elsewhere.
  */
 function traderApplyUrl(eid: string): string {
-  const base = typeof window !== "undefined" ? window.location.origin : "";
-  return `${base}/apply/trader/${encodeURIComponent(eid)}`;
+  return applyFormUrl("trader", eid);
 }
 
 function TraderGroup({
@@ -55,8 +56,18 @@ function TraderGroup({
 }
 
 export function TradersTab() {
-  const { event } = useEventData();
+  const { event, features } = useEventData();
   const eid = event.encryptedId;
+
+  // Shareable public application-form link, shown whenever the
+  // feature is switched on for the event.
+  const linkBar = features.traders.enabled ? (
+    <ApplicationLinkBar
+      kind="trader"
+      eid={eid}
+      title="Trader application form"
+    />
+  ) : null;
   const {
     data: traders = [],
     isLoading,
@@ -89,10 +100,17 @@ export function TradersTab() {
 
   if (traders.length === 0) {
     return (
-      <ComingSoonBanner
-        title="Trader applications not enabled for this event"
-        message="Applications will appear here as traders apply through your event's trader application link."
-      />
+      <>
+        {linkBar}
+        <ComingSoonBanner
+          title={
+            features.traders.enabled
+              ? "No trader applications yet"
+              : "Trader applications not enabled for this event"
+          }
+          message="Applications will appear here as traders apply through your event's trader application link."
+        />
+      </>
     );
   }
 
@@ -102,6 +120,7 @@ export function TradersTab() {
 
   return (
     <>
+      {linkBar}
       <div className="kpi-grid">
         <KpiCard label="Total Applications" value={traders.length} />
         <KpiCard

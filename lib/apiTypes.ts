@@ -364,6 +364,12 @@ export interface ApiAttendee {
    *  `tickets_concours` flag. We don't surface it, so there's nothing
    *  to gate yet. */
   is_concours: boolean;
+  /** Vehicle photo uploaded at checkout (Cloudflare Images delivery
+   *  URL), or null. Optional: absent from older backend deployments. */
+  vehicle_photo?: string | null;
+  /** Encrypted order id for deep-linking to the order detail page.
+   *  Optional for the same backend-version reason. */
+  order_eid?: string;
 }
 
 export interface ApiDiscount {

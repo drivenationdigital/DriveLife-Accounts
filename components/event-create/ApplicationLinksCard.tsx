@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { withApplyTheme, type ApplyTheme } from "@/lib/applyTheme";
+import { applyFormUrl, type ApplyFormKind } from "@/lib/applyFormUrl";
 
 /**
  * "Application links" card used at the bottom of the Show Cars,
@@ -25,8 +26,8 @@ export function ApplicationLinksCard({
   slug,
   iframeTitle,
 }: {
-  /** "show-cars" | "car-clubs" | "traders" - the segment after /apply/. */
-  applicationKind: string;
+  /** "show-car" | "car-club" | "trader" - the form kind. */
+  applicationKind: ApplyFormKind;
   /** Event slug - used in both the direct URL and the iframe src. */
   slug: string;
   /** Title attribute on the embed iframe (also used as the H3 hint
@@ -41,10 +42,10 @@ export function ApplicationLinksCard({
   // Applied to BOTH links, not just the embed. They point at the same
   // public form, and a toggle that silently changed one of two adjacent
   // URLs would be a trap.
-  const directUrl = withApplyTheme(
-    `https://account.carevents.com/apply/${applicationKind}/${slug}`,
-    theme,
-  );
+  //
+  // Direct link uses the short apply.carevents.com form (falling back
+  // to the current origin off-production) - see lib/applyFormUrl.ts.
+  const directUrl = withApplyTheme(applyFormUrl(applicationKind, slug), theme);
   const embedSrc = withApplyTheme(
     `https://account.carevents.com/embed/${applicationKind}/${slug}`,
     theme,
