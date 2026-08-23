@@ -426,6 +426,15 @@ export function DetailsStep({
         <div className="space-y-4">
           {units.map((unit) => {
             const specs = unitFieldSpecs(unit.ticket);
+            // The server's totals carry the per-unit coupon discount
+            // for each ticket line - show the discounted price here so
+            // step 2 visibly agrees with the summary below.
+            const unitDiscount =
+              totals?.coupons?.discounted_items?.[unit.pid] ?? 0;
+            const discountedUnitPrice = Math.max(
+              0,
+              unit.ticket.price - unitDiscount,
+            );
             return (
               <div
                 key={`${unit.pid}-${unit.index}`}
@@ -437,9 +446,25 @@ export function DetailsStep({
                       {unit.ticket.name}
                     </p>
                     <p className="text-xs text-ink-500 mt-0.5">
-                      {unit.ticket.price <= 0
-                        ? "Free"
-                        : formatRegionCurrency(unit.ticket.price, region)}
+                      {unit.ticket.price <= 0 ? (
+                        "Free"
+                      ) : unitDiscount > 0 ? (
+                        <>
+                          <span className="line-through text-ink-400">
+                            {formatRegionCurrency(unit.ticket.price, region)}
+                          </span>{" "}
+                          <span className="text-gold-600 font-semibold">
+                            {discountedUnitPrice <= 0
+                              ? "Free"
+                              : formatRegionCurrency(
+                                  discountedUnitPrice,
+                                  region,
+                                )}
+                          </span>
+                        </>
+                      ) : (
+                        formatRegionCurrency(unit.ticket.price, region)
+                      )}
                     </p>
                   </div>
                   <button

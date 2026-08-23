@@ -247,6 +247,16 @@ export function TicketsStep({
 
   const buyable = tickets.filter((t) => !t.isSection);
 
+  // A validated code that covers NONE of the selected tickets will be
+  // rejected at checkout - say so up front instead of letting the
+  // buyer discover it a step later.
+  const couponCoversSelection =
+    !coupon ||
+    totalSelected === 0 ||
+    buyable.some(
+      (t) => (quantities[t.pid] ?? 0) > 0 && couponAppliesTo(coupon, t.id),
+    );
+
   return (
     <section className="bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden">
       <div className="flex items-center gap-3 px-6 pt-5 pb-4">
@@ -394,6 +404,13 @@ export function TicketsStep({
             />
           )}
         </div>
+
+        {!couponCoversSelection && coupon && (
+          <p className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            Code {coupon.coupon_code} doesn&apos;t apply to any of the selected
+            tickets.
+          </p>
+        )}
 
         {error && (
           <p className="text-sm text-red-600" role="alert">

@@ -164,6 +164,16 @@ export default function GetTicketsPage({
         try {
           const { valid } = await verifyCart(existing);
           if (valid) {
+            // Landing on the ticket list = a fresh start, exactly like
+            // the classic checkout (event.php clears the cart when you
+            // return to it). A reused token otherwise carries the
+            // LEFTOVERS of an abandoned run - items, coupons,
+            // reservations - so the next add-to-basket would stack on
+            // top of them: server totals (and the Stripe amount) would
+            // include units the page never shows, and re-applying the
+            // same code would fail with "Coupon already applied",
+            // silently killing the discount chip.
+            await clearCartData(existing).catch(() => {});
             if (!cancelled) setCartToken(existing);
             return;
           }
@@ -396,6 +406,24 @@ export default function GetTicketsPage({
         );
         return;
       }
+
+      // The coupon is genuinely applied to the CART here, during
+      // add-to-basket - and that can fail even though the code
+      // validated on its own (e.g. none of the chosen tickets are in
+      // its allowed list). Silently ignoring the message meant the
+      // buyer sailed on to payment at full price. "Coupon already
+      // applied" is the one benign message: the code is on the cart
+      // from a previous attempt, which is exactly what we want.
+      const autoMsg = res.auto_apply_coupon_message ?? "";
+      if (autoMsg && autoMsg !== "Coupon already applied") {
+        await clearCartData(cartToken).catch(() => {});
+        setCart({});
+        setTicketsError(
+          `The discount code ${preCoupon?.coupon_code ?? ""} couldn't be applied: ${autoMsg}. Remove the code or change your tickets, then try again.`,
+        );
+        return;
+      }
+
       const added = res.added_tickets ?? {};
       setCart(added);
 
@@ -677,9 +705,27 @@ export default function GetTicketsPage({
       setStep("payment");
       window.scrollTo(0, 0);
     } catch (e) {
-      setDetailsError(
-        e instanceof Error ? e.message : "Something went wrong. Please retry.",
-      );
+      // Per-user coupon limits are deferred until the email is known,
+      // so a code applied on step 1 can first fail HERE. Name the code
+      // and reason rather than the generic "Invalid coupon(s) in cart".
+      const invalid =
+        e instanceof CheckoutError
+          ? (e.extra.invalid_coupons as Record<string, string> | undefined)
+          : undefined;
+      if (invalid && Object.keys(invalid).length > 0) {
+        setDetailsError(
+          Object.entries(invalid)
+            .map(([code, reason]) => `${code}: ${reason}`)
+            .join(" · ") +
+            " — remove the code from the order summary to continue.",
+        );
+      } else {
+        setDetailsError(
+          e instanceof Error
+            ? e.message
+            : "Something went wrong. Please retry.",
+        );
+      }
     } finally {
       setSubmitting(false);
     }
@@ -808,7 +854,6 @@ export default function GetTicketsPage({
       {event.start_date && (
         <p className="text-sm font-semibold text-ink-700 mb-2">
           {formatRegionDateRange(event.start_date, event.end_date, region)}
-          {event.start_time && ` · ${event.start_time}`}
         </p>
       )}
       {event.location && (

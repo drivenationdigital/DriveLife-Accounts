@@ -128,14 +128,19 @@ export function DiscountDrawer({
   };
 
   const toggleTicket = (id: TicketId) => {
-    setSelectedTicketIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      // Keep the "all" master in sync.
-      setAllTicketsChecked(next.size === allTickets.length);
-      return next;
-    });
+    // Compute the next set OUTSIDE the state updater. The previous
+    // version called setAllTicketsChecked() inside the
+    // setSelectedTicketIds updater - updaters must be pure, and React
+    // (which double-invokes them in dev and may re-run them under
+    // concurrent rendering) fired the nested setState an unpredictable
+    // number of times, making the checkboxes glitch and sometimes
+    // crashing the drawer blank.
+    const next = new Set(selectedTicketIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedTicketIds(next);
+    // Keep the "all" master in sync.
+    setAllTicketsChecked(next.size === allTickets.length);
   };
 
   const handleSave = () => {
