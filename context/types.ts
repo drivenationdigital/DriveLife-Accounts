@@ -22,6 +22,11 @@ export type CarPhotoClass =
 export interface EventDetail {
   id: string;
   title: string;
+  /** True when the editor's ticketing mode is "CarEvents Ticketing"
+   *  (ACF ticket_type 2). Gates ticketing-only actions like the
+   *  box-office "Add Order" menu item - external-ticketing and
+   *  no-ticketing events can't take orders here. */
+  ceTicketing: boolean;
   status: EventStatus;
   date: string;
   timeRange: string;

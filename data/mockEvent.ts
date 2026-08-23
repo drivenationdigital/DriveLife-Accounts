@@ -6,6 +6,7 @@ export const mockEventData: EventData = {
     encryptedId: "encrypted-porsche-ft-genome-design-25-04-26",
     id: "porsche-ft-genome-design-25-04-26",
     title: "Porsche ft. Genome Design",
+    ceTicketing: true,
     status: "published",
     date: "Sat, 25 April 2026",
     timeRange: "09:00 - 16:00",

@@ -686,6 +686,10 @@ export interface EventResponse {
    *  back-compat with pre-multisite deployments. */
   site?: EventSite;
   event: ApiEventCore;
+  /** The editor's ticketing mode (ACF ticket_type): 1 = not required,
+   *  2 = CarEvents Ticketing, 3 = external website. Optional for
+   *  back-compat with deployments that pre-date it. */
+  ticket_type?: number;
   /** Non-null ONLY when the eid resolves to a recurring series parent.
    *  Switch the whole view on `occurrences !== null`. */
   occurrences?: ApiOccurrences | null;

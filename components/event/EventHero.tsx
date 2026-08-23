@@ -239,18 +239,22 @@ export function EventHero() {
                 {/* Box-office order: opens the public checkout in
                     box-office mode - payment skipped, order placed
                     immediately (the backend verifies the organiser
-                    session before allowing it). */}
-                <DropdownItem
-                  onClick={() =>
-                    window.open(
-                      `/get-tickets/${encodeURIComponent(event.encryptedId)}?boxoffice=1`,
-                      "_blank",
-                      "noopener,noreferrer",
-                    )
-                  }
-                >
-                  <PlusIcon /> Add Order
-                </DropdownItem>
+                    session before allowing it). Only offered when the
+                    event uses CarEvents Ticketing - external-ticketing
+                    and no-ticketing events have nothing to sell here. */}
+                {event.ceTicketing && (
+                  <DropdownItem
+                    onClick={() =>
+                      window.open(
+                        `/get-tickets/${encodeURIComponent(event.encryptedId)}?boxoffice=1`,
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                  >
+                    <PlusIcon /> Add Order
+                  </DropdownItem>
+                )}
                 <DropdownItem
                   onClick={handleDuplicate}
                   disabled={clone.isPending}

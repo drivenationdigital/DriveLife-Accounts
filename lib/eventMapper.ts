@@ -131,6 +131,11 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
   return {
     id: String(core.id),
     title: core.title,
+    // Overridden in mapEventResponse from the response root's
+    // ticket_type - the core block doesn't carry the ticketing mode.
+    // Defaults to false so a missing field hides ticketing-only
+    // actions rather than offering a box office that can't sell.
+    ceTicketing: false,
     status:
       core.post_status === "publish"
         ? "published"
@@ -581,6 +586,8 @@ export function mapEventResponse(
     ? resp.event
     : { ...resp.event, site: resp.site };
   const event = mapEventDetail(core, opts.fallbackSite);
+  // "CarEvents Ticketing" selected in the editor (ACF ticket_type 2).
+  event.ceTicketing = resp.ticket_type === 2;
   // Everything below formats in the event's own region - dates and
   // money both move with it. Resolved before the application lists
   // because their "Applied" labels need it too.
