@@ -10,7 +10,6 @@ import {
   type FormEvent,
 } from "react";
 import { useSearchParams } from "next/navigation";
-import type { PaymentIntent } from "@stripe/stripe-js";
 
 import { ConfettiBurst } from "@/components/apply/ConfettiBurst";
 import { readTokenClient } from "@/lib/authCookies";
@@ -27,7 +26,11 @@ import {
   resolveRegion,
 } from "@/lib/regions";
 
-import { CheckoutShell, Field, Section } from "@/components/checkout/CheckoutShell";
+import {
+  CheckoutShell,
+  Field,
+  Section,
+} from "@/components/checkout/CheckoutShell";
 import { CheckoutTimer } from "@/components/checkout/CheckoutTimer";
 import { TicketsStep } from "@/components/checkout/TicketsStep";
 import {
@@ -37,7 +40,10 @@ import {
   type AttendeeState,
   type BillingState,
 } from "@/components/checkout/DetailsStep";
-import { PaymentStep } from "@/components/checkout/PaymentStep";
+import {
+  PaymentStep,
+  type PaidHandler,
+} from "@/components/checkout/PaymentStep";
 import {
   addToBasket,
   applyCoupon,
@@ -45,7 +51,10 @@ import {
   clearCartData,
   createCart,
   createPaymentIntent,
+  createMolliePayment,
+  checkMolliePayment,
   fetchTotals,
+  MOLLIE_RETURN_PARAM,
   registerForEvent,
   removeCartUnit,
   removeCoupon,
@@ -61,7 +70,9 @@ import {
   CheckoutError,
   type CartData,
   type CartTotals,
+  type CheckoutProvider,
   type CouponRow,
+  type PaymentProviderId,
   type SaveOrderResult,
 } from "@/lib/checkout/api";
 
@@ -84,6 +95,32 @@ const WP_ORIGIN = (
 ).replace(/\/$/, "");
 
 const CHECKOUT_MINUTES = 60;
+
+/**
+ * Human label stored on the order row per gateway. "Credit Card" is
+ * kept for Stripe so historic orders and the new ones read the same in
+ * the dashboard and exports.
+ */
+const PAYMENT_METHOD_TITLES: Record<PaymentProviderId, string> = {
+  stripe: "Credit Card",
+  paypal: "PayPal",
+  square: "Square",
+  mollie: "Mollie",
+};
+
+/**
+ * Mollie is the one provider that navigates away, so the order form
+ * has to outlive the page. sessionStorage rather than localStorage:
+ * this is a buyer's name, email and phone, and it should not survive
+ * the tab that entered it.
+ */
+const MOLLIE_PENDING_KEY = "cc-mollie-pending";
+
+interface MolliePending {
+  cartToken: string;
+  paymentId: string;
+  form: Record<string, string>;
+}
 
 type Step =
   | "tickets"
@@ -135,6 +172,10 @@ export default function GetTicketsPage({
   const completeUrl = search?.get("complete") ?? "";
   const showCarApplication = search?.get("show_car_application") ?? "";
   const boxOfficeParam = search?.get("boxoffice") === "1";
+  // Set once from the URL Mollie sent the buyer back to. Read here, not
+  // inside the effects, so the cart bootstrap and the resume agree
+  // about which kind of page load this is.
+  const mollieReturn = search?.get(MOLLIE_RETURN_PARAM) === "1";
 
   // Box-office mode: an organiser placing an order from the dashboard,
   // with payment skipped. Requires the dashboard session cookie on top
@@ -151,6 +192,28 @@ export default function GetTicketsPage({
   const info = useCheckoutInfo(eventEid);
   const event = info.data?.event;
   const region = resolveRegion(event?.site);
+
+  /**
+   * Payment methods for this event, decided entirely by the backend.
+   * A backend that predates PayPal/Square omits `providers` - fall
+   * back to Stripe alone, which is all that one can actually take.
+   */
+  const providers: CheckoutProvider[] = useMemo(() => {
+    if (!info.data) return [];
+    if (info.data.providers?.length) return info.data.providers;
+    return info.data.stripe.publishable_key
+      ? [
+          {
+            id: "stripe",
+            label: "Card",
+            publishable_key: info.data.stripe.publishable_key,
+            account: info.data.stripe.account,
+          },
+        ]
+      : [];
+  }, [info.data]);
+
+  const stripeEnabled = providers.some((p) => p.id === "stripe");
 
   // ── Cart token bootstrap ──────────────────────────────────────────
   const tokenKey = `ccnext_token_${eventEid}`;
@@ -173,7 +236,16 @@ export default function GetTicketsPage({
             // include units the page never shows, and re-applying the
             // same code would fail with "Coupon already applied",
             // silently killing the discount chip.
-            await clearCartData(existing).catch(() => {});
+            //
+            // The exception is coming back from Mollie. That is a
+            // return mid-purchase, not a fresh visit: the cart still
+            // holds the line items and order_id that completing the
+            // order depends on, and this effect runs first, so
+            // clearing here would empty the basket of a buyer who has
+            // just paid.
+            if (!mollieReturn) {
+              await clearCartData(existing).catch(() => {});
+            }
             if (!cancelled) setCartToken(existing);
             return;
           }
@@ -192,6 +264,9 @@ export default function GetTicketsPage({
     return () => {
       cancelled = true;
     };
+    // mollieReturn is derived from the URL at first render and cannot
+    // change without a navigation, so it needs no dep entry.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventEid, tokenKey]);
 
   // ── Step + cart state ─────────────────────────────────────────────
@@ -282,7 +357,11 @@ export default function GetTicketsPage({
       if (!cartToken) return;
       const k = metaKey(pid, index, field);
       const value =
-        k in unitMeta ? unitMeta[k] : field === "car_club" && cname ? cname : "";
+        k in unitMeta
+          ? unitMeta[k]
+          : field === "car_club" && cname
+            ? cname
+            : "";
       if (syncedMeta.current[k] === value) return;
       try {
         await updateTicketMeta(cartToken, pid, field, value, index);
@@ -339,7 +418,13 @@ export default function GetTicketsPage({
         const k = metaKey(unit.pid, unit.index, spec.field);
         const value = unitValue(unit.pid, unit.index, spec.field);
         if (value && syncedMeta.current[k] !== value) {
-          await updateTicketMeta(cartToken, unit.pid, spec.field, value, unit.index);
+          await updateTicketMeta(
+            cartToken,
+            unit.pid,
+            spec.field,
+            value,
+            unit.index,
+          );
           syncedMeta.current[k] = value;
         }
       }
@@ -457,8 +542,7 @@ export default function GetTicketsPage({
 
   // ── Details step handlers ─────────────────────────────────────────
   const showAttendee = useMemo(
-    () =>
-      cartUnits(cart, tickets).some((u) => u.ticket.flags.attendance),
+    () => cartUnits(cart, tickets).some((u) => u.ticket.flags.attendance),
     [cart, tickets],
   );
 
@@ -477,7 +561,9 @@ export default function GetTicketsPage({
     const ticket = tickets.find((t) => t.pid === pid);
     const ok = await confirm({
       title: "Remove this ticket?",
-      message: ticket ? `${ticket.name} will be removed from your order.` : undefined,
+      message: ticket
+        ? `${ticket.name} will be removed from your order.`
+        : undefined,
       confirmLabel: "Remove",
       danger: true,
     });
@@ -604,15 +690,22 @@ export default function GetTicketsPage({
     return errors;
   };
 
-  const buildOrderForm = (): Record<string, string> => {
+  /**
+   * `provider` only labels the order row - the backend overrides both
+   * fields for PayPal and Square from the charge it actually recorded,
+   * and for a box-office or zero-total order it stamps its own marker.
+   */
+  const buildOrderForm = (
+    provider: PaymentProviderId = "stripe",
+  ): Record<string, string> => {
     const form: Record<string, string> = {
       ...billing,
       cc_source: "",
       heard_about: heardAbout,
       terms_conditions: "1",
       attendee_details_required: showAttendee ? "1" : "0",
-      payment_method: "stripe",
-      payment_method_title: "Credit Card",
+      payment_method: provider,
+      payment_method_title: PAYMENT_METHOD_TITLES[provider],
     };
     // Never opt a customer into marketing from a box-office order -
     // they weren't the one ticking the box.
@@ -690,18 +783,41 @@ export default function GetTicketsPage({
       setTotals(t.totals);
 
       if (t.totals.total <= 0) {
-        const done = await saveOrder(cartToken, eventEid, "free", "succeeded", form);
+        const done = await saveOrder(
+          cartToken,
+          eventEid,
+          "free",
+          "succeeded",
+          form,
+        );
         finishOrder(done, false);
         return;
       }
 
-      const intent = await createPaymentIntent(
-        cartToken,
-        eventEid,
-        event?.site ?? "uk",
-      );
-      setClientSecret(intent.clientSecret);
-      setPayTotal(intent.total || t.totals.total);
+      // Stripe is the only method that needs setting up before its tab
+      // can render, so its intent is still minted here. PayPal and
+      // Square create their charge when the buyer acts on them.
+      //
+      // A Stripe failure is only fatal when Stripe is the sole option;
+      // with PayPal or Square also on offer, drop the card tab rather
+      // than blocking the whole payment step.
+      let secret: string | null = null;
+      let stripeTotal = 0;
+      if (stripeEnabled) {
+        try {
+          const intent = await createPaymentIntent(
+            cartToken,
+            eventEid,
+            event?.site ?? "uk",
+          );
+          secret = intent.clientSecret;
+          stripeTotal = intent.total;
+        } catch (e) {
+          if (providers.length <= 1) throw e;
+        }
+      }
+      setClientSecret(secret);
+      setPayTotal(stripeTotal || t.totals.total);
       setStep("payment");
       window.scrollTo(0, 0);
     } catch (e) {
@@ -731,21 +847,142 @@ export default function GetTicketsPage({
     }
   };
 
-  const handlePaymentResult = async (pi: PaymentIntent) => {
+  /**
+   * One completion path for every payment method.
+   *
+   * Stripe reports its PaymentIntent status directly; PayPal and
+   * Square are captured server-side and their endpoints translate the
+   * outcome into the same two words, so nothing below has to know
+   * which gateway was used. The provider is still passed to saveOrder
+   * because the backend re-verifies PayPal and Square transactions
+   * against the charge it recorded.
+   */
+  /**
+   * Mollie hand-off. Stashes what the page will need when it comes
+   * back, then leaves for Mollie's hosted checkout.
+   *
+   * The order form has to be carried across because a full navigation
+   * wipes React state, and rebuilding it on return would mean sending
+   * a half-empty form to update_session_order_ct and blanking fields
+   * on the pending order row.
+   */
+  const handleMollieRedirect = async () => {
+    if (!cartToken) return;
+    const created = await createMolliePayment(
+      cartToken,
+      eventEid,
+      event?.site ?? "uk",
+    );
+    const pending: MolliePending = {
+      cartToken,
+      paymentId: created.paymentId,
+      form: buildOrderForm("mollie"),
+    };
+    try {
+      sessionStorage.setItem(MOLLIE_PENDING_KEY, JSON.stringify(pending));
+    } catch {
+      // Private mode with storage disabled - the payment would
+      // complete at Mollie but we could not finish the order here.
+      throw new Error(
+        "Your browser is blocking site storage, which this payment method needs. Please allow it or pay another way.",
+      );
+    }
+    window.location.href = created.checkoutUrl;
+  };
+
+  const handlePaid: PaidHandler = async (provider, transactionId, status) => {
     if (!cartToken) return;
     const res = await saveOrder(
       cartToken,
       eventEid,
-      pi.id,
-      pi.status,
-      buildOrderForm(),
+      transactionId,
+      status,
+      buildOrderForm(provider),
+      { provider },
     );
-    if (pi.status === "succeeded" || pi.status === "processing") {
+    if (status === "succeeded" || status === "processing") {
       if (res.status === "success") {
-        finishOrder(res, pi.status === "processing");
+        finishOrder(res, status === "processing");
       }
     }
   };
+
+  /**
+   * Resume after Mollie.
+   *
+   * Runs once on load when the return marker is present. The verdict
+   * comes from Mollie via checkMolliePayment - the buyer arriving back
+   * proves nothing, since they can abandon the payment and reopen this
+   * URL by hand.
+   *
+   * The stash is cleared before the status call, not after, so a
+   * failure can't leave a stale payment id that re-fires on every
+   * subsequent load.
+   */
+  const mollieResumed = useRef(false);
+  useEffect(() => {
+    if (mollieResumed.current) return;
+    if (!mollieReturn) return;
+    mollieResumed.current = true;
+
+    let pending: MolliePending | null = null;
+    try {
+      const raw = sessionStorage.getItem(MOLLIE_PENDING_KEY);
+      pending = raw ? (JSON.parse(raw) as MolliePending) : null;
+      sessionStorage.removeItem(MOLLIE_PENDING_KEY);
+    } catch {
+      pending = null;
+    }
+
+    setUrlParam(MOLLIE_RETURN_PARAM, null);
+
+    // All state changes happen inside the async body: setting state
+    // straight from an effect triggers a cascading re-render, and the
+    // resume is asynchronous anyway.
+    const resume = pending;
+    (async () => {
+      if (!resume?.cartToken || !resume.paymentId) {
+        setDetailsError(
+          "We couldn't match that payment to your basket. If you were charged, please contact us before paying again.",
+        );
+        return;
+      }
+
+      setSubmitting(true);
+      try {
+        const res = await checkMolliePayment(
+          resume.cartToken,
+          eventEid,
+          resume.paymentId,
+          event?.site ?? "uk",
+        );
+        const done = await saveOrder(
+          resume.cartToken,
+          eventEid,
+          res.transactionId,
+          res.paymentStatus,
+          resume.form,
+          { provider: "mollie" },
+        );
+        if (done.status === "success") {
+          finishOrder(done, res.paymentStatus === "processing");
+        }
+      } catch (e) {
+        // Back on the details step with the cart intact, so they can
+        // retry or switch method without rebuilding the basket.
+        setStep("details");
+        setDetailsError(
+          e instanceof Error
+            ? e.message
+            : "Your payment could not be confirmed. Please try again.",
+        );
+      } finally {
+        setSubmitting(false);
+      }
+    })();
+    // Deliberately once-only, guarded by the ref above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Leaving / timeout ─────────────────────────────────────────────
   const resetToTickets = useCallback(async () => {
@@ -806,7 +1043,9 @@ export default function GetTicketsPage({
       window.scrollTo(0, 0);
     } catch (err) {
       setRegError(
-        err instanceof Error ? err.message : "Registration failed. Please retry.",
+        err instanceof Error
+          ? err.message
+          : "Registration failed. Please retry.",
       );
     } finally {
       setRegBusy(false);
@@ -825,7 +1064,9 @@ export default function GetTicketsPage({
   if (info.error || !event) {
     return (
       <CheckoutShell>
-        <h1 className="text-xl font-bold mb-2">Couldn&apos;t load this event</h1>
+        <h1 className="text-xl font-bold mb-2">
+          Couldn&apos;t load this event
+        </h1>
         <p className="text-sm text-ink-600">
           {info.error?.message ||
             "The link may be wrong or the event may have been removed."}
@@ -866,7 +1107,9 @@ export default function GetTicketsPage({
     <CheckoutShell>
       <SubmitOverlay
         show={submitting || checkingOut}
-        label={checkingOut ? "Reserving your tickets…" : "Preparing your order…"}
+        label={
+          checkingOut ? "Reserving your tickets…" : "Preparing your order…"
+        }
       />
 
       {isBoxOffice && step !== "thankyou" && (
@@ -964,15 +1207,25 @@ export default function GetTicketsPage({
         />
       )}
 
-      {step === "payment" && clientSecret && info.data && (
+      {step === "payment" && info.data && cartToken && (
         <div className="space-y-5">
           <PaymentStep
-            publishableKey={info.data.stripe.publishable_key}
-            stripeAccount={info.data.stripe.account}
+            providers={providers}
             clientSecret={clientSecret}
             total={payTotal}
             region={region}
-            onResult={handlePaymentResult}
+            ctx={{
+              cartToken,
+              eventEid,
+              site: event.site ?? "uk",
+            }}
+            billing={{
+              firstName: billing.billing_first_name,
+              lastName: billing.billing_last_name,
+              email: billing.billing_email,
+            }}
+            onPaid={handlePaid}
+            onMollieRedirect={handleMollieRedirect}
           />
           <p className="text-center text-sm text-ink-500">
             Paying{" "}
@@ -991,7 +1244,9 @@ export default function GetTicketsPage({
             <CheckIcon />
           </span>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-ink-900 tracking-tight mb-3">
-            {order.number ? `Order #${order.number} received` : "Order received"}
+            {order.number
+              ? `Order #${order.number} received`
+              : "Order received"}
           </h1>
           {order.processing ? (
             <p className="mb-5 p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800 max-w-md">

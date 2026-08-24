@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ccDecrypt, ccEncrypt } from "@/lib/checkout/crypt";
 import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
+import { MOLLIE_RETURN_PARAM } from "@/lib/checkout/api";
 
 /**
  * Server-side proxy between the Next.js checkout UI and the legacy
@@ -25,10 +26,22 @@ const WP_BASE = (
   process.env.CHECKOUT_WP_BASE ?? "https://staging.carevents.com/uk"
 ).replace(/\/$/, "");
 
+// embed.php and create.php are shared with the classic CE checkout and
+// stay where they are. Everything written for THIS checkout lives in
+// get-tickets/next/ so it can be reorganised without touching files
+// that every ticket sale on the site depends on.
 const EMBED_URL = `${WP_BASE}/get-tickets/embed.php`;
 const CREATE_URL = `${WP_BASE}/get-tickets/create.php`;
-const INFO_URL = `${WP_BASE}/get-tickets/next-checkout-info.php`;
+
+const NEXT_BASE = `${WP_BASE}/get-tickets/next`;
+const INFO_URL = `${NEXT_BASE}/next-checkout-info.php`;
+const PAYPAL_URL = `${NEXT_BASE}/paypal.php`;
+const SQUARE_URL = `${NEXT_BASE}/square.php`;
+const MOLLIE_URL = `${NEXT_BASE}/mollie.php`;
+
+// Not moved: this one is already live and isn't part of this change.
 const PHOTO_URL = `${WP_BASE}/get-tickets/next-photo-upload.php`;
+
 const AJAX_URL = `${WP_BASE}/wp-admin/admin-ajax.php`;
 
 class UpstreamError extends Error {}
@@ -52,7 +65,28 @@ async function phpPost(
   });
   const text = (await res.text()).trim();
   if (!res.ok) {
-    throw new UpstreamError(`Ticketing service error (HTTP ${res.status})`);
+    // These PHP endpoints run with display_errors on, so a 5xx body is
+    // usually the actual fatal - stack trace, file and line. Throwing
+    // it away left "HTTP 500" as the only symptom, which is useless
+    // for working out WHICH call broke, let alone why. Always log the
+    // full body server-side (pm2 logs), and pass a trimmed version to
+    // the client outside production so it shows up in the network tab
+    // without having to shell into the server.
+    console.error(
+      `[checkout] ${url} -> HTTP ${res.status}\n${text.slice(0, 4000)}`,
+    );
+    const showDetail =
+      process.env.NODE_ENV !== "production" ||
+      process.env.CHECKOUT_DEBUG_UPSTREAM === "1";
+    const detail = text
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    throw new UpstreamError(
+      showDetail && detail
+        ? `Ticketing service error (HTTP ${res.status}) at ${url.split("/").pop()}: ${detail.slice(0, 400)}`
+        : `Ticketing service error (HTTP ${res.status})`,
+    );
   }
   if (!text) {
     throw new UpstreamError("EMPTY_RESPONSE");
@@ -372,12 +406,137 @@ export async function POST(request: NextRequest) {
         }
       }
 
+      // ── PayPal ──────────────────────────────────────────────────
+      // Two hops, both server-side: paypal.php sizes the order from
+      // the cart and later captures it. The browser only ever holds
+      // the PayPal order id, never an amount - see the PHP file.
+      case "paypalCreate": {
+        const resp = (await phpPost(PAYPAL_URL, {
+          action: "create",
+          cart_token: s("cartToken"),
+          event_id: s("eventEid"),
+          site: s("site") || "uk",
+        })) as Record<string, unknown>;
+        if (resp.status !== "success") {
+          return err(
+            str(resp.message) || "Could not start the PayPal payment.",
+          );
+        }
+        return ok({ orderId: str(resp.order_id), total: num(resp.total) });
+      }
+
+      case "paypalCapture": {
+        const resp = (await phpPost(PAYPAL_URL, {
+          action: "capture",
+          cart_token: s("cartToken"),
+          event_id: s("eventEid"),
+          paypal_order_id: s("paypalOrderId"),
+          site: s("site") || "uk",
+        })) as Record<string, unknown>;
+        if (resp.status !== "success") {
+          return err(
+            str(resp.message) || "PayPal could not complete this payment.",
+          );
+        }
+        return ok({
+          transactionId: str(resp.transaction_id),
+          paymentStatus: str(resp.payment_status),
+          total: num(resp.total),
+        });
+      }
+
+      // ── Square ──────────────────────────────────────────────────
+      // One hop: the Web Payments SDK tokenises the card in the
+      // browser and square.php charges the cart total against that
+      // single-use token. verificationToken carries the SCA result,
+      // which Square requires for UK/EEA cards.
+      case "squarePay": {
+        const resp = (await phpPost(SQUARE_URL, {
+          action: "pay",
+          cart_token: s("cartToken"),
+          event_id: s("eventEid"),
+          source_id: s("sourceId"),
+          verification_token: s("verificationToken"),
+          site: s("site") || "uk",
+        })) as Record<string, unknown>;
+        if (resp.status !== "success") {
+          return err(
+            str(resp.message) || "Square could not complete this payment.",
+          );
+        }
+        return ok({
+          transactionId: str(resp.transaction_id),
+          paymentStatus: str(resp.payment_status),
+          total: num(resp.total),
+        });
+      }
+
+      // ── Mollie ──────────────────────────────────────────────────
+      // The redirect provider. `create` opens a payment and hands back
+      // Mollie's hosted checkout URL; `status` reads the verdict once
+      // the buyer is back.
+      //
+      // return_url is built here from the app's own origin, never from
+      // the request body - Mollie sends the buyer wherever it is told,
+      // so it must not be something a caller can choose.
+      case "mollieCreate": {
+        const origin = (
+          process.env.CHECKOUT_PUBLIC_ORIGIN ?? request.nextUrl.origin
+        ).replace(/\/$/, "");
+        const returnUrl =
+          `${origin}/get-tickets/${encodeURIComponent(s("eventEid"))}` +
+          `?${MOLLIE_RETURN_PARAM}=1`;
+
+        const resp = (await phpPost(MOLLIE_URL, {
+          action: "create",
+          cart_token: s("cartToken"),
+          event_id: s("eventEid"),
+          return_url: returnUrl,
+          site: s("site") || "uk",
+        })) as Record<string, unknown>;
+        if (resp.status !== "success") {
+          return err(
+            str(resp.message) || "Could not start the Mollie payment.",
+          );
+        }
+        return ok({
+          paymentId: str(resp.payment_id),
+          checkoutUrl: str(resp.checkout_url),
+          total: num(resp.total),
+        });
+      }
+
+      case "mollieStatus": {
+        const resp = (await phpPost(MOLLIE_URL, {
+          action: "status",
+          cart_token: s("cartToken"),
+          event_id: s("eventEid"),
+          payment_id: s("paymentId"),
+          site: s("site") || "uk",
+        })) as Record<string, unknown>;
+        if (resp.status !== "success") {
+          return err(
+            str(resp.message) || "Mollie could not confirm this payment.",
+          );
+        }
+        return ok({
+          transactionId: str(resp.transaction_id),
+          paymentStatus: str(resp.payment_status),
+          total: num(resp.total),
+        });
+      }
+
       case "saveOrder": {
         const form = (body.form ?? {}) as Record<string, unknown>;
         const fields: Record<string, string> = {
           action: "save_checkout_data",
           cart_token: s("cartToken"),
+          // The field name is Stripe's for historical reasons; it is
+          // really "the gateway's transaction id", and payment_provider
+          // says which gateway that is. Omitting the provider is the
+          // same as saying "stripe" on the PHP side.
           stripe_payment_intent_id: s("paymentIntentId"),
+          payment_provider: s("provider") || "stripe",
           payment_status: s("paymentStatus"),
           event_id: s("eventEid"),
           page: "checkout",

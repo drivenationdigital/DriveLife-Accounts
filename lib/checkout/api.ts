@@ -38,8 +38,7 @@ async function checkoutAction<T>(
     );
   }
   const data = (await res.json().catch(() => null)) as
-    | ({ status?: string; message?: string } & Record<string, unknown>)
-    | null;
+    ({ status?: string; message?: string } & Record<string, unknown>) | null;
   if (!data) {
     throw new CheckoutError("Unexpected response from the ticketing service.");
   }
@@ -103,11 +102,72 @@ export interface CheckoutEvent {
   currency: string;
 }
 
+/**
+ * Payment methods a buyer can be offered.
+ *
+ * The backend sends at most two: one card processor and PayPal. Stripe,
+ * Square and Mollie are all card processors and an organiser can only
+ * have one connected, so the buyer's choice is "Card" or "PayPal" -
+ * never a row of near-identical card tabs. All three arrive labelled
+ * "Card" for that reason.
+ *
+ * Stripe is the fallback and needs no organiser credentials; Square,
+ * Mollie and PayPal are the organiser's own merchant accounts -
+ * straightforward charges with no platform split.
+ */
+export type PaymentProviderId = "stripe" | "paypal" | "square" | "mollie";
+
+export interface StripeProvider {
+  id: "stripe";
+  label: string;
+  publishable_key: string;
+  account: string | null;
+}
+
+export interface PaypalProvider {
+  id: "paypal";
+  label: string;
+  client_id: string;
+  environment: "sandbox" | "live";
+  currency: string;
+}
+
+export interface SquareProvider {
+  id: "square";
+  label: string;
+  application_id: string;
+  location_id: string;
+  environment: "sandbox" | "production";
+  currency: string;
+}
+
+/**
+ * Mollie carries no browser-side credential: there is no publishable
+ * key because the buyer is sent to Mollie's own hosted page rather
+ * than entering card details here.
+ */
+export interface MollieProvider {
+  id: "mollie";
+  label: string;
+  environment: "test" | "live";
+  currency: string;
+}
+
+export type CheckoutProvider =
+  StripeProvider | PaypalProvider | SquareProvider | MollieProvider;
+
 export interface CheckoutInfo {
   event: CheckoutEvent;
   /** 1.2 when the organiser displays VAT-inclusive prices, else 1. */
   display_vat_multiplier: number;
   stripe: { publishable_key: string; account: string | null };
+  /**
+   * Server-ordered list of enabled methods. Optional because a
+   * backend that predates the multi-provider work omits it - the UI
+   * then falls back to Stripe alone, which is exactly what that
+   * backend supports.
+   */
+  providers?: CheckoutProvider[];
 }
 
 export interface CartLine {
@@ -296,6 +356,114 @@ export function createPaymentIntent(
   );
 }
 
+// ── PayPal / Square ──────────────────────────────────────────────────
+//
+// Both mirror the Stripe contract from the UI's point of view: the
+// browser hands over an opaque approval artefact and gets back a
+// transaction id plus a status string using Stripe's vocabulary
+// ("succeeded" / "processing"), so the caller's completion path stays
+// identical whichever method the buyer picked.
+//
+// Neither call sends an amount. The PHP endpoints price the cart
+// themselves and reject anything that no longer matches.
+
+export interface ProviderChargeResult {
+  transactionId: string;
+  /** Stripe's vocabulary: "succeeded" or "processing". */
+  paymentStatus: string;
+  total: number;
+}
+
+/** Opens a PayPal order sized to the cart. Returns its PayPal id. */
+export function createPaypalOrder(
+  cartToken: string,
+  eventEid: string,
+  site: string,
+) {
+  return checkoutAction<{ orderId: string; total: number }>("paypalCreate", {
+    cartToken,
+    eventEid,
+    site,
+  });
+}
+
+/** Captures the order the buyer approved in the PayPal popup. */
+export function capturePaypalOrder(
+  cartToken: string,
+  eventEid: string,
+  paypalOrderId: string,
+  site: string,
+) {
+  return checkoutAction<ProviderChargeResult>("paypalCapture", {
+    cartToken,
+    eventEid,
+    paypalOrderId,
+    site,
+  });
+}
+
+/**
+ * Charges a Square single-use token. `verificationToken` is the SCA
+ * result from payments.verifyBuyer() - required for UK/EEA cards,
+ * ignored elsewhere, so always pass it when the SDK produced one.
+ */
+export function squarePay(
+  cartToken: string,
+  eventEid: string,
+  sourceId: string,
+  verificationToken: string,
+  site: string,
+) {
+  return checkoutAction<ProviderChargeResult>("squarePay", {
+    cartToken,
+    eventEid,
+    sourceId,
+    verificationToken,
+    site,
+  });
+}
+
+// ── Mollie ───────────────────────────────────────────────────────────
+//
+// The one provider that leaves the page. Mollie has no inline card
+// form: `createMolliePayment` returns a hosted checkout URL, the buyer
+// goes there (and to their bank for 3-D Secure), and comes back to the
+// return URL the proxy supplied. `checkMolliePayment` then asks Mollie
+// what actually happened.
+//
+// Coming back proves nothing on its own - a buyer can abandon the
+// payment and reopen the return URL by hand - so the verdict is always
+// read from Mollie, never inferred from the redirect.
+
+/** Query-string marker the checkout page looks for on return. */
+export const MOLLIE_RETURN_PARAM = "mollie_return";
+
+export function createMolliePayment(
+  cartToken: string,
+  eventEid: string,
+  site: string,
+) {
+  return checkoutAction<{
+    paymentId: string;
+    checkoutUrl: string;
+    total: number;
+  }>("mollieCreate", { cartToken, eventEid, site });
+}
+
+export function checkMolliePayment(
+  cartToken: string,
+  eventEid: string,
+  paymentId: string,
+  site: string,
+) {
+  return checkoutAction<ProviderChargeResult>("mollieStatus", {
+    cartToken,
+    eventEid,
+    paymentId,
+    site,
+  });
+}
+
 export interface SaveOrderResult {
   status: string;
   order_id?: string;
@@ -309,7 +477,7 @@ export function saveOrder(
   paymentIntentId: string,
   paymentStatus: string,
   form: Record<string, string>,
-  opts: { boxOffice?: boolean } = {},
+  opts: { boxOffice?: boolean; provider?: PaymentProviderId } = {},
 ) {
   return checkoutAction<SaveOrderResult>("saveOrder", {
     cartToken,
@@ -320,6 +488,10 @@ export function saveOrder(
     // Asks the proxy to attach the dashboard session token so the
     // backend can authorise a no-payment (box office) completion.
     boxOffice: !!opts.boxOffice,
+    // Which gateway `paymentIntentId` came from. For PayPal and Square
+    // the backend re-checks it against the charge it recorded when it
+    // captured, and takes the status from there rather than from us.
+    provider: opts.provider ?? "stripe",
   });
 }
 

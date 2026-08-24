@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { CheckoutTicket, CouponRow } from "@/lib/checkout/api";
 import { formatRegionCurrency, type Region } from "@/lib/regions";
 import { ButtonSpinner } from "@/components/apply/ApplyIcons";
@@ -237,9 +237,7 @@ export function TicketsStep({
   // Percentage codes genuinely reprice each eligible ticket, so those
   // keep the per-ticket display.
   const isFixedCoupon = coupon?.discount_type === "fixed";
-  const fixedAmount = isFixedCoupon
-    ? Number(coupon?.discount_amount) || 0
-    : 0;
+  const fixedAmount = isFixedCoupon ? Number(coupon?.discount_amount) || 0 : 0;
 
   const subtotal = useMemo(() => {
     let sum = 0;
@@ -264,6 +262,36 @@ export function TicketsStep({
 
   const buyable = tickets.filter((t) => !t.isSection);
 
+  // Floating checkout bar.
+  //
+  // With a long ticket list the real Checkout button sits far below the
+  // fold, so a buyer who has picked their tickets has to scroll past
+  // everything to act on it. The bar mirrors that button while it is
+  // out of view and gets out of the way once it isn't - it never
+  // competes with the real one.
+  //
+  // The bottom rootMargin is the bar's own height: without it the
+  // footer counts as "visible" the instant its first pixel appears,
+  // which is the pixel the bar is sitting on top of, and the two
+  // flicker against each other.
+  const footerRef = useRef<HTMLDivElement>(null);
+  const [footerInView, setFooterInView] = useState(true);
+
+  useEffect(() => {
+    const el = footerRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setFooterInView(entry.isIntersecting),
+      { rootMargin: "0px 0px -96px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // Same condition as the real button being usable, so the bar can
+  // never offer an action the footer wouldn't.
+  const showFloating = totalSelected > 0 && !footerInView;
+
   // A validated code that covers NONE of the selected tickets will be
   // rejected at checkout - say so up front instead of letting the
   // buyer discover it a step later.
@@ -275,191 +303,256 @@ export function TicketsStep({
     );
 
   return (
-    <section className="bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden">
-      <div className="flex items-center gap-3 px-6 pt-5 pb-4">
-        <h2 className="text-base font-bold text-ink-900 tracking-tight">
-          Tickets
-        </h2>
-      </div>
+    <>
+      <section className="bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden">
+        <div className="flex items-center gap-3 px-6 pt-5 pb-4">
+          <h2 className="text-base font-bold text-ink-900 tracking-tight">
+            Tickets
+          </h2>
+        </div>
 
-      {buyable.length === 0 ? (
-        <p className="p-6 text-sm text-ink-600">
-          There are currently no tickets available for this event.
-        </p>
-      ) : (
-        <ul>
-          {tickets.map((t, i) => {
-            if (t.isSection) {
+        {buyable.length === 0 ? (
+          <p className="p-6 text-sm text-ink-600">
+            There are currently no tickets available for this event.
+          </p>
+        ) : (
+          <ul>
+            {tickets.map((t, i) => {
+              if (t.isSection) {
+                return (
+                  <li
+                    key={`section-${i}`}
+                    className="px-6 py-2.5 border-t border-ink-200 bg-ink-50 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-500"
+                  >
+                    {t.name}
+                  </li>
+                );
+              }
+
+              const qty = quantities[t.pid] ?? 0;
+              const displayPrice = t.price * vatMultiplier;
+              // Per-ticket strikethrough for percentage codes only - a
+              // fixed discount is shown on the code chip instead.
+              const hasDiscount =
+                coupon && !isFixedCoupon && couponAppliesTo(coupon, t.id);
+              const finalPrice = hasDiscount
+                ? discountedPrice(displayPrice, coupon)
+                : displayPrice;
+              // The classic checkout clamps every stepper by the event's
+              // per-order cap as well as the ticket's own limit.
+              const remainingCap =
+                cartLimit > 0 ? cartLimit - (totalSelected - qty) : Infinity;
+              const max = Math.min(t.maxQuantity, remainingCap);
+
               return (
                 <li
-                  key={`section-${i}`}
-                  className="px-6 py-2.5 border-t border-ink-200 bg-ink-50 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-500"
+                  key={t.pid}
+                  className="px-6 py-4 border-t border-ink-200 flex items-start justify-between gap-4"
                 >
-                  {t.name}
-                </li>
-              );
-            }
-
-            const qty = quantities[t.pid] ?? 0;
-            const displayPrice = t.price * vatMultiplier;
-            // Per-ticket strikethrough for percentage codes only - a
-            // fixed discount is shown on the code chip instead.
-            const hasDiscount =
-              coupon && !isFixedCoupon && couponAppliesTo(coupon, t.id);
-            const finalPrice = hasDiscount
-              ? discountedPrice(displayPrice, coupon)
-              : displayPrice;
-            // The classic checkout clamps every stepper by the event's
-            // per-order cap as well as the ticket's own limit.
-            const remainingCap =
-              cartLimit > 0 ? cartLimit - (totalSelected - qty) : Infinity;
-            const max = Math.min(t.maxQuantity, remainingCap);
-
-            return (
-              <li
-                key={t.pid}
-                className="px-6 py-4 border-t border-ink-200 flex items-start justify-between gap-4"
-              >
-                <div className="min-w-0">
-                  <h3 className="text-[15px] font-bold text-ink-900 leading-snug">
-                    {cname ? `${t.name} – ${cname}` : t.name}
-                    {t.secretMatched && (
-                      // Open padlock: this ticket was revealed by the
-                      // secret code the buyer entered.
-                      <svg
-                        className="inline-block ml-1.5 align-[-2px] text-gold-500"
-                        width="15"
-                        height="15"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        role="img"
-                        aria-label="Unlocked with secret code"
+                  <div className="min-w-0">
+                    <h3 className="text-[15px] font-bold text-ink-900 leading-snug">
+                      {cname ? `${t.name} – ${cname}` : t.name}
+                      {t.secretMatched && (
+                        // Open padlock: this ticket was revealed by the
+                        // secret code the buyer entered.
+                        <svg
+                          className="inline-block ml-1.5 align-[-2px] text-gold-500"
+                          width="15"
+                          height="15"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          role="img"
+                          aria-label="Unlocked with secret code"
+                        >
+                          <rect x="3" y="11" width="18" height="11" rx="2" />
+                          <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+                        </svg>
+                      )}
+                    </h3>
+                    <div className="text-[15px] font-bold text-ink-900 tabular-nums mt-0.5 flex items-baseline gap-2">
+                      <span
+                        className={hasDiscount ? "text-gold-600" : undefined}
                       >
-                        <rect x="3" y="11" width="18" height="11" rx="2" />
-                        <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                      </svg>
-                    )}
-                  </h3>
-                  <div className="text-[15px] font-bold text-ink-900 tabular-nums mt-0.5 flex items-baseline gap-2">
-                    <span className={hasDiscount ? "text-gold-600" : undefined}>
-                      {finalPrice <= 0
-                        ? "Free"
-                        : formatRegionCurrency(finalPrice, region)}
-                    </span>
-                    {hasDiscount && (
-                      <span className="text-xs font-medium text-ink-400 line-through">
-                        {formatRegionCurrency(displayPrice, region)}
+                        {finalPrice <= 0
+                          ? "Free"
+                          : formatRegionCurrency(finalPrice, region)}
                       </span>
+                      {hasDiscount && (
+                        <span className="text-xs font-medium text-ink-400 line-through">
+                          {formatRegionCurrency(displayPrice, region)}
+                        </span>
+                      )}
+                    </div>
+                    <TicketDescription text={t.description} />
+                  </div>
+
+                  <div className="shrink-0 text-right">
+                    {t.earlyLiveDate ? (
+                      <p className="text-xs text-ink-500">
+                        Goes live
+                        <br />
+                        <span className="font-semibold text-ink-700">
+                          {new Date(t.earlyLiveDate).toLocaleString(
+                            region.locale,
+                            {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            },
+                          )}
+                        </span>
+                      </p>
+                    ) : t.soldOut ? (
+                      <span className="inline-block text-[11px] font-bold uppercase tracking-wide bg-ink-100 text-ink-500 rounded-full px-2.5 py-1">
+                        Sold out
+                      </span>
+                    ) : (
+                      <QuantityStepper
+                        value={qty}
+                        max={max}
+                        onChange={(next) => onQuantityChange(t.pid, next)}
+                      />
                     )}
                   </div>
-                  <TicketDescription text={t.description} />
-                </div>
-
-                <div className="shrink-0 text-right">
-                  {t.earlyLiveDate ? (
-                    <p className="text-xs text-ink-500">
-                      Goes live
-                      <br />
-                      <span className="font-semibold text-ink-700">
-                        {new Date(t.earlyLiveDate).toLocaleString(
-                          region.locale,
-                          {
-                            day: "2-digit",
-                            month: "2-digit",
-                            year: "numeric",
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          },
-                        )}
-                      </span>
-                    </p>
-                  ) : t.soldOut ? (
-                    <span className="inline-block text-[11px] font-bold uppercase tracking-wide bg-ink-100 text-ink-500 rounded-full px-2.5 py-1">
-                      Sold out
-                    </span>
-                  ) : (
-                    <QuantityStepper
-                      value={qty}
-                      max={max}
-                      onChange={(next) => onQuantityChange(t.pid, next)}
-                    />
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
-      <div className="border-t border-ink-200 px-6 py-4 space-y-4">
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          {coupon ? (
-            <ActiveCodeChip
-              label={
-                isFixedCoupon
-                  ? `Code ${coupon.coupon_code} (−${formatRegionCurrency(fixedAmount, region)})`
-                  : `Code ${coupon.coupon_code}`
-              }
-              onRemove={onRemoveCoupon}
-            />
-          ) : (
-            <CodeEntry
-              label="Have a discount code?"
-              placeholder="Discount code"
-              cta="Apply"
-              onApply={onApplyCoupon}
-            />
-          )}
-          {secretActive ? (
-            <ActiveCodeChip
-              label="Secret code active"
-              onRemove={onRemoveSecret}
-            />
-          ) : (
-            <CodeEntry
-              label="Have a secret code?"
-              placeholder="Secret code"
-              cta="Unlock"
-              onApply={onApplySecret}
-            />
-          )}
-        </div>
-
-        {!couponCoversSelection && coupon && (
-          <p className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
-            Code {coupon.coupon_code} doesn&apos;t apply to any of the selected
-            tickets.
-          </p>
+                </li>
+              );
+            })}
+          </ul>
         )}
 
-        {error && (
-          <p className="text-sm text-red-600" role="alert">
-            {error}
-          </p>
-        )}
+        <div className="border-t border-ink-200 px-6 py-4 space-y-4">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+            {coupon ? (
+              <ActiveCodeChip
+                label={
+                  isFixedCoupon
+                    ? `Code ${coupon.coupon_code} (−${formatRegionCurrency(fixedAmount, region)})`
+                    : `Code ${coupon.coupon_code}`
+                }
+                onRemove={onRemoveCoupon}
+              />
+            ) : (
+              <CodeEntry
+                label="Have a discount code?"
+                placeholder="Discount code"
+                cta="Apply"
+                onApply={onApplyCoupon}
+              />
+            )}
+            {secretActive ? (
+              <ActiveCodeChip
+                label="Secret code active"
+                onRemove={onRemoveSecret}
+              />
+            ) : (
+              <CodeEntry
+                label="Have a secret code?"
+                placeholder="Secret code"
+                cta="Unlock"
+                onApply={onApplySecret}
+              />
+            )}
+          </div>
 
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-sm text-ink-600">
-            Subtotal{" "}
-            <span className="text-lg font-extrabold text-ink-900 tabular-nums ml-1">
-              {formatRegionCurrency(subtotal, region)}
-            </span>
-          </p>
-          <button
-            type="button"
-            onClick={onCheckout}
-            disabled={totalSelected === 0 || checkingOut}
-            className="px-8 py-3 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
+          {!couponCoversSelection && coupon && (
+            <p className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+              Code {coupon.coupon_code} doesn&apos;t apply to any of the
+              selected tickets.
+            </p>
+          )}
+
+          {error && (
+            <p className="text-sm text-red-600" role="alert">
+              {error}
+            </p>
+          )}
+
+          <div
+            ref={footerRef}
+            className="flex items-center justify-between gap-4"
           >
-            {checkingOut && <ButtonSpinner />}
-            {checkingOut ? "Reserving…" : "Checkout"}
-          </button>
+            <p className="text-sm text-ink-600">
+              Subtotal{" "}
+              <span className="text-lg font-extrabold text-ink-900 tabular-nums ml-1">
+                {formatRegionCurrency(subtotal, region)}
+              </span>
+            </p>
+            <CheckoutButton
+              onCheckout={onCheckout}
+              disabled={totalSelected === 0 || checkingOut}
+              checkingOut={checkingOut}
+              className="px-8"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Kept mounted so it can animate both ways, and inert while
+          hidden so it stays out of the tab order and off screen
+          readers. */}
+      <div
+        aria-hidden={!showFloating}
+        inert={!showFloating}
+        className={[
+          "fixed inset-x-0 bottom-0 z-40 transition-all duration-200 ease-out",
+          showFloating
+            ? "translate-y-0 opacity-100"
+            : "translate-y-full opacity-0 pointer-events-none",
+        ].join(" ")}
+      >
+        <div className="bg-white/95 backdrop-blur border-t border-ink-200 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+          <div className="mx-auto max-w-3xl px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.14em] font-bold text-ink-500">
+                {totalSelected} {totalSelected === 1 ? "ticket" : "tickets"}
+              </p>
+              <p className="text-lg font-extrabold text-ink-900 tabular-nums leading-tight">
+                {formatRegionCurrency(subtotal, region)}
+              </p>
+            </div>
+            <CheckoutButton
+              onCheckout={onCheckout}
+              disabled={totalSelected === 0 || checkingOut}
+              checkingOut={checkingOut}
+              className="px-8 shrink-0"
+            />
+          </div>
         </div>
       </div>
-    </section>
+    </>
+  );
+}
+
+/**
+ * The Checkout action, shared by the footer and the floating bar so the
+ * two can't drift apart in wording, disabled state or busy feedback.
+ */
+function CheckoutButton({
+  onCheckout,
+  disabled,
+  checkingOut,
+  className = "",
+}: {
+  onCheckout: () => void;
+  disabled: boolean;
+  checkingOut: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onCheckout}
+      disabled={disabled}
+      className={`py-3 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2 ${className}`}
+    >
+      {checkingOut && <ButtonSpinner />}
+      {checkingOut ? "Reserving…" : "Checkout"}
+    </button>
   );
 }
