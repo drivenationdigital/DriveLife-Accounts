@@ -468,10 +468,11 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     // parseFloat returns NaN for "" and other non-numeric, which is
     // exactly the sentinel the editor uses for "unset".
     //
-    // `stock` is the TOTAL allocation, not the remainder - the UI
-    // subtracts `quantitySold` itself. Keeping the raw total here means
-    // an edit that never touches the quantity field can send `stock`
-    // back exactly as it arrived.
+    // `stock` is REMAINING stock, not the total allocation: a
+    // completed sale decrements it and increments `stock_sold`. That
+    // is the same figure the drawer edits and the same figure the save
+    // route writes straight back into the column, so it passes through
+    // untouched in both directions.
     quantity: parseFloat(row.stock),
     quantitySold: parseCount(row.stock_sold),
     price: parseFloat(row.price),

@@ -116,18 +116,23 @@ export type Ticket = {
   name: string;
   /** Free-text additional info shown at checkout / on the ticket. */
   additionalInfo: string;
-  /** TOTAL allocation - the `stock` column, matching what the API
+  /** REMAINING allocation - the `stock` column, matching what the API
    *  sends and expects back. Stored as number (NaN ⇒ unlimited).
    *
-   *  NOT what the UI shows: the panel subtitle and the drawer's
-   *  quantity input both render `quantity - quantitySold`, i.e. how
-   *  many are still available. The drawer converts back to a total on
-   *  save. */
+   *  This is also exactly what the UI shows, so nothing converts on
+   *  the way in or out. Ticketing now decrements `stock` and
+   *  increments `stock_sold` on every completed sale, so `stock` IS
+   *  the number still available; the total allocation, where a screen
+   *  needs one, is `quantity + quantitySold`.
+   *
+   *  It previously meant the total, with the drawer subtracting
+   *  `quantitySold` to display and adding it back to save. Under the
+   *  new scheme that subtracted twice on read and re-inflated stock on
+   *  every save. */
   quantity: number;
-  /** How many of `quantity` have already sold - the `stock_sold`
-   *  column. 0 for a ticket that hasn't been saved yet. Only used to
-   *  derive the available figure; never sent back to the server, which
-   *  owns this counter. */
+  /** How many have already sold - the `stock_sold` column. 0 for a
+   *  ticket that hasn't been saved yet. Display only (and for deriving
+   *  the total); never sent back, the server owns this counter. */
   quantitySold: number;
   /** Price in major units (£), e.g. 12.5 for £12.50. Stored as number. */
   price: number;

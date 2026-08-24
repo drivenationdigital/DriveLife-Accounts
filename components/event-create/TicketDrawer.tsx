@@ -29,15 +29,16 @@ type DateTarget = "saleStart" | "saleEnd";
 
 /**
  * Initial value for the quantity input: how many are still AVAILABLE,
- * i.e. the stored total minus what's already sold. Empty string when
- * the ticket is unlimited (NaN total) or brand new.
+ * which is the stored `stock` as-is - ticketing decrements it on each
+ * sale. Empty string when the ticket is unlimited (NaN) or brand new.
  *
- * Never negative - an oversold ticket (sold > total, possible after a
- * manual stock reduction) shows 0 rather than a negative figure.
+ * Clamped at 0 so a negative column value (possible after a manual
+ * stock reduction below what had already sold) shows 0 rather than a
+ * negative figure.
  */
 function seedQuantity(editing: Ticket | null): string {
   if (!editing || !Number.isFinite(editing.quantity)) return "";
-  return String(Math.max(0, editing.quantity - editing.quantitySold));
+  return String(Math.max(0, editing.quantity));
 }
 
 export function TicketDrawer({
@@ -125,11 +126,16 @@ export function TicketDrawer({
   const sold = editing?.quantitySold ?? 0;
   const quantityDirtied = quantity.trim() !== initialQuantity.trim();
   const enteredAvailable = Math.max(0, parseFloat(quantity));
+  // What the user typed IS what the server stores: `stock` holds the
+  // remaining count now, so there is no total to convert back to. The
+  // previous `enteredAvailable + sold` inflated stock by the sold
+  // count on every save, including saves that never touched this
+  // field.
   const nextQuantity =
     !quantityDirtied && editing
       ? editing.quantity
       : Number.isFinite(enteredAvailable)
-        ? enteredAvailable + sold
+        ? enteredAvailable
         : NaN;
 
   // Auto-fill a code when the user flips the secret toggle ON for the
@@ -290,12 +296,12 @@ export function TicketDrawer({
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
               Quantity available
-              {/* Marks an unsaved change to the allocation. Stock is the
-                  one field here where the saved value and the typed
-                  value mean different things (available vs total), so it
-                  earns a "you changed this" cue the other inputs don't
-                  need. A bare asterisk would read as "required" - that's
-                  what the gold * on Ticket name above means. */}
+              {/* Marks an unsaved change to the allocation. Changing
+                  this is the one edit here that can immediately stop
+                  people buying, so it earns a "you changed this" cue
+                  the other inputs don't need. A bare asterisk would
+                  read as "required" - that's what the gold * on Ticket
+                  name above means. */}
               {quantityDirtied && (
                 <span
                   className="ml-1.5 align-middle text-[9px] tracking-wider bg-gold-50 text-gold-700 border border-gold-200 px-1.5 py-0.5 rounded"

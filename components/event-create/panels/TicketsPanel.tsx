@@ -1064,21 +1064,23 @@ function RowActions({
 /** Build the small subtitle text shown beneath each ticket name -
  *  stock summary + sale window in human form.
  *
- *  "Available" is what's LEFT (total allocation minus what's already
- *  sold), not the allocation itself - a 100-ticket allocation with 40
- *  sold reads "60 available of 100". The total is spelled out because
- *  the drawer edits availability, so the organiser needs to see both
- *  numbers to know what they're changing. Once anything has sold the
- *  sold count is shown too.
+ *  `quantity` is what's LEFT: ticketing decrements `stock` and
+ *  increments `stock_sold` on each sale, so the total allocation has
+ *  to be added back up. A ticket with 60 left and 40 sold reads
+ *  "60 available of 100". The total is spelled out because the drawer
+ *  edits availability, so the organiser needs to see both numbers to
+ *  know what they're changing. Once anything has sold the sold count
+ *  is shown too.
  *
  *  A NaN quantity means unlimited, so no stock line is shown at all. */
 function ticketSubtitle(t: Ticket, region: Region): string {
   const parts: string[] = [];
-  const available = t.quantity - t.quantitySold;
+  const available = t.quantity;
+  const total = t.quantity + t.quantitySold;
   if (Number.isFinite(t.quantity) && available > 0) {
     parts.push(
       t.quantitySold > 0
-        ? `${available} available of ${t.quantity} (${t.quantitySold} sold)`
+        ? `${available} available of ${total} (${t.quantitySold} sold)`
         : `${available} available`,
     );
   }
