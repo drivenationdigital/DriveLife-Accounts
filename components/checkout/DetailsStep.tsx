@@ -428,9 +428,19 @@ export function DetailsStep({
             const specs = unitFieldSpecs(unit.ticket);
             // The server's totals carry the per-unit coupon discount
             // for each ticket line - show the discounted price here so
-            // step 2 visibly agrees with the summary below.
-            const unitDiscount =
-              totals?.coupons?.discounted_items?.[unit.pid] ?? 0;
+            // step 2 visibly agrees with the summary below. Percentage
+            // codes only: a fixed amount applies once to the basket
+            // (spread across lines server-side), so repricing each
+            // unit card would suggest it applies per ticket - that
+            // discount is carried by the summary's Discount line.
+            const onlyPercentageCoupons = totals?.coupons
+              ? Object.values(totals.coupons.coupons).every(
+                  (c) => c.discount_type === "percentage",
+                )
+              : false;
+            const unitDiscount = onlyPercentageCoupons
+              ? (totals?.coupons?.discounted_items?.[unit.pid] ?? 0)
+              : 0;
             const discountedUnitPrice = Math.max(
               0,
               unit.ticket.price - unitDiscount,

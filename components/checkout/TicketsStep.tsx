@@ -230,20 +230,37 @@ export function TicketsStep({
     [quantities],
   );
 
+  // A fixed-amount code is applied ONCE against the basket (the
+  // backend spreads it across eligible lines), not per ticket - so it
+  // never gets per-ticket strikethrough pricing, and the subtotal
+  // subtracts it a single time, capped at the eligible tickets' value.
+  // Percentage codes genuinely reprice each eligible ticket, so those
+  // keep the per-ticket display.
+  const isFixedCoupon = coupon?.discount_type === "fixed";
+  const fixedAmount = isFixedCoupon
+    ? Number(coupon?.discount_amount) || 0
+    : 0;
+
   const subtotal = useMemo(() => {
     let sum = 0;
+    let eligible = 0;
     for (const t of tickets) {
       if (t.isSection) continue;
       const qty = quantities[t.pid] ?? 0;
       if (!qty) continue;
       let price = t.price * vatMultiplier;
-      if (coupon && couponAppliesTo(coupon, t.id)) {
+      const applies = coupon ? couponAppliesTo(coupon, t.id) : false;
+      if (applies && coupon && !isFixedCoupon) {
         price = discountedPrice(price, coupon);
       }
       sum += price * qty;
+      if (applies) eligible += price * qty;
+    }
+    if (isFixedCoupon && eligible > 0) {
+      sum = Math.max(0, sum - Math.min(fixedAmount, eligible));
     }
     return sum;
-  }, [tickets, quantities, vatMultiplier, coupon]);
+  }, [tickets, quantities, vatMultiplier, coupon, isFixedCoupon, fixedAmount]);
 
   const buyable = tickets.filter((t) => !t.isSection);
 
@@ -285,7 +302,10 @@ export function TicketsStep({
 
             const qty = quantities[t.pid] ?? 0;
             const displayPrice = t.price * vatMultiplier;
-            const hasDiscount = coupon && couponAppliesTo(coupon, t.id);
+            // Per-ticket strikethrough for percentage codes only - a
+            // fixed discount is shown on the code chip instead.
+            const hasDiscount =
+              coupon && !isFixedCoupon && couponAppliesTo(coupon, t.id);
             const finalPrice = hasDiscount
               ? discountedPrice(displayPrice, coupon)
               : displayPrice;
@@ -379,7 +399,11 @@ export function TicketsStep({
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
           {coupon ? (
             <ActiveCodeChip
-              label={`Code ${coupon.coupon_code}`}
+              label={
+                isFixedCoupon
+                  ? `Code ${coupon.coupon_code} (−${formatRegionCurrency(fixedAmount, region)})`
+                  : `Code ${coupon.coupon_code}`
+              }
               onRemove={onRemoveCoupon}
             />
           ) : (
