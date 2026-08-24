@@ -247,7 +247,7 @@ function mapTicket(t: ApiTicketType): Ticket {
     // fixed, bare `stock` shrinks by one per sale (25/50 → 26/49).
     // `capacity` (when the API sends it) still wins as an explicit
     // override.
-    capacity: t.capacity ?? t.stock + t.stock_sold,
+    capacity: t.capacity ?? t.stock,
     status: t.sale_status === "sold_out" ? "soldout" : "active",
   };
 }
