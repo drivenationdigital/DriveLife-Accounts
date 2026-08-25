@@ -1,13 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 
 import { useAccount, useDisconnectStripe } from "@/lib/account";
 import {
   useDisconnectPaymentProvider,
   usePaymentProviders,
-  useSavePaymentProvider,
+  useMollieConnectUrl,
+  usePaypalConnectUrl,
+  useSquareConnectUrl,
 } from "@/lib/paymentProviders";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -230,60 +232,6 @@ function ConnectedBanner({ title, detail }: { title: string; detail: string }) {
   );
 }
 
-function CredentialField({
-  label,
-  hint,
-  ...input
-}: {
-  label: string;
-  hint?: string;
-} & React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <label className="block">
-      <span className="text-sm font-semibold text-ink-700">{label}</span>
-      <input
-        {...input}
-        className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-gold-500"
-      />
-      {hint && <span className="mt-1 block text-xs text-ink-500">{hint}</span>}
-    </label>
-  );
-}
-
-function ProviderActions({
-  connected,
-  saving,
-  disconnecting,
-  onDisconnect,
-}: {
-  connected: boolean;
-  saving: boolean;
-  disconnecting: boolean;
-  onDisconnect: () => void;
-}) {
-  return (
-    <div className="flex flex-wrap gap-3">
-      <button
-        type="submit"
-        disabled={saving || disconnecting}
-        className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
-      >
-        {saving ? "Checking credentials…" : connected ? "Update" : "Connect"}
-      </button>
-      {connected && (
-        <button
-          type="button"
-          onClick={onDisconnect}
-          disabled={saving || disconnecting}
-          className="inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {disconnecting ? "Disconnecting…" : "Disconnect"}
-        </button>
-      )}
-    </div>
-  );
-}
-
 const CARD_PROCESSOR_NAMES: Record<string, string> = {
   stripe: "Stripe",
   square: "Square",
@@ -291,11 +239,11 @@ const CARD_PROCESSOR_NAMES: Record<string, string> = {
 };
 
 /**
- * Explains the one-card-processor rule before an organiser runs into
- * it as a rejected save, and names the one currently in use. Buyers
- * see a single "Card" button, so exactly one processor can sit behind
- * it - Stripe, Square or Mollie. PayPal is separate and sits alongside
- * whichever they choose.
+ * Explains the one-card-processor rule before an organiser runs into it
+ * as a rejected connect, and names the one currently in use. Buyers see
+ * a single "Card" option, so exactly one of Stripe, Square or Mollie can
+ * sit behind it. PayPal is separate and sits alongside whichever they
+ * choose.
  */
 function CardProcessorNote() {
   const { data, isLoading } = usePaymentProviders();
@@ -307,8 +255,8 @@ function CardProcessorNote() {
     <div className="rounded-xl border border-ink-200 bg-ink-50 p-4">
       <p className="text-sm text-ink-700">
         Buyers see two options at checkout: <strong>Card</strong> and{" "}
-        <strong>PayPal</strong>. Card payments can run through Stripe, Square or
-        Mollie - but only one at a time, so connecting a new one means
+        <strong>PayPal</strong>. Card payments can run through Stripe, Square
+        or Mollie - but only one at a time, so connecting a new one means
         disconnecting the current one first.
       </p>
       <p className="mt-2 text-sm text-ink-600">
@@ -323,39 +271,158 @@ function CardProcessorNote() {
   );
 }
 
-function MollieCard() {
-  const { data, isLoading } = usePaymentProviders();
-  const save = useSavePaymentProvider();
+/**
+ * Reads the `?<provider>=connected|cancelled|error` outcome the connect
+ * callbacks append, shows it once, and strips it from the URL so a
+ * refresh can't replay the toast.
+ *
+ * Deliberately reads `window.location` rather than useSearchParams so
+ * this page stays statically rendered.
+ */
+function useConnectReturn(param: string, name: string) {
+  const toast = useToast();
+  const handled = useRef(false);
+
+  useEffect(() => {
+    if (handled.current) return;
+    const params = new URLSearchParams(window.location.search);
+    const outcome = params.get(param);
+    if (!outcome) return;
+    handled.current = true;
+
+    if (outcome === "connected") {
+      toast.success(`${name} connected.`);
+    } else if (outcome === "cancelled") {
+      toast.error(`${name} connection cancelled.`);
+    } else {
+      // "incomplete" and "error" both carry a specific reason from the
+      // provider - showing it beats a generic failure.
+      toast.error(
+        params.get(`${param}_message`) ||
+          `Couldn't connect ${name}. Please try again.`,
+      );
+    }
+
+    params.delete(param);
+    params.delete(`${param}_message`);
+    const qs = params.toString();
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + (qs ? `?${qs}` : ""),
+    );
+  }, [param, name, toast]);
+}
+
+/**
+ * One provider card: Connect, or a green banner and Disconnect.
+ *
+ * There is deliberately no manual credential entry. Organisers connect
+ * through the provider's own consent flow and never handle an API key -
+ * finding one was the barrier this whole feature exists to remove. The
+ * backend still honours credentials pasted before this existed, but the
+ * only way forward from here is Connect.
+ */
+function ProviderConnectCard({
+  name,
+  isLoading,
+  connected,
+  connectedTitle,
+  connectedDetail,
+  description,
+  blockedBy = null,
+  warning = null,
+  footnote = null,
+  onConnect,
+  connecting,
+  onDisconnect,
+  disconnecting,
+}: {
+  name: string;
+  isLoading: boolean;
+  connected: boolean;
+  connectedTitle: string;
+  connectedDetail: string;
+  description: React.ReactNode;
+  /** Another card processor already owns the Card slot. */
+  blockedBy?: string | null;
+  warning?: React.ReactNode;
+  footnote?: React.ReactNode;
+  onConnect: () => void;
+  connecting: boolean;
+  onDisconnect: () => void;
+  disconnecting: boolean;
+}) {
+  return (
+    <Card>
+      <h3 className="text-lg font-bold text-ink-900">{name}</h3>
+
+      {isLoading ? (
+        <p className="mt-1 text-sm text-ink-400">
+          Checking your {name} connection…
+        </p>
+      ) : connected ? (
+        <>
+          <ConnectedBanner title={connectedTitle} detail={connectedDetail} />
+          {warning}
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnecting}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {disconnecting ? "Disconnecting…" : `Disconnect ${name}`}
+          </button>
+          {footnote}
+        </>
+      ) : blockedBy ? (
+        <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          {blockedBy} is currently handling card payments. Disconnect it first
+          to switch to {name}.
+        </p>
+      ) : (
+        <>
+          <p className="mt-1 text-sm text-ink-500">{description}</p>
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connecting}
+            className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {connecting ? `Opening ${name}…` : `Connect ${name}`}
+          </button>
+        </>
+      )}
+    </Card>
+  );
+}
+
+/** Shared Connect/Disconnect wiring for the three connect flows. */
+function useProviderActions(
+  provider: "square" | "mollie" | "paypal",
+  name: string,
+  connectUrl: {
+    isPending: boolean;
+    mutateAsync: (b: { return_to: string }) => Promise<{ url: string }>;
+  },
+  disconnectMessage: string,
+) {
   const disconnect = useDisconnectPaymentProvider();
   const confirm = useConfirm();
   const toast = useToast();
 
-  const status = data?.providers.mollie;
-  const connected = Boolean(status?.connected);
-  // Another processor already owns the Card button - say so here
-  // rather than let them fill the form in and be refused on save.
-  const blockedBy = !connected
-    ? data?.providers.square.connected
-      ? "Square"
-      : data?.stripe_connected
-        ? "Stripe"
-        : null
-    : null;
-
-  const [apiKey, setApiKey] = useState("");
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (save.isPending) return;
+  const onConnect = async () => {
+    if (connectUrl.isPending) return;
     try {
-      await save.mutateAsync({ provider: "mollie", api_key: apiKey });
-      setApiKey("");
-      toast.success("Mollie connected.");
+      // Come back to this page so the card reflects the new state.
+      const returnTo = `${window.location.origin}${window.location.pathname}`;
+      const { url } = await connectUrl.mutateAsync({ return_to: returnTo });
+      window.location.href = url;
     } catch (err) {
       toast.error(
         err instanceof Error && err.message
           ? err.message
-          : "Couldn't save your Mollie API key.",
+          : `Couldn't start the ${name} connection.`,
       );
     }
   };
@@ -363,393 +430,148 @@ function MollieCard() {
   const onDisconnect = async () => {
     if (disconnect.isPending) return;
     const ok = await confirm({
-      title: "Disconnect Mollie?",
-      message:
-        "Card payments for your events will go back to Stripe until you connect another provider.",
+      title: `Disconnect ${name}?`,
+      message: disconnectMessage,
       confirmLabel: "Disconnect",
       danger: true,
     });
     if (!ok) return;
     try {
-      await disconnect.mutateAsync({ provider: "mollie" });
-      setApiKey("");
-      toast.success("Mollie disconnected.");
+      await disconnect.mutateAsync({ provider });
+      toast.success(`${name} disconnected.`);
     } catch {
-      toast.error("Couldn't disconnect Mollie. Please try again.");
+      toast.error(`Couldn't disconnect ${name}. Please try again.`);
     }
   };
 
+  return { onConnect, onDisconnect, disconnecting: disconnect.isPending };
+}
+
+function SquareCard() {
+  const { data, isLoading } = usePaymentProviders();
+  const connectUrl = useSquareConnectUrl();
+  const status = data?.providers.square;
+  useConnectReturn("square", "Square");
+
+  const { onConnect, onDisconnect, disconnecting } = useProviderActions(
+    "square",
+    "Square",
+    connectUrl,
+    "Card payments for your events will go back to Stripe until you connect another provider.",
+  );
+
+  const connected = Boolean(status?.connected);
+  const blockedBy = connected
+    ? null
+    : data?.providers.mollie.connected
+      ? "Mollie"
+      : data?.stripe_connected
+        ? "Stripe"
+        : null;
+
   return (
-    <Card>
-      <h3 className="text-lg font-bold text-ink-900">Mollie</h3>
+    <ProviderConnectCard
+      name="Square"
+      isLoading={isLoading}
+      connected={connected}
+      connectedTitle={`Square is connected (${status?.environment})`}
+      connectedDetail={`Location ${status?.location_id}. Ticket payments go straight to this Square account in full - no platform fee is deducted at checkout.`}
+      description="Connect your Square account to take card payments at your checkout. You'll approve the connection on Square and come straight back."
+      blockedBy={blockedBy}
+      onConnect={onConnect}
+      connecting={connectUrl.isPending}
+      onDisconnect={onDisconnect}
+      disconnecting={disconnecting}
+    />
+  );
+}
 
-      {isLoading ? (
-        <p className="mt-1 text-sm text-ink-400">
-          Checking your Mollie connection…
-        </p>
-      ) : (
-        <>
-          {connected ? (
-            <ConnectedBanner
-              title={`Mollie is connected (${status?.environment})`}
-              detail={`API key ending ${status?.api_key_hint || "****"}. Ticket payments go straight to this Mollie account in full - no platform fee is deducted at checkout.`}
-            />
-          ) : blockedBy ? (
-            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              {blockedBy} is currently handling card payments. Disconnect it
-              first to switch to Mollie.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-ink-500">
-              Paste a live or test API key from your{" "}
-              <a
-                href="https://my.mollie.com/dashboard/developers/api-keys"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-gold-600 hover:underline"
-              >
-                Mollie dashboard
-              </a>
-              . Buyers pay on Mollie&apos;s secure page and return to complete
-              their order.
-            </p>
-          )}
+function MollieCard() {
+  const { data, isLoading } = usePaymentProviders();
+  const connectUrl = useMollieConnectUrl();
+  const status = data?.providers.mollie;
+  useConnectReturn("mollie", "Mollie");
 
-          {!blockedBy && (
-            <form onSubmit={onSubmit} className="mt-4 space-y-4">
-              <CredentialField
-                label="API key"
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                hint={
-                  connected
-                    ? "Leave blank to keep the key already stored."
-                    : "Starts with test_ or live_ - the key itself decides which mode you're in."
-                }
-                autoComplete="new-password"
-              />
-              <ProviderActions
-                connected={connected}
-                saving={save.isPending}
-                disconnecting={disconnect.isPending}
-                onDisconnect={onDisconnect}
-              />
-            </form>
-          )}
-        </>
-      )}
-    </Card>
+  const { onConnect, onDisconnect, disconnecting } = useProviderActions(
+    "mollie",
+    "Mollie",
+    connectUrl,
+    "Card payments for your events will go back to Stripe until you connect another provider.",
+  );
+
+  const connected = Boolean(status?.connected);
+  const blockedBy = connected
+    ? null
+    : data?.providers.square.connected
+      ? "Square"
+      : data?.stripe_connected
+        ? "Stripe"
+        : null;
+
+  return (
+    <ProviderConnectCard
+      name="Mollie"
+      isLoading={isLoading}
+      connected={connected}
+      connectedTitle={`Mollie is connected (${status?.environment})`}
+      connectedDetail={`Profile ${status?.profile_id}. Ticket payments go straight to this Mollie account in full - no platform fee is deducted at checkout.`}
+      description="Connect your Mollie account to take card payments at your checkout. Buyers pay on Mollie's secure page and return to complete their order."
+      blockedBy={blockedBy}
+      onConnect={onConnect}
+      connecting={connectUrl.isPending}
+      onDisconnect={onDisconnect}
+      disconnecting={disconnecting}
+    />
   );
 }
 
 function PaypalCard() {
   const { data, isLoading } = usePaymentProviders();
-  const save = useSavePaymentProvider();
-  const disconnect = useDisconnectPaymentProvider();
-  const confirm = useConfirm();
-  const toast = useToast();
-
+  const connectUrl = usePaypalConnectUrl();
   const status = data?.providers.paypal;
-  const connected = Boolean(status?.connected);
+  useConnectReturn("paypal", "PayPal");
 
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
-  const [environment, setEnvironment] = useState<"sandbox" | "live">("sandbox");
-
-  // The stored client id isn't a secret, but the API only returns a
-  // hint - prefill the environment (which it does return) and leave the
-  // credential fields for the organiser to retype when changing them.
-  const [synced, setSynced] = useState(false);
-  if (status && !synced) {
-    setEnvironment(status.environment);
-    setSynced(true);
-  }
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (save.isPending) return;
-    try {
-      await save.mutateAsync({
-        provider: "paypal",
-        environment,
-        client_id: clientId,
-        client_secret: clientSecret,
-      });
-      setClientSecret("");
-      toast.success("PayPal connected.");
-    } catch (err) {
-      toast.error(
-        err instanceof Error && err.message
-          ? err.message
-          : "Couldn't save your PayPal credentials.",
-      );
-    }
-  };
-
-  const onDisconnect = async () => {
-    if (disconnect.isPending) return;
-    const ok = await confirm({
-      title: "Disconnect PayPal?",
-      message:
-        "Buyers will no longer see PayPal as a payment option on your events.",
-      confirmLabel: "Disconnect",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await disconnect.mutateAsync({ provider: "paypal" });
-      setClientId("");
-      setClientSecret("");
-      toast.success("PayPal disconnected.");
-    } catch {
-      toast.error("Couldn't disconnect PayPal. Please try again.");
-    }
-  };
-
-  return (
-    <Card>
-      <h3 className="text-lg font-bold text-ink-900">PayPal</h3>
-
-      {isLoading ? (
-        <p className="mt-1 text-sm text-ink-400">
-          Checking your PayPal connection…
-        </p>
-      ) : (
-        <>
-          {connected ? (
-            <ConnectedBanner
-              title={`PayPal is connected (${status?.environment})`}
-              detail={`Client ID ending ${status?.client_id_hint || "****"}. Ticket payments go straight to this PayPal account in full - no platform fee is deducted at checkout.`}
-            />
-          ) : (
-            <p className="mt-1 text-sm text-ink-500">
-              Paste the credentials from a REST API app in your{" "}
-              <a
-                href="https://developer.paypal.com/dashboard/applications"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-gold-600 hover:underline"
-              >
-                PayPal developer dashboard
-              </a>{" "}
-              to offer PayPal at your checkout.
-            </p>
-          )}
-
-          <form onSubmit={onSubmit} className="mt-4 space-y-4">
-            <CredentialField
-              label="Client ID"
-              value={clientId}
-              onChange={(e) => setClientId(e.target.value)}
-              placeholder={connected ? "Enter a new client ID to replace" : ""}
-              autoComplete="off"
-            />
-            <CredentialField
-              label="Secret"
-              type="password"
-              value={clientSecret}
-              onChange={(e) => setClientSecret(e.target.value)}
-              hint={
-                connected
-                  ? "Leave blank to keep the secret already stored."
-                  : undefined
-              }
-              autoComplete="new-password"
-            />
-            <label className="block">
-              <span className="text-sm font-semibold text-ink-700">
-                Environment
-              </span>
-              <select
-                value={environment}
-                onChange={(e) =>
-                  setEnvironment(e.target.value as "sandbox" | "live")
-                }
-                className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-gold-500"
-              >
-                <option value="sandbox">Sandbox (testing)</option>
-                <option value="live">Live (real payments)</option>
-              </select>
-            </label>
-            <ProviderActions
-              connected={connected}
-              saving={save.isPending}
-              disconnecting={disconnect.isPending}
-              onDisconnect={onDisconnect}
-            />
-          </form>
-        </>
-      )}
-    </Card>
-  );
-}
-
-function SquareCard() {
-  const { data, isLoading } = usePaymentProviders();
-  const save = useSavePaymentProvider();
-  const disconnect = useDisconnectPaymentProvider();
-  const confirm = useConfirm();
-  const toast = useToast();
-
-  const status = data?.providers.square;
-  const connected = Boolean(status?.connected);
-  const blockedBy = !connected
-    ? data?.providers.mollie.connected
-      ? "Mollie"
-      : data?.stripe_connected
-        ? "Stripe"
-        : null
-    : null;
-
-  const [applicationId, setApplicationId] = useState("");
-  const [accessToken, setAccessToken] = useState("");
-  const [locationId, setLocationId] = useState("");
-  const [environment, setEnvironment] = useState<"sandbox" | "production">(
-    "sandbox",
+  const { onConnect, onDisconnect, disconnecting } = useProviderActions(
+    "paypal",
+    "PayPal",
+    connectUrl,
+    "Buyers will no longer see PayPal as a payment option on your events.",
   );
 
-  const [synced, setSynced] = useState(false);
-  if (status && !synced) {
-    setEnvironment(status.environment);
-    setLocationId(status.location_id);
-    setSynced(true);
-  }
-
-  const onSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (save.isPending) return;
-    try {
-      await save.mutateAsync({
-        provider: "square",
-        environment,
-        application_id: applicationId,
-        location_id: locationId,
-        access_token: accessToken,
-      });
-      setAccessToken("");
-      toast.success("Square connected.");
-    } catch (err) {
-      toast.error(
-        err instanceof Error && err.message
-          ? err.message
-          : "Couldn't save your Square credentials.",
-      );
-    }
-  };
-
-  const onDisconnect = async () => {
-    if (disconnect.isPending) return;
-    const ok = await confirm({
-      title: "Disconnect Square?",
-      message:
-        "Buyers will no longer see Square as a payment option on your events.",
-      confirmLabel: "Disconnect",
-      danger: true,
-    });
-    if (!ok) return;
-    try {
-      await disconnect.mutateAsync({ provider: "square" });
-      setApplicationId("");
-      setAccessToken("");
-      setLocationId("");
-      toast.success("Square disconnected.");
-    } catch {
-      toast.error("Couldn't disconnect Square. Please try again.");
-    }
-  };
+  const connected = Boolean(status?.connected);
 
   return (
-    <Card>
-      <h3 className="text-lg font-bold text-ink-900">Square</h3>
-
-      {isLoading ? (
-        <p className="mt-1 text-sm text-ink-400">
-          Checking your Square connection…
-        </p>
-      ) : (
-        <>
-          {connected ? (
-            <ConnectedBanner
-              title={`Square is connected (${status?.environment})`}
-              detail={`Application ID ending ${status?.application_id_hint || "****"}, location ${status?.location_id}. Ticket payments go straight to this Square account in full - no platform fee is deducted at checkout.`}
-            />
-          ) : blockedBy ? (
-            <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-              {blockedBy} is currently handling card payments. Disconnect it
-              first to switch to Square.
-            </p>
-          ) : (
-            <p className="mt-1 text-sm text-ink-500">
-              Paste the credentials from your{" "}
-              <a
-                href="https://developer.squareup.com/apps"
-                target="_blank"
-                rel="noreferrer"
-                className="font-semibold text-gold-600 hover:underline"
-              >
-                Square developer dashboard
-              </a>{" "}
-              to take card payments through Square at your checkout.
-            </p>
-          )}
-
-          {!blockedBy && (
-            <form onSubmit={onSubmit} className="mt-4 space-y-4">
-              <CredentialField
-                label="Application ID"
-                value={applicationId}
-                onChange={(e) => setApplicationId(e.target.value)}
-                placeholder={
-                  connected ? "Enter a new application ID to replace" : ""
-                }
-                autoComplete="off"
-              />
-              <CredentialField
-                label="Access token"
-                type="password"
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
-                hint={
-                  connected
-                    ? "Leave blank to keep the token already stored."
-                    : undefined
-                }
-                autoComplete="new-password"
-              />
-              <CredentialField
-                label="Location ID"
-                value={locationId}
-                onChange={(e) => setLocationId(e.target.value)}
-                hint="The location payments are taken against. We check it belongs to your account when you save."
-                autoComplete="off"
-              />
-              <label className="block">
-                <span className="text-sm font-semibold text-ink-700">
-                  Environment
-                </span>
-                <select
-                  value={environment}
-                  onChange={(e) =>
-                    setEnvironment(e.target.value as "sandbox" | "production")
-                  }
-                  className="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2.5 text-sm text-ink-900 outline-none transition focus:border-gold-500"
-                >
-                  <option value="sandbox">Sandbox (testing)</option>
-                  <option value="production">Production (real payments)</option>
-                </select>
-              </label>
-              <ProviderActions
-                connected={connected}
-                saving={save.isPending}
-                disconnecting={disconnect.isPending}
-                onDisconnect={onDisconnect}
-              />
-            </form>
-          )}
-        </>
-      )}
-    </Card>
+    <ProviderConnectCard
+      name="PayPal"
+      isLoading={isLoading}
+      connected={connected}
+      connectedTitle={`PayPal is connected (${status?.environment})`}
+      connectedDetail={`Merchant ${status?.merchant_id}. Ticket payments go straight to this PayPal account in full - no platform fee is deducted at checkout.`}
+      description="Connect your PayPal account to offer PayPal at your checkout. You'll sign in - or sign up - on PayPal and come straight back."
+      warning={
+        status?.needs_attention ? (
+          <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+            PayPal can&apos;t receive payments for this account yet. Finish the
+            outstanding steps in your PayPal account, then reconnect.
+          </p>
+        ) : null
+      }
+      footnote={
+        status?.connect ? (
+          // PayPal has no revoke API for partner referrals, so saying
+          // "disconnected" without this would overstate what happened.
+          <p className="mt-2 text-[11px] leading-snug text-ink-500">
+            Disconnecting stops PayPal appearing at your checkout. To fully
+            revoke access, also remove CarEvents from your PayPal account
+            settings.
+          </p>
+        ) : null
+      }
+      onConnect={onConnect}
+      connecting={connectUrl.isPending}
+      onDisconnect={onDisconnect}
+      disconnecting={disconnecting}
+    />
   );
 }
 

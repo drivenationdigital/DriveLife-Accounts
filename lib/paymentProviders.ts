@@ -29,6 +29,16 @@ export type CardProcessor = "stripe" | "square" | "mollie";
 export interface PaypalStatus {
   provider: "paypal";
   connected: boolean;
+  /**
+   * True when linked through PayPal's onboarding rather than pasted
+   * credentials. Connected accounts store no secret at all - only a
+   * merchant id - because the platform's own credentials authenticate
+   * and the organiser is named as the payee.
+   */
+  connect: boolean;
+  merchant_id: string;
+  /** Onboarded, but PayPal can't pay them yet - they must finish. */
+  needs_attention: boolean;
   environment: "sandbox" | "live";
   /** Last four characters of the stored client id, or "". */
   client_id_hint: string;
@@ -37,6 +47,13 @@ export interface PaypalStatus {
 export interface SquareStatus {
   provider: "square";
   connected: boolean;
+  /**
+   * True when linked through the Square connect flow rather than
+   * pasted credentials. Decides whether Settings offers a Connect
+   * button or the manual credential form.
+   */
+  oauth: boolean;
+  merchant_id: string;
   environment: "sandbox" | "production";
   application_id_hint: string;
   /** Not a secret - Square location ids are public identifiers. */
@@ -46,7 +63,15 @@ export interface SquareStatus {
 export interface MollieStatus {
   provider: "mollie";
   connected: boolean;
-  /** Derived from the key's own test_/live_ prefix, never stored. */
+  /** True when linked through Mollie Connect rather than an API key. */
+  oauth: boolean;
+  /** The website profile payments are created against. */
+  profile_id: string;
+  /**
+   * For an API key this comes from its test_/live_ prefix. For OAuth
+   * the credential says nothing about it, so the platform's own
+   * testmode setting decides.
+   */
   environment: "test" | "live";
   api_key_hint: string;
 }
@@ -127,6 +152,63 @@ export function useSavePaymentProvider() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["payment-providers"] });
     },
+  });
+}
+
+/**
+ * Start a Square connection.
+ *
+ * The server mints the authorize URL, including the one-time `state`
+ * bound to this user, so the browser only ever receives a URL to
+ * visit. The organiser approves on Square's own page and is returned
+ * to `return_to` with `?square=connected|cancelled|error`.
+ */
+export function useSquareConnectUrl() {
+  return useMutation<
+    { status: "success"; url: string },
+    Error,
+    { return_to: string }
+  >({
+    mutationFn: (body) =>
+      apiPost<{ status: "success"; url: string }, { return_to: string }>(
+        "/payment-providers/square/connect-url",
+        body,
+      ),
+  });
+}
+
+/**
+ * Start PayPal onboarding.
+ *
+ * The URL PayPal returns EXPIRES AFTER ONE USE, so this is called per
+ * attempt and the result must never be cached or reused.
+ */
+export function usePaypalConnectUrl() {
+  return useMutation<
+    { status: "success"; url: string },
+    Error,
+    { return_to: string }
+  >({
+    mutationFn: (body) =>
+      apiPost<{ status: "success"; url: string }, { return_to: string }>(
+        "/payment-providers/paypal/connect-url",
+        body,
+      ),
+  });
+}
+
+/** Start a Mollie connection. */
+export function useMollieConnectUrl() {
+  return useMutation<
+    { status: "success"; url: string },
+    Error,
+    { return_to: string }
+  >({
+    mutationFn: (body) =>
+      apiPost<{ status: "success"; url: string }, { return_to: string }>(
+        "/payment-providers/mollie/connect-url",
+        body,
+      ),
   });
 }
 
