@@ -25,19 +25,41 @@ import { useToast } from "@/context/ToastContext";
  * (embed - starting point, full feature TBD), Help & Support.
  */
 
+/**
+ * While the new payment providers are still being tested, only this
+ * user sees them. Everyone else gets Stripe exactly as before.
+ *
+ * A UI gate, NOT a security control - the API routes behind these cards
+ * are still reachable by anyone who calls them directly. It exists to
+ * stop organisers finding half-tested payment options, not to protect
+ * anything. Remove it once Square, Mollie and PayPal are signed off.
+ */
+const PAYMENT_PROVIDER_PREVIEW_USER_ID = 1;
+
 export default function SettingsPage() {
+  const { data } = useAccount();
+  // Default to hidden: while the account query is still loading, and if
+  // it ever fails, an organiser should see the old Stripe-only page
+  // rather than a flash of options they can't use yet.
+  const showNewProviders =
+    data?.account.id === PAYMENT_PROVIDER_PREVIEW_USER_ID;
+
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-6">
       {/* Payment Settings */}
       <Section title="Payment Settings">
         <div className="space-y-4">
-          <CardProcessorNote />
+          {showNewProviders && <CardProcessorNote />}
           <StripeCard />
-          <SquareCard />
-          <MollieCard />
-          {/* PayPal temporarily hidden until 30 Sep 2026 - swap the
-              placeholder back for <PaypalCard /> to re-enable. */}
-          <PaypalComingSoonCard />
+          {showNewProviders && (
+            <>
+              <SquareCard />
+              <MollieCard />
+              {/* PayPal temporarily hidden until 30 Sep 2026 - swap the
+                  placeholder back for <PaypalCard /> to re-enable. */}
+              <PaypalComingSoonCard />
+            </>
+          )}
         </div>
       </Section>
 
