@@ -1,9 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
 
 import { useAccount, useDisconnectStripe } from "@/lib/account";
+import {
+  MollieLogo,
+  PaypalLogo,
+  SquareLogo,
+  StripeLogo,
+} from "@/components/ui/PaymentLogos";
 import {
   useDisconnectPaymentProvider,
   usePaymentProviders,
@@ -16,58 +21,13 @@ import { useToast } from "@/context/ToastContext";
 
 /**
  * Settings & Integrations - dashboard settings page (UI only).
- * Sections: top nav cards, Payment Settings (Stripe), Website Widgets
+ * Sections: Payment Settings (Stripe), Website Widgets
  * (embed - starting point, full feature TBD), Help & Support.
  */
-
-const NAV_CARDS = [
-  {
-    key: "events",
-    label: "Event Manager",
-    href: "/events",
-    icon: <CalendarIcon />,
-  },
-  {
-    key: "create",
-    label: "Create Something",
-    href: "/create",
-    icon: <PlusIcon />,
-  },
-  {
-    key: "settings",
-    label: "Settings & Integrations",
-    href: "/settings",
-    icon: <GearCursorIcon />,
-  },
-] as const;
 
 export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-6">
-      {/* Top nav cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        {NAV_CARDS.map((card) => {
-          const active = card.key === "settings";
-          return (
-            <Link
-              key={card.key}
-              href={card.href}
-              className={[
-                "flex flex-col items-center justify-center gap-2 rounded-xl px-4 py-6 text-center transition",
-                active
-                  ? "bg-gradient-to-br from-gold-500 to-gold-600 text-white shadow-sm shadow-gold-500/25"
-                  : "bg-white text-ink-700 ring-1 ring-ink-100 hover:shadow-md",
-              ].join(" ")}
-            >
-              <span className={active ? "text-white" : "text-gold-600"}>
-                {card.icon}
-              </span>
-              <span className="text-sm font-semibold">{card.label}</span>
-            </Link>
-          );
-        })}
-      </div>
-
       {/* Payment Settings */}
       <Section title="Payment Settings">
         <div className="space-y-4">
@@ -75,7 +35,9 @@ export default function SettingsPage() {
           <StripeCard />
           <SquareCard />
           <MollieCard />
-          <PaypalCard />
+          {/* PayPal temporarily hidden until 30 Sep 2026 - swap the
+              placeholder back for <PaypalCard /> to re-enable. */}
+          <PaypalComingSoonCard />
         </div>
       </Section>
 
@@ -149,7 +111,10 @@ function StripeCard() {
 
   return (
     <Card>
-      <h3 className="text-lg font-bold text-ink-900">Stripe Integration</h3>
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-bold text-ink-900">Stripe Integration</h3>
+        <StripeLogo className="h-6 w-auto shrink-0" />
+      </div>
 
       {isLoading ? (
         <p className="mt-1 text-sm text-ink-400">
@@ -325,6 +290,7 @@ function useConnectReturn(param: string, name: string) {
  */
 function ProviderConnectCard({
   name,
+  logo,
   isLoading,
   connected,
   connectedTitle,
@@ -339,6 +305,8 @@ function ProviderConnectCard({
   disconnecting,
 }: {
   name: string;
+  /** Brand logo shown opposite the card title. */
+  logo?: React.ReactNode;
   isLoading: boolean;
   connected: boolean;
   connectedTitle: string;
@@ -355,7 +323,10 @@ function ProviderConnectCard({
 }) {
   return (
     <Card>
-      <h3 className="text-lg font-bold text-ink-900">{name}</h3>
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-bold text-ink-900">{name}</h3>
+        {logo}
+      </div>
 
       {isLoading ? (
         <p className="mt-1 text-sm text-ink-400">
@@ -472,6 +443,7 @@ function SquareCard() {
   return (
     <ProviderConnectCard
       name="Square"
+      logo={<SquareLogo className="h-6 w-6 shrink-0" />}
       isLoading={isLoading}
       connected={connected}
       connectedTitle={`Square is connected (${status?.environment})`}
@@ -511,6 +483,7 @@ function MollieCard() {
   return (
     <ProviderConnectCard
       name="Mollie"
+      logo={<MollieLogo className="h-5 w-auto shrink-0" />}
       isLoading={isLoading}
       connected={connected}
       connectedTitle={`Mollie is connected (${status?.environment})`}
@@ -543,6 +516,7 @@ function PaypalCard() {
   return (
     <ProviderConnectCard
       name="PayPal"
+      logo={<PaypalLogo className="h-7 w-auto shrink-0" />}
       isLoading={isLoading}
       connected={connected}
       connectedTitle={`PayPal is connected (${status?.environment})`}
@@ -575,6 +549,26 @@ function PaypalCard() {
   );
 }
 
+/**
+ * Temporary stand-in for PaypalCard while the PayPal integration is
+ * switched off ahead of its launch date. All the connect functionality
+ * (PaypalCard and its hooks) is untouched - restore it by swapping this
+ * back for <PaypalCard /> in the Payment Settings section.
+ */
+function PaypalComingSoonCard() {
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-bold text-ink-900">PayPal</h3>
+        <PaypalLogo className="h-7 w-auto shrink-0" />
+      </div>
+      <p className="mt-1 text-sm text-ink-500">
+        PayPal integration available from 30th September 2026
+      </p>
+    </Card>
+  );
+}
+
 function CheckIcon() {
   return (
     <svg
@@ -602,7 +596,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-10">
+    <section className="mt-10 first:mt-0">
       <h2 className="mb-4 border-b border-ink-100 pb-2 text-lg font-extrabold text-ink-900">
         {title}
       </h2>
@@ -664,63 +658,5 @@ function EmbedBox() {
         <code className="text-ink-600">{"{id}"}</code> with your item’s id.
       </p>
     </div>
-  );
-}
-
-// ─── Icons ────────────────────────────────────────────────────────────
-
-function CalendarIcon() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <circle cx="12" cy="12" r="9" />
-      <line x1="12" y1="8" x2="12" y2="16" />
-      <line x1="8" y1="12" x2="16" y2="12" />
-    </svg>
-  );
-}
-
-function GearCursorIcon() {
-  return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M3 3l7 17 2-7 7-2z" />
-    </svg>
   );
 }

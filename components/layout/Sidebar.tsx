@@ -187,7 +187,7 @@ export function Sidebar() {
         <div className="nav-label">Account</div>
         <NavItem
           icon={<SettingsIcon />}
-          label="Settings"
+          label="Settings &amp; Integrations"
           href="/settings"
           active={isSettings}
           onClick={() => handleClick("")}
