@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ccDecrypt, ccEncrypt } from "@/lib/checkout/crypt";
 import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
-import { MOLLIE_RETURN_PARAM } from "@/lib/checkout/api";
+// From constants, NOT from lib/checkout/api - that file is "use client",
+// and importing a value from it here yields a client-reference proxy
+// rather than the string. See lib/checkout/constants.ts.
+import { MOLLIE_RETURN_PARAM } from "@/lib/checkout/constants";
 
 /**
  * Server-side proxy between the Next.js checkout UI and the legacy
@@ -480,9 +483,28 @@ export async function POST(request: NextRequest) {
       // the request body - Mollie sends the buyer wherever it is told,
       // so it must not be something a caller can choose.
       case "mollieCreate": {
+        // `||`, not `??`: an env var that is SET BUT EMPTY is the
+        // common misconfiguration, and nullish-coalescing would let it
+        // win over the fallback - producing a relative URL that Mollie
+        // rejects with "no valid return URL".
         const origin = (
-          process.env.CHECKOUT_PUBLIC_ORIGIN ?? request.nextUrl.origin
+          process.env.CHECKOUT_PUBLIC_ORIGIN?.trim() || request.nextUrl.origin
         ).replace(/\/$/, "");
+
+        // Fail here, naming what we computed, rather than letting the
+        // PHP side report a generic "no valid return URL" that says
+        // nothing about which end got it wrong.
+        if (!/^https?:\/\//i.test(origin)) {
+          console.error(
+            `[checkout] mollieCreate: unusable origin ${JSON.stringify(origin)} ` +
+              `(CHECKOUT_PUBLIC_ORIGIN=${JSON.stringify(process.env.CHECKOUT_PUBLIC_ORIGIN)}, ` +
+              `nextUrl.origin=${JSON.stringify(request.nextUrl.origin)})`,
+          );
+          return err(
+            "This site isn't configured to return you from Mollie. Please contact support.",
+          );
+        }
+
         const returnUrl =
           `${origin}/get-tickets/${encodeURIComponent(s("eventEid"))}` +
           `?${MOLLIE_RETURN_PARAM}=1`;

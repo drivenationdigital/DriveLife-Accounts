@@ -435,8 +435,11 @@ export function squarePay(
 // payment and reopen the return URL by hand - so the verdict is always
 // read from Mollie, never inferred from the redirect.
 
-/** Query-string marker the checkout page looks for on return. */
-export const MOLLIE_RETURN_PARAM = "mollie_return";
+// Defined in ./constants so the server route can import it too - a
+// value exported from this "use client" module reaches the server as
+// a client reference, not a string. Re-exported here so client
+// callers can keep importing it from one place.
+export { MOLLIE_RETURN_PARAM } from "./constants";
 
 export function createMolliePayment(
   cartToken: string,
