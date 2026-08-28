@@ -26,6 +26,7 @@ import {
   createPaypalOrder,
   squarePay,
   type CheckoutProvider,
+  type MollieProvider,
   type PaymentProviderId,
   type PaypalProvider,
   type SquareProvider,
@@ -46,14 +47,14 @@ import { Section } from "./CheckoutShell";
  * plain merchant charges on the organiser's own account - no Connect,
  * no application fee - and the charge happens server-side in
  * get-tickets/next/paypal.php, square.php and mollie.php. The browser
- * ever handles an approval artefact (a PayPal order id, a Square
- * single-use token); it never sees or sends an amount, and the PHP
- * side prices the cart itself.
+ * only ever handles an approval artefact (a PayPal order id, a Square
+ * or Mollie single-use token); it never sees or sends an amount, and
+ * the PHP side prices the cart itself.
  *
- * Mollie is the exception to "one tab, one form": it has no inline
- * card entry, so its panel is a button that hands off to Mollie's
- * hosted page. Picking the result back up on return belongs to the
- * page, which owns the order form that has to survive the navigation.
+ * Mollie takes the card here via Mollie Components, but 3-D Secure
+ * still happens on Mollie's domain - so it usually navigates away
+ * anyway. Picking the result back up on return belongs to the page,
+ * which owns the order form that has to survive the navigation.
  *
  * The in-page methods converge on one callback, onPaid(provider,
  * transactionId, status), using Stripe's status vocabulary - so the
@@ -106,10 +107,32 @@ interface SquareNamespace {
   payments: (applicationId: string, locationId: string) => SquarePayments;
 }
 
+interface MollieComponent {
+  mount: (target: string) => void;
+  unmount: () => void;
+}
+
+interface MollieInstance {
+  createComponent: (
+    type: string,
+    options?: Record<string, unknown>,
+  ) => MollieComponent;
+  createToken: () => Promise<{
+    token?: string;
+    error?: { message?: string };
+  }>;
+}
+
+type MollieFactory = (
+  profileId: string,
+  options?: Record<string, unknown>,
+) => MollieInstance;
+
 declare global {
   interface Window {
     paypal?: PaypalNamespace;
     Square?: SquareNamespace;
+    Mollie?: MollieFactory;
   }
 }
 
@@ -663,54 +686,255 @@ function SquarePanel({
  * the page's job: it owns the order form that has to survive the
  * navigation.
  */
+/**
+ * Mollie card fields, via Mollie Components.
+ *
+ * The four inputs live in Mollie-hosted iframes mounted into our
+ * layout, so the card never touches this page - the same arrangement
+ * as Stripe Elements and Square's card form.
+ *
+ * IMPORTANT: this does NOT necessarily avoid the redirect. Mollie
+ * performs 3-D Secure on its own domain, and under European SCA rules
+ * most cards need it - so `createMolliePayment` usually still returns
+ * a `checkoutUrl` to send the buyer to. What Components buys is the
+ * card entry happening here rather than on Mollie's page; the round
+ * trip for authentication remains.
+ *
+ * Both outcomes are handled: `onPay` redirects when Mollie asks for
+ * one, and completes in place when it doesn't.
+ */
 function MolliePanel({
+  provider,
   total,
   region,
-  onRedirect,
+  dark,
+  onPay,
 }: {
+  provider: MollieProvider;
   total: number;
   region: Region;
-  onRedirect: () => Promise<void>;
+  dark: boolean;
+  /** Resolves once the payment is placed, or navigates away. */
+  onPay: (cardToken: string) => Promise<void>;
 }) {
+  const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const mollieRef = useRef<MollieInstance | null>(null);
 
-  const go = async () => {
+  // Components are a PROGRESSIVE ENHANCEMENT, never a requirement.
+  //
+  // Two things drop us back to Mollie's hosted page:
+  //   - no profile id (a legacy pasted-API-key account), so mollie.js
+  //     cannot be initialised at all
+  //   - the SDK failing to load or mount at runtime
+  //
+  // The second matters more than it looks. js.mollie.com is a payment
+  // domain, and ad blockers and privacy extensions block those
+  // routinely - a real share of buyers, not just developers. Showing
+  // them an error would lose the sale; the hosted page has no
+  // third-party script to block and always works.
+  const [componentsFailed, setComponentsFailed] = useState(false);
+  const useComponents = Boolean(provider.profile_id) && !componentsFailed;
+
+  // Mollie mounts by selector, so each field needs a real id. useId's
+  // value contains colons, invalid in a CSS selector unless escaped -
+  // strip them rather than rely on the SDK escaping.
+  const uid = useId().replace(/:/g, "");
+  const fieldIds = useMemo(
+    () => ({
+      cardHolder: `mollie-holder-${uid}`,
+      cardNumber: `mollie-number-${uid}`,
+      expiryDate: `mollie-expiry-${uid}`,
+      verificationCode: `mollie-cvc-${uid}`,
+    }),
+    [uid],
+  );
+
+  useEffect(() => {
+    if (!useComponents) return;
+
+    let cancelled = false;
+    const mounted: MollieComponent[] = [];
+
+    (async () => {
+      await loadScript("https://js.mollie.com/v1/mollie.js");
+      if (cancelled) return;
+
+      if (!window.Mollie) {
+        setComponentsFailed(true);
+        return;
+      }
+
+      const mollie = window.Mollie(provider.profile_id, {
+        locale: region.locale?.replace("-", "_") ?? "en_GB",
+        // Not derivable from anything the browser holds - the server
+        // tells us which mode the connected account is in.
+        testmode: provider.environment === "test",
+      });
+      mollieRef.current = mollie;
+
+      // The fields render in Mollie's iframes, so page CSS can't reach
+      // them and the theme has to be passed in.
+      const styles = {
+        base: {
+          color: dark ? "#f5f5f5" : "#111827",
+          fontSize: "14px",
+          "::placeholder": { color: dark ? "#71717a" : "#9ca3af" },
+        },
+        valid: { color: dark ? "#f5f5f5" : "#111827" },
+        invalid: { color: "#dc2626" },
+      };
+
+      for (const [type, id] of Object.entries(fieldIds)) {
+        const component = mollie.createComponent(type, { styles });
+        component.mount(`#${id}`);
+        mounted.push(component);
+      }
+
+      if (!cancelled) setReady(true);
+    })().catch((e) => {
+      if (cancelled) return;
+      // Logged, not shown. The buyer gets the hosted page instead,
+      // which is a working payment rather than a dead end.
+      console.error("[checkout] Mollie Components unavailable, using hosted page", e);
+      setComponentsFailed(true);
+    });
+
+    return () => {
+      cancelled = true;
+      // Without this a remount leaves orphaned iframes in the DOM.
+      for (const component of mounted) {
+        try {
+          component.unmount();
+        } catch {
+          // Already gone - nothing to clean up.
+        }
+      }
+      mollieRef.current = null;
+    };
+  }, [
+    useComponents,
+    provider.profile_id,
+    provider.environment,
+    region.locale,
+    dark,
+    fieldIds,
+  ]);
+
+  /** No inline fields available - hand off to Mollie's hosted page. */
+  const payHosted = async () => {
     if (busy) return;
     setBusy(true);
     setMessage(null);
     try {
-      await onRedirect();
-      // On success the browser is navigating away - deliberately stay
-      // busy so the button can't be pressed twice while it unloads.
-    } catch (e) {
+      await onPay("");
+    } catch (err) {
+      setMessage(errorText(err, "Could not start the payment. Please try again."));
+      setBusy(false);
+    }
+  };
+
+  if (!useComponents) {
+    return (
+      <div className="space-y-5">
+        <p className="text-sm text-ink-600">
+          You&apos;ll be taken to our payment provider to enter your card
+          details securely, then brought straight back to complete your order.
+        </p>
+        {message && <PanelError>{message}</PanelError>}
+        <button
+          type="button"
+          onClick={payHosted}
+          disabled={busy}
+          className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
+        >
+          {busy && <ButtonSpinner />}
+          {busy ? "Redirecting…" : `Pay ${formatRegionCurrency(total, region)}`}
+        </button>
+        <p className="text-xs text-ink-500 text-center">
+          Payments are processed securely by Mollie.
+        </p>
+      </div>
+    );
+  }
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const mollie = mollieRef.current;
+    if (!mollie || busy) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const { token, error } = await mollie.createToken();
+      if (error || !token) {
+        setMessage(
+          error?.message ?? "Please check your card details and try again.",
+        );
+        return;
+      }
+      await onPay(token);
+      // A redirect may be in flight - stay busy so the button can't be
+      // pressed again while the page unloads.
+    } catch (err) {
       setMessage(
-        errorText(e, "Could not start the payment. Please try again."),
+        errorText(err, "Your payment was not successful. Please try again."),
       );
       setBusy(false);
     }
   };
 
+  const fieldClass =
+    "mt-1 rounded-lg border border-ink-200 px-3 py-2.5 transition focus-within:border-gold-500";
+
   return (
-    <div className="space-y-5">
-      <p className="text-sm text-ink-600">
-        You&apos;ll be taken to our payment provider to enter your card details
-        securely, then brought straight back to complete your order.
-      </p>
+    <form onSubmit={submit} className="space-y-4">
+      <label className="block">
+        <span className="text-xs uppercase tracking-wider font-semibold text-ink-500">
+          Name on card
+        </span>
+        <div id={fieldIds.cardHolder} className={fieldClass} />
+      </label>
+      <label className="block">
+        <span className="text-xs uppercase tracking-wider font-semibold text-ink-500">
+          Card number
+        </span>
+        <div id={fieldIds.cardNumber} className={fieldClass} />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block">
+          <span className="text-xs uppercase tracking-wider font-semibold text-ink-500">
+            Expiry
+          </span>
+          <div id={fieldIds.expiryDate} className={fieldClass} />
+        </label>
+        <label className="block">
+          <span className="text-xs uppercase tracking-wider font-semibold text-ink-500">
+            CVC
+          </span>
+          <div id={fieldIds.verificationCode} className={fieldClass} />
+        </label>
+      </div>
+
+      {!ready && !message && (
+        <p className="text-sm text-ink-500">Loading card form…</p>
+      )}
       {message && <PanelError>{message}</PanelError>}
+
       <button
-        type="button"
-        onClick={go}
-        disabled={busy}
+        type="submit"
+        disabled={!ready || busy}
         className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
       >
         {busy && <ButtonSpinner />}
-        {busy ? "Redirecting…" : `Pay ${formatRegionCurrency(total, region)}`}
+        {busy ? "Processing…" : `Pay ${formatRegionCurrency(total, region)}`}
       </button>
       <p className="text-xs text-ink-500 text-center">
-        Payments are processed securely by Mollie.
+        Payments are processed securely by Mollie. You may be asked to confirm
+        with your bank.
       </p>
-    </div>
+    </form>
   );
 }
 
@@ -735,8 +959,11 @@ export function PaymentStep({
   ctx: PaymentContext;
   billing: BillingContact | null;
   onPaid: PaidHandler;
-  /** Starts the Mollie hand-off; only called for that provider. */
-  onMollieRedirect: () => Promise<void>;
+  /**
+   * Places the Mollie payment with a card token from Components. May
+   * navigate away for 3-D Secure rather than resolving in place.
+   */
+  onMollieRedirect: (cardToken: string) => Promise<void>;
 }) {
   const dark =
     parseApplyTheme(useSearchParams()?.get(APPLY_THEME_PARAM)) === "dark";
@@ -806,9 +1033,11 @@ export function PaymentStep({
       )}
       {active.id === "mollie" && (
         <MolliePanel
+          provider={active}
           total={total}
           region={region}
-          onRedirect={onMollieRedirect}
+          dark={dark}
+          onPay={onMollieRedirect}
         />
       )}
       {active.id === "square" && (

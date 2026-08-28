@@ -866,13 +866,31 @@ export default function GetTicketsPage({
    * a half-empty form to update_session_order_ct and blanking fields
    * on the pending order row.
    */
-  const handleMollieRedirect = async () => {
+  const handleMollieRedirect = async (cardToken: string) => {
     if (!cartToken) return;
     const created = await createMolliePayment(
       cartToken,
       eventEid,
       event?.site ?? "uk",
+      cardToken,
     );
+
+    // Cleared outright - no 3-D Secure, so nothing to redirect to and
+    // the order can be completed exactly like Stripe or Square. Rare
+    // under European SCA, but it costs nothing to handle.
+    if (created.paymentStatus && created.transactionId) {
+      await handlePaid("mollie", created.transactionId, created.paymentStatus);
+      return;
+    }
+
+    if (!created.checkoutUrl) {
+      throw new Error(
+        "Mollie didn't return a way to complete this payment. Please try again.",
+      );
+    }
+
+    // Otherwise the buyer leaves for 3-D Secure. Stash what the resume
+    // needs, because a full navigation wipes React state.
     const pending: MolliePending = {
       cartToken,
       paymentId: created.paymentId,
@@ -887,7 +905,10 @@ export default function GetTicketsPage({
         "Your browser is blocking site storage, which this payment method needs. Please allow it or pay another way.",
       );
     }
-    window.location.href = created.checkoutUrl;
+    // assign() rather than `location.href = ...`: the React Compiler
+    // treats the assignment as mutating a value outside the component.
+    // Same navigation either way.
+    window.location.assign(created.checkoutUrl);
   };
 
   const handlePaid: PaidHandler = async (provider, transactionId, status) => {

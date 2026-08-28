@@ -514,6 +514,9 @@ export async function POST(request: NextRequest) {
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
           return_url: returnUrl,
+          // From Mollie Components when the buyer typed their card
+          // here. Empty means "use Mollie's hosted page".
+          card_token: s("cardToken"),
           site: s("site") || "uk",
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
@@ -525,6 +528,10 @@ export async function POST(request: NextRequest) {
           paymentId: str(resp.payment_id),
           checkoutUrl: str(resp.checkout_url),
           total: num(resp.total),
+          // Present only when the card cleared without 3-D Secure, so
+          // the order can be completed without leaving the page.
+          paymentStatus: str(resp.payment_status),
+          transactionId: str(resp.transaction_id),
         });
       }
 

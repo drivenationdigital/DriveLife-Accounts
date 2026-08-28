@@ -45,7 +45,14 @@ export function loadScript(url: string): Promise<void> {
     script.onload = () => resolve();
     script.onerror = () => {
       script.remove();
-      reject(new Error("Failed to load payment SDK"));
+      // Name the script. onerror gives us no reason - the browser
+      // keeps that to itself - but the URL at least says WHICH SDK
+      // failed, and the Network tab then gives the why
+      // (ERR_BLOCKED_BY_CLIENT for an extension, a CSP violation, a
+      // DNS failure). "Failed to load payment SDK" alone sent us
+      // hunting through config that was never the problem.
+      console.error(`[checkout] SDK failed to load: ${url}`);
+      reject(new Error(`Couldn't load ${new URL(url).hostname}`));
     };
     document.head.appendChild(script);
   });

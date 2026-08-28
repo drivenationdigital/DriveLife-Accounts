@@ -149,6 +149,11 @@ export interface SquareProvider {
 export interface MollieProvider {
   id: "mollie";
   label: string;
+  /**
+   * The connected organiser's website profile. Public by design -
+   * mollie.js needs it in the browser to mount the card fields.
+   */
+  profile_id: string;
   environment: "test" | "live";
   currency: string;
 }
@@ -441,16 +446,42 @@ export function squarePay(
 // callers can keep importing it from one place.
 export { MOLLIE_RETURN_PARAM } from "./constants";
 
+export interface MollieCreateResult {
+  paymentId: string;
+  /** Mollie's hosted page. Empty only when the payment is already final. */
+  checkoutUrl: string;
+  total: number;
+  /**
+   * Set only when the payment completed without leaving the page -
+   * a card that needed no 3-D Secure. Otherwise the buyer must be
+   * sent to `checkoutUrl`.
+   */
+  paymentStatus?: string;
+  transactionId?: string;
+}
+
+/**
+ * Open a Mollie payment.
+ *
+ * With `cardToken` (from Mollie Components) Mollie may authorise
+ * outright, in which case `paymentStatus` comes back set and there is
+ * nothing to redirect to. In practice SCA means most European cards
+ * still need 3-D Secure, so `checkoutUrl` is the common path either
+ * way - the inline fields save the buyer typing their card on
+ * Mollie's page, not the round trip itself.
+ */
 export function createMolliePayment(
   cartToken: string,
   eventEid: string,
   site: string,
+  cardToken?: string,
 ) {
-  return checkoutAction<{
-    paymentId: string;
-    checkoutUrl: string;
-    total: number;
-  }>("mollieCreate", { cartToken, eventEid, site });
+  return checkoutAction<MollieCreateResult>("mollieCreate", {
+    cartToken,
+    eventEid,
+    site,
+    cardToken: cardToken ?? "",
+  });
 }
 
 export function checkMolliePayment(
