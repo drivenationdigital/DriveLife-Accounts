@@ -809,8 +809,7 @@ function SquarePanel({
           path and burying it under the card form wastes that. Each is
           hidden entirely when unavailable - an empty or dead button is
           worse than none - so most buyers see only the card fields. */}
-      {(googlePayReady || applePayReady) && (
-        <div className="space-y-3">
+      <div className="space-y-3">
           {/* Apple's own button, drawn by Safari. It cannot be styled
               like a normal element, hence the -apple-pay-button
               appearance rather than our usual classes. */}
@@ -838,23 +837,29 @@ function SquarePanel({
             </>
           )}
 
-          {googlePayReady && (
-            <div
-              id={googlePayId}
-              onClick={payWithGooglePay}
-              className={busy ? "opacity-50 pointer-events-none" : ""}
-            />
-          )}
+          {/* Rendered UNCONDITIONALLY, and this is load-bearing:
+              Square's googlePay.attach() resolves this selector, so
+              the node has to exist before the effect runs. Gating it
+              on googlePayReady - which is only set once attach has
+              already succeeded - meant attach could never find it.
+              An empty div collapses to nothing, so there is no cost
+              to leaving it in place when Google Pay is unavailable. */}
+          <div
+            id={googlePayId}
+            onClick={payWithGooglePay}
+            className={busy ? "opacity-50 pointer-events-none" : ""}
+          />
 
-          <div className="flex items-center gap-3">
-            <span className="h-px flex-1 bg-ink-200" />
-            <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-400">
-              or pay by card
-            </span>
-            <span className="h-px flex-1 bg-ink-200" />
-          </div>
+          {(googlePayReady || applePayReady) && (
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-ink-200" />
+              <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-400">
+                or pay by card
+              </span>
+              <span className="h-px flex-1 bg-ink-200" />
+            </div>
+          )}
         </div>
-      )}
 
       <div id={containerId} />
       {!ready && !message && (
