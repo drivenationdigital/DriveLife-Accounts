@@ -96,3 +96,92 @@ export function PaypalLogo({ className }: { className?: string }) {
     </svg>
   );
 }
+
+// ─── Card scheme marks ────────────────────────────────────────────────
+
+/**
+ * Simplified scheme marks for the "accepted cards" strip.
+ *
+ * Deliberately geometric rather than traced from the official artwork:
+ * Visa, Mastercard and American Express all license their logos and
+ * publish exact assets in their brand centres. These read correctly at
+ * strip size and carry no licensing risk, but if brand compliance is
+ * ever required, drop the official SVGs in and swap the bodies of these
+ * three components - nothing else needs to change.
+ */
+
+export function VisaMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 32" aria-hidden="true" className={className}>
+      <rect width="48" height="32" rx="4" fill="#fff" stroke="#e4e4e7" />
+      <text
+        x="24"
+        y="21"
+        textAnchor="middle"
+        fontSize="12"
+        fontWeight="700"
+        fontStyle="italic"
+        fontFamily="Arial, Helvetica, sans-serif"
+        fill="#1434CB"
+      >
+        VISA
+      </text>
+    </svg>
+  );
+}
+
+export function MastercardMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 32" aria-hidden="true" className={className}>
+      <rect width="48" height="32" rx="4" fill="#fff" stroke="#e4e4e7" />
+      <circle cx="19" cy="16" r="8" fill="#EB001B" />
+      <circle cx="29" cy="16" r="8" fill="#F79E1B" />
+      {/* The overlap reads orange-on-red in the real mark. */}
+      <path
+        d="M24 10a8 8 0 000 12 8 8 0 000-12z"
+        fill="#FF5F00"
+      />
+    </svg>
+  );
+}
+
+export function AmexMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 32" aria-hidden="true" className={className}>
+      <rect width="48" height="32" rx="4" fill="#006FCF" />
+      <text
+        x="24"
+        y="20"
+        textAnchor="middle"
+        fontSize="9"
+        fontWeight="700"
+        fontFamily="Arial, Helvetica, sans-serif"
+        fill="#fff"
+      >
+        AMEX
+      </text>
+    </svg>
+  );
+}
+
+/**
+ * The strip shown beneath a card payment form.
+ *
+ * Decorative only - it sets expectations about what will be accepted,
+ * it does not claim any particular card will work. Which schemes an
+ * organiser can actually take depends on their own merchant account,
+ * so this stays deliberately generic rather than reading from the
+ * provider.
+ */
+export function CardBrandStrip({ className }: { className?: string }) {
+  return (
+    <div
+      className={`flex items-center justify-center gap-2 ${className ?? ""}`}
+      aria-hidden="true"
+    >
+      <VisaMark className="h-6 w-auto" />
+      <MastercardMark className="h-6 w-auto" />
+      <AmexMark className="h-6 w-auto" />
+    </div>
+  );
+}

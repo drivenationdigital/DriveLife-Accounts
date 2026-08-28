@@ -103,9 +103,18 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Let Next internals and static files through untouched.
+  //
+  // /.well-known is matched by PATH, not by extension: the files in it
+  // deliberately have none. Apple Pay domain verification fetches
+  // /.well-known/apple-developer-merchantid-domain-association, and
+  // without this it was answered with a 307 to /login - which reads as
+  // a 404 from the verifier's side and fails the check. The same
+  // applies to ACME/Let's Encrypt renewals and any other well-known
+  // probe, none of which can carry a session.
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/.well-known/") ||
     pathname === "/favicon.ico" ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|css|js|woff2?)$/)
   ) {

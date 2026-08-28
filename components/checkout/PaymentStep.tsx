@@ -20,6 +20,7 @@ import {
 import { APPLY_THEME_PARAM, parseApplyTheme } from "@/lib/applyTheme";
 import { formatRegionCurrency, type Region } from "@/lib/regions";
 import { ButtonSpinner } from "@/components/apply/ApplyIcons";
+import { CardBrandStrip } from "@/components/ui/PaymentLogos";
 import { loadScript } from "@/lib/checkout/loadScript";
 import {
   capturePaypalOrder,
@@ -95,8 +96,22 @@ interface SquareCard {
   destroy?: () => Promise<void>;
 }
 
+interface SquareTokenResult {
+  status: string;
+  token?: string;
+  errors?: { message?: string }[];
+}
+
+interface SquareDigitalWallet {
+  attach: (target: string) => Promise<void>;
+  tokenize: () => Promise<SquareTokenResult>;
+  destroy?: () => Promise<void>;
+}
+
 interface SquarePayments {
   card: (options?: Record<string, unknown>) => Promise<SquareCard>;
+  paymentRequest: (details: Record<string, unknown>) => unknown;
+  googlePay: (paymentRequest: unknown) => Promise<SquareDigitalWallet>;
   verifyBuyer: (
     source: string,
     details: Record<string, unknown>,
@@ -490,14 +505,18 @@ function SquarePanel({
 }) {
   const cardRef = useRef<SquareCard | null>(null);
   const paymentsRef = useRef<SquarePayments | null>(null);
+  const googlePayRef = useRef<SquareDigitalWallet | null>(null);
   const [ready, setReady] = useState(false);
+  const [googlePayReady, setGooglePayReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
   // Square attaches by selector, so the container needs a real id.
   // useId's value contains colons, which are invalid in a CSS selector
   // unless escaped - strip them rather than rely on the SDK escaping.
-  const containerId = `square-card-${useId().replace(/:/g, "")}`;
+  const uid = useId().replace(/:/g, "");
+  const containerId = `square-card-${uid}`;
+  const googlePayId = `square-gpay-${uid}`;
 
   useEffect(() => {
     let cancelled = false;
@@ -564,6 +583,32 @@ function SquarePanel({
 
       cardRef.current = card;
       setReady(true);
+
+      // Google Pay is best-effort and entirely optional. It needs
+      // HTTPS and a browser/device that offers it, so a failure here
+      // is the normal case on localhost or an unsupported browser -
+      // logged, never surfaced. The card form stands alone.
+      try {
+        const paymentRequest = payments.paymentRequest({
+          countryCode: region.country,
+          currencyCode: provider.currency,
+          total: {
+            // Square wants a decimal string, not minor units.
+            amount: total.toFixed(2),
+            label: "Total",
+          },
+        });
+        const googlePay = await payments.googlePay(paymentRequest);
+        if (cancelled) {
+          await googlePay.destroy?.();
+          return;
+        }
+        await googlePay.attach(`#${googlePayId}`);
+        googlePayRef.current = googlePay;
+        if (!cancelled) setGooglePayReady(true);
+      } catch (e) {
+        console.info("[checkout] Google Pay unavailable", e);
+      }
     })().catch((e) => {
       if (cancelled) return;
       // Square's failures are specific and actionable - a mismatched
@@ -584,32 +629,31 @@ function SquarePanel({
         // Already gone - nothing to clean up.
       });
       cardRef.current = null;
+      googlePayRef.current?.destroy?.().catch(() => {});
+      googlePayRef.current = null;
     };
   }, [
     provider.application_id,
     provider.location_id,
     provider.environment,
+    provider.currency,
+    region.country,
+    total,
     dark,
     containerId,
+    googlePayId,
   ]);
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    const card = cardRef.current;
+  /**
+   * Charge one Square token.
+   *
+   * Shared by the card form and Google Pay: both produce a single-use
+   * token in the same field, and square.php cannot tell them apart -
+   * which is why the wallet needed no backend change at all.
+   */
+  const chargeToken = async (token: string) => {
     const payments = paymentsRef.current;
-    if (!card || !payments || busy) return;
-
-    setBusy(true);
-    setMessage(null);
-    try {
-      const tokenised = await card.tokenize();
-      if (tokenised.status !== "OK" || !tokenised.token) {
-        setMessage(
-          tokenised.errors?.[0]?.message ??
-            "Please check your card details and try again.",
-        );
-        return;
-      }
+    if (!payments) return;
 
       // Strong Customer Authentication. Square requires the resulting
       // token for UK/EEA cards and ignores it elsewhere, so we always
@@ -617,7 +661,7 @@ function SquarePanel({
       // call below will reject it if the card actually needed it.
       let verificationToken = "";
       try {
-        const verified = await payments.verifyBuyer(tokenised.token, {
+        const verified = await payments.verifyBuyer(token, {
           amount: total.toFixed(2),
           currencyCode: provider.currency,
           intent: "CHARGE",
@@ -635,14 +679,61 @@ function SquarePanel({
         // Fall through with an empty token.
       }
 
-      const res = await squarePay(
-        ctx.cartToken,
-        ctx.eventEid,
-        tokenised.token,
-        verificationToken,
-        ctx.site,
+    const res = await squarePay(
+      ctx.cartToken,
+      ctx.eventEid,
+      token,
+      verificationToken,
+      ctx.site,
+    );
+    await onPaid("square", res.transactionId, res.paymentStatus);
+  };
+
+  const submit = async (e: FormEvent) => {
+    e.preventDefault();
+    const card = cardRef.current;
+    if (!card || busy) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const tokenised = await card.tokenize();
+      if (tokenised.status !== "OK" || !tokenised.token) {
+        setMessage(
+          tokenised.errors?.[0]?.message ??
+            "Please check your card details and try again.",
+        );
+        return;
+      }
+      await chargeToken(tokenised.token);
+    } catch (e) {
+      setMessage(
+        errorText(e, "Your payment was not successful. Please try again."),
       );
-      await onPaid("square", res.transactionId, res.paymentStatus);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const payWithGooglePay = async () => {
+    const googlePay = googlePayRef.current;
+    if (!googlePay || busy) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const tokenised = await googlePay.tokenize();
+      // CANCEL is the buyer closing the Google sheet - not an error,
+      // and telling them off for changing their mind would be wrong.
+      if (tokenised.status === "CANCEL") return;
+      if (tokenised.status !== "OK" || !tokenised.token) {
+        setMessage(
+          tokenised.errors?.[0]?.message ??
+            "Google Pay didn't complete. Please try again or use a card.",
+        );
+        return;
+      }
+      await chargeToken(tokenised.token);
     } catch (e) {
       setMessage(
         errorText(e, "Your payment was not successful. Please try again."),
@@ -654,6 +745,27 @@ function SquarePanel({
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {/* Wallet first: for a buyer who has it, it is the fastest path
+          and burying it under the card form wastes that. Hidden
+          entirely when unavailable - an empty or dead button is worse
+          than none. */}
+      {googlePayReady && (
+        <div className="space-y-3">
+          <div
+            id={googlePayId}
+            onClick={payWithGooglePay}
+            className={busy ? "opacity-50 pointer-events-none" : ""}
+          />
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-ink-200" />
+            <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-400">
+              or pay by card
+            </span>
+            <span className="h-px flex-1 bg-ink-200" />
+          </div>
+        </div>
+      )}
+
       <div id={containerId} />
       {!ready && !message && (
         <p className="text-sm text-ink-500">Loading card form…</p>
@@ -1051,6 +1163,10 @@ export function PaymentStep({
           onPaid={onPaid}
         />
       )}
+
+      {/* Accepted schemes, beneath whichever card form is showing.
+          Skipped for PayPal, which carries its own branding. */}
+      {active.id !== "paypal" && <CardBrandStrip className="mt-5" />}
     </Section>
   );
 }
