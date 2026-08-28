@@ -112,6 +112,7 @@ interface SquarePayments {
   card: (options?: Record<string, unknown>) => Promise<SquareCard>;
   paymentRequest: (details: Record<string, unknown>) => unknown;
   googlePay: (paymentRequest: unknown) => Promise<SquareDigitalWallet>;
+  applePay: (paymentRequest: unknown) => Promise<SquareDigitalWallet>;
   verifyBuyer: (
     source: string,
     details: Record<string, unknown>,
@@ -506,8 +507,10 @@ function SquarePanel({
   const cardRef = useRef<SquareCard | null>(null);
   const paymentsRef = useRef<SquarePayments | null>(null);
   const googlePayRef = useRef<SquareDigitalWallet | null>(null);
+  const applePayRef = useRef<SquareDigitalWallet | null>(null);
   const [ready, setReady] = useState(false);
   const [googlePayReady, setGooglePayReady] = useState(false);
+  const [applePayReady, setApplePayReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -609,6 +612,27 @@ function SquarePanel({
       } catch (e) {
         console.info("[checkout] Google Pay unavailable", e);
       }
+
+      // Apple Pay, same best-effort treatment. Safari only, HTTPS
+      // only, and it throws for any of a dozen reasons (no device
+      // support, no card in Wallet, domain not verified) - all of
+      // which are normal, none of which the buyer needs telling.
+      //
+      // Note there is NO attach() for Apple Pay: unlike Google Pay,
+      // Square hands back an object and we supply the button.
+      try {
+        const applePayRequest = payments.paymentRequest({
+          countryCode: region.country,
+          currencyCode: provider.currency,
+          total: { amount: total.toFixed(2), label: "Total" },
+        });
+        const applePay = await payments.applePay(applePayRequest);
+        if (cancelled) return;
+        applePayRef.current = applePay;
+        setApplePayReady(true);
+      } catch (e) {
+        console.info("[checkout] Apple Pay unavailable", e);
+      }
     })().catch((e) => {
       if (cancelled) return;
       // Square's failures are specific and actionable - a mismatched
@@ -631,6 +655,7 @@ function SquarePanel({
       cardRef.current = null;
       googlePayRef.current?.destroy?.().catch(() => {});
       googlePayRef.current = null;
+      applePayRef.current = null;
     };
   }, [
     provider.application_id,
@@ -715,6 +740,41 @@ function SquarePanel({
     }
   };
 
+  /**
+   * Apple Pay.
+   *
+   * tokenize() is called with NO await before it. Safari only opens
+   * the Apple Pay sheet from a genuine user gesture, and any awaited
+   * work between the click and tokenize() breaks that chain - the
+   * sheet silently never appears. setBusy is fine (it schedules a
+   * render, it does not yield).
+   */
+  const payWithApplePay = async () => {
+    const applePay = applePayRef.current;
+    if (!applePay || busy) return;
+
+    setBusy(true);
+    setMessage(null);
+    try {
+      const tokenised = await applePay.tokenize();
+      if (tokenised.status === "CANCEL") return;
+      if (tokenised.status !== "OK" || !tokenised.token) {
+        setMessage(
+          tokenised.errors?.[0]?.message ??
+            "Apple Pay didn't complete. Please try again or use a card.",
+        );
+        return;
+      }
+      await chargeToken(tokenised.token);
+    } catch (e) {
+      setMessage(
+        errorText(e, "Your payment was not successful. Please try again."),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const payWithGooglePay = async () => {
     const googlePay = googlePayRef.current;
     if (!googlePay || busy) return;
@@ -745,17 +805,47 @@ function SquarePanel({
 
   return (
     <form onSubmit={submit} className="space-y-5">
-      {/* Wallet first: for a buyer who has it, it is the fastest path
-          and burying it under the card form wastes that. Hidden
-          entirely when unavailable - an empty or dead button is worse
-          than none. */}
-      {googlePayReady && (
+      {/* Wallets first: for a buyer who has one, it is the fastest
+          path and burying it under the card form wastes that. Each is
+          hidden entirely when unavailable - an empty or dead button is
+          worse than none - so most buyers see only the card fields. */}
+      {(googlePayReady || applePayReady) && (
         <div className="space-y-3">
-          <div
-            id={googlePayId}
-            onClick={payWithGooglePay}
-            className={busy ? "opacity-50 pointer-events-none" : ""}
-          />
+          {/* Apple's own button, drawn by Safari. It cannot be styled
+              like a normal element, hence the -apple-pay-button
+              appearance rather than our usual classes. */}
+          {applePayReady && (
+            <>
+              <style>{`
+                .cc-apple-pay-button {
+                  display: block;
+                  width: 100%;
+                  height: 48px;
+                  border-radius: 12px;
+                  -webkit-appearance: -apple-pay-button;
+                  -apple-pay-button-type: plain;
+                  -apple-pay-button-style: black;
+                }
+              `}</style>
+              <button
+                type="button"
+                lang={region.locale}
+                onClick={payWithApplePay}
+                disabled={busy}
+                className="cc-apple-pay-button disabled:opacity-50"
+                aria-label="Pay with Apple Pay"
+              />
+            </>
+          )}
+
+          {googlePayReady && (
+            <div
+              id={googlePayId}
+              onClick={payWithGooglePay}
+              className={busy ? "opacity-50 pointer-events-none" : ""}
+            />
+          )}
+
           <div className="flex items-center gap-3">
             <span className="h-px flex-1 bg-ink-200" />
             <span className="text-[11px] uppercase tracking-wider font-semibold text-ink-400">
