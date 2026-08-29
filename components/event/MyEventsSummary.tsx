@@ -77,16 +77,38 @@ export function MyEventsSummary() {
           {isLoading &&
             !data &&
             Array.from({ length: 6 }).map((_, i) => (
+              // Matches the My Events tab's EventGridSkeleton so both
+              // surfaces load the same way. The .ev-* and global
+              // .skeleton-shimmer classes are not page-scoped, so the
+              // shimmer works here outside .events-page.
               <div
+                className="ev-card skeleton-card"
                 key={i}
-                className="mes-card mes-skeleton"
                 aria-hidden
-                style={{
-                  minHeight: 300,
-                  borderRadius: 12,
-                  background: "#f2f1ec",
-                }}
-              />
+                style={{ cursor: "default", pointerEvents: "none" }}
+              >
+                <div className="ev-cover skeleton-shimmer" />
+                <div className="ev-body">
+                  <div
+                    className="skeleton-line skeleton-shimmer"
+                    style={{ width: "80%", height: 22 }}
+                  />
+                  <div className="ev-meta">
+                    <div
+                      className="skeleton-line skeleton-shimmer"
+                      style={{ width: "60%", height: 13 }}
+                    />
+                    <div
+                      className="skeleton-line skeleton-shimmer"
+                      style={{ width: "45%", height: 13 }}
+                    />
+                    <div
+                      className="skeleton-line skeleton-shimmer"
+                      style={{ width: "75%", height: 13 }}
+                    />
+                  </div>
+                </div>
+              </div>
             ))}
 
           {events.map((ev) => (

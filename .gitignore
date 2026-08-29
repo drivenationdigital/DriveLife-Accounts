@@ -51,3 +51,6 @@ gitautodeploy.php
 
 .htaccess
 
+apple-developer-merchantid-domain-association
+
+./well-known

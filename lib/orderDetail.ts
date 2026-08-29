@@ -24,7 +24,10 @@ export interface OrderDetailItem {
   ticket_number: string;
   product_title: string;
   event_id: number;
+  /** NB: this is the TICKET name, not the event title (backend naming). */
   event_title: string;
+  /** The actual event post title. */
+  event_name: string;
   event_date: string;
   event_time: string;
   /** Y-m-d of the event's last day; "" when unknown. */

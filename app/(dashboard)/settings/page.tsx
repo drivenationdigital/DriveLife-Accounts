@@ -49,17 +49,26 @@ export default function SettingsPage() {
       {/* Payment Settings */}
       <Section title="Payment Settings">
         <div className="space-y-4">
-          {showNewProviders && <CardProcessorNote />}
+          {/* TEMPORARY: everything except Stripe is hidden via display:none
+              while only Stripe is offered. The cards stay mounted and fully
+              functional - remove these two wrapper divs to show them again.
+              The processor note is hidden too because it references Square/
+              Mollie/PayPal. */}
+          <div style={{ display: "none" }}>
+            {showNewProviders && <CardProcessorNote />}
+          </div>
           <StripeCard />
-          {showNewProviders && (
-            <>
-              <SquareCard />
-              <MollieCard />
-              {/* PayPal temporarily hidden until 30 Sep 2026 - swap the
-                  placeholder back for <PaypalCard /> to re-enable. */}
-              <PaypalComingSoonCard />
-            </>
-          )}
+          <div style={{ display: "none" }}>
+            {showNewProviders && (
+              <>
+                <SquareCard />
+                <MollieCard />
+                {/* PayPal temporarily hidden until 30 Sep 2026 - swap the
+                    placeholder back for <PaypalCard /> to re-enable. */}
+                <PaypalComingSoonCard />
+              </>
+            )}
+          </div>
         </div>
       </Section>
 

@@ -112,6 +112,15 @@ export default function OrderPage() {
     });
   };
 
+  // Event name for the header. Event data lives per line item; an order
+  // is almost always for one event, but the model doesn't guarantee it -
+  // show the single name when they all match, otherwise a neutral label.
+  const eventNames = order
+    ? Array.from(new Set(order.items.map((i) => i.event_name).filter(Boolean)))
+    : [];
+  const eventHeading =
+    eventNames.length === 1 ? eventNames[0] : "Multiple events";
+
   return (
     <div className="order-view">
       {/* Returns to the event view the user opened this order from,
@@ -139,6 +148,10 @@ export default function OrderPage() {
         <>
           {/* Header: status + customer + actions */}
           <div className="order-header">
+            <div className="order-title">
+              <div className="order-title-id">Order #{order.id}</div>
+              <div className="order-title-event">{eventHeading}</div>
+            </div>
             <div className="order-header-top">
               <span
                 className="order-status-pill"
@@ -591,8 +604,22 @@ function OrderSkeleton() {
         Loading order…
       </span>
 
-      {/* Header card: status pill, customer, action buttons */}
+      {/* Header card: title + order id, then status pill, customer,
+          action buttons */}
       <div style={skelCard}>
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 6,
+            paddingBottom: 16,
+            marginBottom: 16,
+            borderBottom: "1px solid #ecebe6",
+          }}
+        >
+          <Bar w={90} h={13} />
+          <Bar w={200} h={18} />
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <Bar w={110} h={26} r={999} />
           <Bar w={120} h={16} />
