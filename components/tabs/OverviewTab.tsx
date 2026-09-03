@@ -11,6 +11,7 @@ import { ClubTable } from "@/components/tables/ClubTable";
 import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { orderDetailPath } from "@/lib/siteRoutes";
+import { currentQuery, rememberListPosition } from "@/lib/listState";
 import { EventStatStrip } from "@/components/tabs/EventStatStrip";
 import { carLabel } from "@/components/tabs/TicketsTab";
 import { useRouter } from "next/navigation";
@@ -307,7 +308,17 @@ export function OverviewTab() {
                 <tr
                   key={o.id}
                   {...clickableRow(
-                    () => router.push(orderDetailPath(o.encryptedId, event.region.key, event.encryptedId)),
+                    () => {
+                    rememberListPosition();
+                    router.push(
+                      orderDetailPath(
+                        o.encryptedId,
+                        event.region.key,
+                        event.encryptedId,
+                        currentQuery(),
+                      ),
+                    );
+                  },
                     { label: `Open order #${o.id}` },
                   )}
                 >

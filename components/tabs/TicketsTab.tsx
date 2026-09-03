@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
+import {
+  currentQuery,
+  pageFromQuery,
+  rememberListPosition,
+  replaceQuery,
+  useRestoreListPosition,
+} from "@/lib/listState";
 import type { SoldTicket } from "@/context/types";
 import { currency } from "@/lib/utils";
 import { useEventTickets } from "@/lib/eventTickets";
@@ -44,9 +51,18 @@ function useDebounced<T>(value: T, delay = 350): T {
 export function TicketsTab() {
   const { event, soldTickets } = useEventData();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  const [search, setSearch] = useState("");
-  const [page, setPage] = useState(1);
+  // Search and page start from the URL (`ticketsQ`, `ticketsPage`) and
+  // are written back to it below, so coming back from an order - via
+  // the browser or the order page's back link - lands on the same
+  // filtered page. See lib/listState.
+  const [search, setSearch] = useState(
+    () => searchParams?.get("ticketsQ") ?? "",
+  );
+  const [page, setPage] = useState(() =>
+    pageFromQuery(searchParams?.get("ticketsPage")),
+  );
 
   // Full-size view of a clicked vehicle-photo thumbnail.
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -68,6 +84,14 @@ export function TicketsTab() {
     setPage(1);
   }
 
+  // Mirror the settled filter/page into the URL (shallow; no navigation).
+  useEffect(() => {
+    replaceQuery({
+      ticketsQ: debouncedSearch.trim() || null,
+      ticketsPage: page > 1 ? page : null,
+    });
+  }, [debouncedSearch, page]);
+
   const { data, isLoading, isFetching, isPlaceholderData } = useEventTickets({
     eid: event.encryptedId,
     // region.key rather than the raw `site` string, which is "" when
@@ -83,6 +107,10 @@ export function TicketsTab() {
     () => (data?.tickets ?? []).map(mapSoldTicket),
     [data],
   );
+
+  // Put the page back where it was when a row was opened, once the
+  // rows exist to scroll to.
+  useRestoreListPosition(!isLoading && rows.length > 0);
 
   const total = data?.total_count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -188,14 +216,17 @@ export function TicketsTab() {
                   // simply stay non-clickable rather than 404ing.
                   {...(t.orderEid
                     ? clickableRow(
-                        () =>
+                        () => {
+                          rememberListPosition();
                           router.push(
                             orderDetailPath(
                               t.orderEid,
                               event.region.key,
                               event.encryptedId,
+                              currentQuery(),
                             ),
-                          ),
+                          );
+                        },
                         { label: `Open order #${t.orderId}` },
                       )
                     : {})}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import { useUI } from "@/context/UIContext";
+import { replaceQuery } from "@/lib/listState";
 import { useEventData } from "@/context/EventContext";
 import { occurrencesInScope } from "@/lib/occurrenceScope";
 import { cx } from "@/lib/utils";
@@ -115,7 +117,29 @@ export function EventTabs() {
     ? activeTab
     : tabs[0]!.key;
 
+  // `?tab=` in the URL wins on arrival - it's how a back link from an
+  // order (or a browser back) reopens the tab the user was on, since
+  // activeTab itself is dashboard-wide state that a fresh page load
+  // starts at "overview". Applied once per distinct value so it never
+  // fights a click that happened after the URL was read.
+  const searchParams = useSearchParams();
+  const urlTab = searchParams?.get("tab") ?? null;
+  // `tabs` is rebuilt every render; its keys as a string are a stable
+  // dependency for the effect.
+  const tabKeys = tabs.map((t) => t.key).join(",");
+  const appliedUrlTab = useRef<string | null>(null);
+  useEffect(() => {
+    if (!urlTab || appliedUrlTab.current === urlTab) return;
+    if (!tabKeys.split(",").includes(urlTab)) return;
+    appliedUrlTab.current = urlTab;
+    if (urlTab !== activeTab) setActiveTab(urlTab as TabKey);
+  }, [urlTab, tabKeys, activeTab, setActiveTab]);
+
   const handleTabClick = (key: TabKey) => {
+    // Shallow URL update so the browser's history entry (and any order
+    // link minted from this tab) remembers which tab was open.
+    replaceQuery({ tab: key });
+    appliedUrlTab.current = key;
     setActiveTab(key);
     tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };

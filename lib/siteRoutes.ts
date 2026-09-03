@@ -85,13 +85,24 @@ export function orderDetailPath(
    * scope - My Tickets, say - and the back link falls back.
    */
   fromEventEid?: string | null,
+  /**
+   * The list's current query string ("?tab=tickets&ticketsQ=bmw…"),
+   * usually `currentQuery()` from lib/listState. Carried as `back=` so
+   * the order page returns to the same tab, filter and page rather
+   * than a freshly-reset dashboard. Only meaningful with an event.
+   */
+  returnQuery?: string | null,
 ): string {
   const path = `/orders/${ref(oid, site)}`;
   if (!fromEventEid) return path;
   // The back link's event is a ref too - it's the same event id in the
   // same region, and the order page hands it straight to
   // eventDetailPath.
-  return `${path}?from=${ref(fromEventEid, site)}`;
+  const back =
+    returnQuery && returnQuery.startsWith("?") && returnQuery.length > 1
+      ? `&back=${encodeURIComponent(returnQuery)}`
+      : "";
+  return `${path}?from=${ref(fromEventEid, site)}${back}`;
 }
 
 /** The editor. `eid` rides in the query string here, not the path -

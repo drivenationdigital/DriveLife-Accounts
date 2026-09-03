@@ -1,8 +1,15 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
+import {
+  currentQuery,
+  pageFromQuery,
+  rememberListPosition,
+  replaceQuery,
+  useRestoreListPosition,
+} from "@/lib/listState";
 import { currency, statusPillClass } from "@/lib/utils";
 import type { Region } from "@/lib/regions";
 import { useExportOrders } from "@/lib/ordersExport";
@@ -51,19 +58,45 @@ function useDebounced<T>(value: T, delay = 350): T {
 export function OrdersTab() {
   const { event, kpis } = useEventData();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
-  // ── Filters + page (local state; drive a server-side query) ─────
-  const [search, setSearch] = useState("");
-  const [orderStatus, setOrderStatus] = useState<"all" | string>("all");
-  const [page, setPage] = useState(1);
+  // ── Filters + page (seeded from the URL, mirrored back to it) ───
+  // `ordersQ`, `ordersStatus`, `ordersPage`: the page param is the one
+  // the event page already reads for its own orders query, so both
+  // stay on the same page. Coming back from an order - browser back
+  // or the order page's back link - restores all three. See
+  // lib/listState.
+  const [search, setSearch] = useState(
+    () => searchParams?.get("ordersQ") ?? "",
+  );
+  const [orderStatus, setOrderStatus] = useState<"all" | string>(
+    () => searchParams?.get("ordersStatus") || "all",
+  );
+  const [page, setPage] = useState(() =>
+    pageFromQuery(searchParams?.get("ordersPage")),
+  );
 
   // Debounce typing before it hits the network.
   const debouncedSearch = useDebounced(search, 350);
 
-  // Any new search term resets to page 1.
-  useEffect(() => {
+  // Any new search term resets to page 1. Adjusted during render (the
+  // same pattern as TicketsTab) rather than in an effect: an effect
+  // would also fire on mount and wipe a page number just restored from
+  // the URL, and setState-in-effect trips the cascading-renders rule.
+  const [pagedFor, setPagedFor] = useState(debouncedSearch);
+  if (pagedFor !== debouncedSearch) {
+    setPagedFor(debouncedSearch);
     setPage(1);
-  }, [debouncedSearch]);
+  }
+
+  // Mirror the settled filters into the URL (shallow; no navigation).
+  useEffect(() => {
+    replaceQuery({
+      ordersQ: debouncedSearch.trim() || null,
+      ordersStatus: orderStatus === "all" ? null : orderStatus,
+      ordersPage: page > 1 ? page : null,
+    });
+  }, [debouncedSearch, orderStatus, page]);
 
   // ── Server-side fetch (search + pagination handled by the API) ──
   const { data, isLoading, isFetching, isPlaceholderData } = useEventOrders({
@@ -102,6 +135,10 @@ export function OrdersTab() {
         : orders.filter((o) => o.status === orderStatus),
     [orders, orderStatus],
   );
+
+  // Put the page back where it was when a row was opened, once the
+  // rows exist to scroll to.
+  useRestoreListPosition(!isLoading && rows.length > 0);
 
   const total = data?.total_count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
@@ -273,7 +310,17 @@ export function OrdersTab() {
               <tr
                 key={o.id}
                 {...clickableRow(
-                  () => router.push(orderDetailPath(o.encryptedId, event.region.key, event.encryptedId)),
+                  () => {
+                    rememberListPosition();
+                    router.push(
+                      orderDetailPath(
+                        o.encryptedId,
+                        event.region.key,
+                        event.encryptedId,
+                        currentQuery(),
+                      ),
+                    );
+                  },
                   { label: `Open order #${o.id}` },
                 )}
               >
@@ -311,7 +358,17 @@ export function OrdersTab() {
                     </DropdownTrigger>
                     <DropdownMenu>
                       <DropdownItem
-                        onClick={() => router.push(orderDetailPath(o.encryptedId, event.region.key, event.encryptedId))}
+                        onClick={() => {
+                          rememberListPosition();
+                          router.push(
+                            orderDetailPath(
+                              o.encryptedId,
+                              event.region.key,
+                              event.encryptedId,
+                              currentQuery(),
+                            ),
+                          );
+                        }}
                       >
                         View &amp; edit
                       </DropdownItem>

@@ -67,8 +67,15 @@ export default function OrderPage() {
   // verbatim so the back link is built the one way every other event
   // link is.
   const from = parseRef(searchParams.get("from"));
+  // `back` is the list's query string at the moment the order was
+  // opened (tab, search, page - see lib/listState). Re-attached so the
+  // user lands on the same filtered page they left. Accepted only when
+  // it looks like a plain query string, so a tampered link can't turn
+  // the back button into a redirect.
+  const backQuery = searchParams.get("back") ?? "";
+  const backSafe = /^\?[A-Za-z0-9=&%._~+-]*$/.test(backQuery) ? backQuery : "";
   const backHref = from.id
-    ? eventDetailPath(from.id, from.site ?? site)
+    ? eventDetailPath(from.id, from.site ?? site) + backSafe
     : "/";
 
   const resend = useResendOrder();
