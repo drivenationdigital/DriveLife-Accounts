@@ -37,6 +37,8 @@ import {
   DetailsStep,
   cartUnits,
   unitFieldSpecs,
+  CUSTOM_QUESTION_PREFIX,
+  customAnswersValue,
   type AttendeeState,
   type BillingState,
 } from "@/components/checkout/DetailsStep";
@@ -352,9 +354,33 @@ export default function GetTicketsPage({
     [unitMeta, cname],
   );
 
+  /** Custom-question answers travel as one JSON cart value per unit
+   *  (`custom_answers`), so the order metadata carries question text
+   *  alongside each answer. Any "cq:" field change re-syncs the set. */
+  const syncCustomAnswers = useCallback(
+    async (pid: string, index: number) => {
+      if (!cartToken) return;
+      const ticket = tickets.find((t) => t.pid === pid);
+      if (!ticket) return;
+      const k = metaKey(pid, index, "custom_answers");
+      const value = customAnswersValue(ticket, (f) => unitValue(pid, index, f));
+      if (syncedMeta.current[k] === value) return;
+      try {
+        await updateTicketMeta(cartToken, pid, "custom_answers", value, index);
+        syncedMeta.current[k] = value;
+      } catch {
+        // Re-tried by the pre-order flush.
+      }
+    },
+    [cartToken, tickets, unitValue],
+  );
+
   const syncUnitField = useCallback(
     async (pid: string, index: number, field: string) => {
       if (!cartToken) return;
+      if (field.startsWith(CUSTOM_QUESTION_PREFIX)) {
+        return syncCustomAnswers(pid, index);
+      }
       const k = metaKey(pid, index, field);
       const value =
         k in unitMeta
@@ -370,7 +396,7 @@ export default function GetTicketsPage({
         // Re-tried by the pre-order flush.
       }
     },
-    [cartToken, unitMeta, cname],
+    [cartToken, unitMeta, cname, syncCustomAnswers],
   );
 
   /** Set + sync a unit field with an explicit value in one step -
@@ -414,7 +440,11 @@ export default function GetTicketsPage({
   const flushUnitMeta = useCallback(async () => {
     if (!cartToken) return;
     for (const unit of cartUnits(cart, tickets)) {
+      if ((unit.ticket.customQuestions ?? []).length > 0) {
+        await syncCustomAnswers(unit.pid, unit.index);
+      }
       for (const spec of unitFieldSpecs(unit.ticket)) {
+        if (spec.field.startsWith(CUSTOM_QUESTION_PREFIX)) continue;
         const k = metaKey(unit.pid, unit.index, spec.field);
         const value = unitValue(unit.pid, unit.index, spec.field);
         if (value && syncedMeta.current[k] !== value) {
@@ -429,7 +459,7 @@ export default function GetTicketsPage({
         }
       }
     }
-  }, [cart, tickets, cartToken, unitValue]);
+  }, [cart, tickets, cartToken, unitValue, syncCustomAnswers]);
 
   // ── Tickets step handlers ─────────────────────────────────────────
   const handleQuantityChange = (pid: string, qty: number) => {

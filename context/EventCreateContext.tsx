@@ -94,6 +94,14 @@ export type EditorImage =
  * The actual values are short randoms generated client-side until the
  * API assigns real ones on save. */
 export type TicketId = string & { readonly __brand: "TicketId" };
+
+/** One custom checkout question. `id` is minted client-side and kept
+ *  stable across edits so answers stay attributable if the label is
+ *  reworded. */
+export interface TicketQuestion {
+  id: string;
+  label: string;
+}
 export type SectionId = string & { readonly __brand: "SectionId" };
 
 /** Mode for the top of the Tickets panel. Drives which sub-form
@@ -147,6 +155,10 @@ export type Ticket = {
   requireCarClubName: boolean;
   individualAttendeeDetails: boolean;
   requestVehiclePhoto: boolean;
+  /** "Ask additional questions": free-text questions buyers answer for
+   *  each unit of this ticket at checkout. Optional so existing call
+   *  sites that build a Ticket keep typechecking; absent ⇒ none. */
+  customQuestions?: TicketQuestion[];
   isSecret: boolean;
   /** When `isSecret` is true, the code buyers enter at checkout to
    *  unlock the ticket. Optional so existing call sites that build a

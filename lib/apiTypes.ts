@@ -327,6 +327,22 @@ export interface ApiOrder {
   marketing_source: string | null;
   cars: ApiCar[];
   status: OrderStatus;
+  /** Per-ticket answers to custom checkout questions, only for items
+   *  that answered any. Optional: absent from older backends. */
+  custom_answers?: ApiOrderCustomAnswers[];
+}
+
+/** One answered custom checkout question. */
+export interface ApiCustomAnswer {
+  q: string;
+  a: string;
+}
+
+/** One order item's answers, with the ticket it belongs to. */
+export interface ApiOrderCustomAnswers {
+  ticket_name: string;
+  line_id: number | null;
+  answers: ApiCustomAnswer[];
 }
 
 /**
@@ -367,6 +383,9 @@ export interface ApiAttendee {
   /** Vehicle photo uploaded at checkout (Cloudflare Images delivery
    *  URL), or null. Optional: absent from older backend deployments. */
   vehicle_photo?: string | null;
+  /** Answers to the ticket's custom checkout questions. Optional for
+   *  the same backend-version reason. */
+  custom_answers?: ApiCustomAnswer[];
   /** Encrypted order id for deep-linking to the order detail page.
    *  Optional for the same backend-version reason. */
   order_eid?: string;
@@ -875,6 +894,9 @@ export interface ApiEventTicket {
   request_attendance_details: boolean;
   request_vehicle_photo: boolean;
   request_car_club: boolean;
+  /** Custom checkout questions, decoded server-side to [{id, label}].
+   *  Optional/string-tolerant for backends that predate the column. */
+  custom_questions?: { id: string; label: string }[] | string | null;
   hidden_ticket: boolean;
   secret_code_ticket: boolean;
   secret_code: string;

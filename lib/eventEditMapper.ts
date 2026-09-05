@@ -488,6 +488,7 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     requireCarClubName: row.request_car_club,
     individualAttendeeDetails: row.request_attendance_details,
     requestVehiclePhoto: row.request_vehicle_photo,
+    customQuestions: parseCustomQuestions(row.custom_questions),
     isSecret: row.secret_code_ticket,
     // Pre-fill the code so the drawer shows what's stored. Falls back
     // to empty string when isSecret is false (and the API returns "")
@@ -843,4 +844,32 @@ function mapPublish(
     // on older deploys; the Publish panel falls back to a preview.
     permalink: api.permalink ?? "",
   };
+}
+
+/**
+ * Custom checkout questions off a ticket row. The API decodes the
+ * stored JSON to [{id, label}]; a raw string (older backend) is parsed
+ * here, and anything malformed collapses to "no questions".
+ */
+function parseCustomQuestions(
+  raw: { id: string; label: string }[] | string | null | undefined,
+): { id: string; label: string }[] {
+  let list: unknown = raw;
+  if (typeof raw === "string") {
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  const out: { id: string; label: string }[] = [];
+  for (const q of list) {
+    if (!q || typeof q !== "object") continue;
+    const rec = q as Record<string, unknown>;
+    const label = typeof rec.label === "string" ? rec.label.trim() : "";
+    if (!label) continue;
+    out.push({ id: typeof rec.id === "string" ? rec.id : "", label });
+  }
+  return out;
 }

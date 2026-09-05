@@ -52,6 +52,7 @@ export const mockEventData: EventData = {
       carClub: "Mustang Owners",
       isConcours: false,
       vehiclePhoto: "",
+      customAnswers: [],
       orderEid: "",
     },
     {
@@ -69,6 +70,7 @@ export const mockEventData: EventData = {
       carClub: "",
       isConcours: false,
       vehiclePhoto: "",
+      customAnswers: [],
       orderEid: "",
     },
     {
@@ -86,6 +88,7 @@ export const mockEventData: EventData = {
       carClub: "",
       isConcours: false,
       vehiclePhoto: "",
+      customAnswers: [],
       orderEid: "",
     },
   ],
@@ -138,6 +141,7 @@ export const mockEventData: EventData = {
       status: "paid",
       date: "Today, 14:23",
       encryptedId: "encrypted-CE-10324",
+      customAnswers: [],
     },
     {
       id: "CE-10323",
@@ -148,6 +152,7 @@ export const mockEventData: EventData = {
       status: "paid",
       date: "Today, 11:08",
       encryptedId: "encrypted-CE-10323",
+      customAnswers: [],
     },
   ],
 

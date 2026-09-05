@@ -64,6 +64,8 @@ export interface ApiTicketSaveBody {
   requireCarClubName?: boolean;
   individualAttendeeDetails?: boolean;
   requestVehiclePhoto?: boolean;
+  /** Custom checkout questions; [] clears them. */
+  customQuestions?: { id: string; label: string }[];
 
   // section-only - optional code for gating a secret section. The
   // editor's TicketSection type doesn't carry this yet; leave it
@@ -102,6 +104,9 @@ export function mapTicketToBody(t: Ticket): ApiTicketSaveBody {
     requireCarClubName: t.requireCarClubName,
     individualAttendeeDetails: t.individualAttendeeDetails,
     requestVehiclePhoto: t.requestVehiclePhoto,
+    customQuestions: (t.customQuestions ?? [])
+      .map((q) => ({ id: q.id, label: q.label.trim() }))
+      .filter((q) => q.label !== ""),
     // Only send the code when isSecret; otherwise leave it off so the
     // server doesn't clobber an existing stored code on an unrelated
     // update. (The PHP write-side always sets `secret_code=''` when

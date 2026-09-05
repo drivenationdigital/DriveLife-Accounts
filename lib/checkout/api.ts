@@ -77,6 +77,8 @@ export interface CheckoutTicket {
   secretMatched: boolean;
   flags: CheckoutTicketFlags;
   collectionInformation: string;
+  /** Organiser's custom questions, answered per unit at checkout. */
+  customQuestions: { id: string; label: string }[];
 }
 
 export interface CheckoutEvent {

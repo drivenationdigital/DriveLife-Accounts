@@ -2,7 +2,11 @@
 
 import { useState } from "react";
 
-import { type Ticket, type TicketId } from "@/context/EventCreateContext";
+import {
+  type Ticket,
+  type TicketId,
+  type TicketQuestion,
+} from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
@@ -102,6 +106,33 @@ export function TicketDrawer({
   const [requestVehiclePhoto, setRequestVehiclePhoto] = useState(
     () => editing?.requestVehiclePhoto ?? false,
   );
+  // "Ask additional questions". The toggle is on when the ticket has
+  // any saved question; switching it off keeps the rows in local state
+  // (so flipping back restores them) but saves none.
+  const [askQuestions, setAskQuestions] = useState(
+    () => (editing?.customQuestions?.length ?? 0) > 0,
+  );
+  const [questions, setQuestions] = useState<TicketQuestion[]>(() =>
+    editing?.customQuestions?.length
+      ? editing.customQuestions.map((q) => ({ ...q }))
+      : [newQuestion()],
+  );
+  const handleToggleQuestions = (next: boolean) => {
+    setAskQuestions(next);
+    if (next && questions.length === 0) setQuestions([newQuestion()]);
+  };
+  const updateQuestion = (id: string, label: string) =>
+    setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, label } : q)));
+  const addQuestionAfter = (index: number) =>
+    setQuestions((qs) => [
+      ...qs.slice(0, index + 1),
+      newQuestion(),
+      ...qs.slice(index + 1),
+    ]);
+  const removeQuestion = (id: string) =>
+    setQuestions((qs) =>
+      qs.length > 1 ? qs.filter((q) => q.id !== id) : [newQuestion()],
+    );
   const [isSecret, setIsSecret] = useState(() => editing?.isSecret ?? false);
   const [secretCode, setSecretCode] = useState(() => editing?.secretCode ?? "");
 
@@ -178,6 +209,11 @@ export function TicketDrawer({
       requireCarClubName,
       individualAttendeeDetails,
       requestVehiclePhoto,
+      customQuestions: askQuestions
+        ? questions
+            .map((q) => ({ id: q.id, label: q.label.trim() }))
+            .filter((q) => q.label !== "")
+        : [],
       isSecret,
       secretCode: finalCode,
       encryptedTicketID: editing?.encryptedTicketID, // preserve existing code if present; new tickets default to null which the server treats as non-secret
@@ -392,6 +428,50 @@ export function TicketDrawer({
               onChange={setRequestVehiclePhoto}
             />
             <RequirementToggle
+              title="Ask additional questions"
+              description="Request custom information"
+              checked={askQuestions}
+              onChange={handleToggleQuestions}
+            />
+            {askQuestions && (
+              <div className="pl-1 pr-1 pb-1 space-y-2">
+                {questions.map((q, i) => (
+                  <div key={q.id} className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      className="input flex-1"
+                      placeholder={`Question ${i + 1}, e.g. Any dietary requirements?`}
+                      value={q.label}
+                      onChange={(e) => updateQuestion(q.id, e.target.value)}
+                      aria-label={`Question ${i + 1}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addQuestionAfter(i)}
+                      aria-label="Add another question"
+                      title="Add another question"
+                      className="w-9 h-9 shrink-0 rounded-lg border border-ink-200 bg-white text-gold-700 hover:border-gold-500 hover:bg-gold-50 flex items-center justify-center transition"
+                    >
+                      <i className="fa-solid fa-plus" aria-hidden />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => removeQuestion(q.id)}
+                      aria-label="Remove question"
+                      title="Remove question"
+                      className="w-9 h-9 shrink-0 rounded-lg border border-ink-200 bg-white text-ink-400 hover:border-red-300 hover:text-red-600 flex items-center justify-center transition"
+                    >
+                      <i className="fa-solid fa-xmark" aria-hidden />
+                    </button>
+                  </div>
+                ))}
+                <p className="text-xs text-ink-500">
+                  Buyers answer these for each ticket at checkout. Answers
+                  show on the order, the tickets list and in exports.
+                </p>
+              </div>
+            )}
+            <RequirementToggle
               title="Secret ticket"
               description="Only accessible via code"
               checked={isSecret}
@@ -434,6 +514,11 @@ export function TicketDrawer({
       />
     </>
   );
+}
+
+/** Fresh question row with a stable id (kept across label edits). */
+function newQuestion(): TicketQuestion {
+  return { id: `q_${Math.random().toString(36).slice(2, 10)}`, label: "" };
 }
 
 function RequirementToggle({

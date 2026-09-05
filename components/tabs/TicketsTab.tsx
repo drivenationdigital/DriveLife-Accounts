@@ -21,6 +21,11 @@ import { DownloadIcon, SearchIcon } from "@/components/ui/Icons";
 import { Pagination } from "@/components/ui/Pagination";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { Lightbox, PhotoThumb } from "@/components/ui/Lightbox";
+import {
+  ResponsesLink,
+  ResponsesModal,
+  type ResponseGroup,
+} from "@/components/ui/ResponsesModal";
 
 const PER_PAGE = 50;
 
@@ -66,6 +71,8 @@ export function TicketsTab() {
 
   // Full-size view of a clicked vehicle-photo thumbnail.
   const [lightbox, setLightbox] = useState<string | null>(null);
+  // "View responses" modal for a ticket's custom-question answers.
+  const [responses, setResponses] = useState<ResponseGroup[] | null>(null);
 
   // Debounce typing before it hits the network.
   const debouncedSearch = useDebounced(search, 350);
@@ -205,6 +212,7 @@ export function TicketsTab() {
                 <th>Car</th>
                 <th>Car Club</th>
                 <th>Photo</th>
+                <th>Additional info</th>
               </tr>
             </thead>
             <tbody>
@@ -267,13 +275,30 @@ export function TicketsTab() {
                       <span style={{ color: "var(--muted)" }}>-</span>
                     )}
                   </td>
+                  <td>
+                    {t.customAnswers.length > 0 ? (
+                      <ResponsesLink
+                        ariaLabel={`View responses for ticket ${t.id}`}
+                        onOpen={() =>
+                          setResponses([
+                            {
+                              title: `${t.ticketName || "Ticket"} · #${t.id}`,
+                              answers: t.customAnswers,
+                            },
+                          ])
+                        }
+                      />
+                    ) : (
+                      <span style={{ color: "var(--muted)" }}>-</span>
+                    )}
+                  </td>
                 </tr>
               ))}
 
               {rows.length === 0 && !isFirstLoad && (
                 <tr>
                   <td
-                    colSpan={9}
+                    colSpan={10}
                     style={{
                       textAlign: "center",
                       padding: "32px 16px",
@@ -299,6 +324,14 @@ export function TicketsTab() {
           />
         )}
       </div>
+
+      {responses && (
+        <ResponsesModal
+          title="Additional info"
+          groups={responses}
+          onClose={() => setResponses(null)}
+        />
+      )}
 
       {lightbox && (
         <Lightbox

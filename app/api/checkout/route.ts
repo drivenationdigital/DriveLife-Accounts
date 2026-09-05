@@ -174,7 +174,33 @@ function normaliseTicket(row: RawRow) {
       collectionDelivery: flag(row.collection_delivery),
     },
     collectionInformation: str(row.collection_information),
+    customQuestions: parseCustomQuestions(row.custom_questions),
   };
+}
+
+/** carevents_ticket_meta.custom_questions (JSON text, or absent on a
+ *  backend without the column) → [{id, label}]. */
+function parseCustomQuestions(raw: unknown): { id: string; label: string }[] {
+  let list: unknown = raw;
+  if (typeof raw === "string") {
+    if (!raw.trim()) return [];
+    try {
+      list = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  const out: { id: string; label: string }[] = [];
+  list.forEach((q, i) => {
+    if (!q || typeof q !== "object") return;
+    const rec = q as Record<string, unknown>;
+    const label = typeof rec.label === "string" ? rec.label.trim() : "";
+    if (!label) return;
+    const id = typeof rec.id === "string" && rec.id ? rec.id : `q${i}`;
+    out.push({ id, label });
+  });
+  return out;
 }
 
 type Body = { action?: string } & Record<string, unknown>;

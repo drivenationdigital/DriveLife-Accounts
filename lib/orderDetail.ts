@@ -35,6 +35,9 @@ export interface OrderDetailItem {
   /** This ticket's event has already finished. */
   is_expired: boolean;
   meta: OrderDetailMeta;
+  /** Answers to the ticket's custom checkout questions; absent on
+   *  older backends. */
+  custom_answers?: { q: string; a: string }[];
   /** Base64 JPEG (no data: prefix). */
   qr_code: string;
   transaction_id: string;

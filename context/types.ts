@@ -114,8 +114,23 @@ export interface SoldTicket {
   isConcours: boolean;
   /** Checkout vehicle-photo URL, "" when none was uploaded. */
   vehiclePhoto: string;
+  /** Answers to the ticket's custom checkout questions; [] when none. */
+  customAnswers: CustomAnswer[];
   /** Encrypted order id for deep links; "" on older backends. */
   orderEid: string;
+}
+
+/** One answered custom checkout question. */
+export interface CustomAnswer {
+  q: string;
+  a: string;
+}
+
+/** One order item's answers, with the ticket they belong to. */
+export interface OrderCustomAnswers {
+  ticketName: string;
+  lineId: number | null;
+  answers: CustomAnswer[];
 }
 
 export interface Order {
@@ -127,6 +142,8 @@ export interface Order {
   status: OrderStatus;
   date: string;
   encryptedId: string;
+  /** Per-ticket answers to custom checkout questions; [] when none. */
+  customAnswers: OrderCustomAnswers[];
 }
 
 export interface ShowCar {

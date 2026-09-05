@@ -1,4 +1,5 @@
 import type {
+  ApiOrderCustomAnswers,
   ApiAttendee,
   ApiCarClubRecord,
   ApiDiscount,
@@ -12,6 +13,7 @@ import type {
   EventResponse,
 } from "./apiTypes";
 import type {
+  CustomAnswer,
   ApplicationStatus,
   CarPhotoClass,
   Club,
@@ -270,6 +272,22 @@ export interface MappableOrder {
   /** Raw order status from the API, when available (e.g. "cancelled",
    *  "refunded", "completed"). Preferred over the amount heuristic. */
   status?: string;
+  /** Per-ticket custom-question answers; absent on older backends. */
+  custom_answers?: ApiOrderCustomAnswers[];
+}
+
+/** Tolerant [{q, a}] reader - drops anything malformed or blank. */
+function mapCustomAnswers(raw: unknown): CustomAnswer[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CustomAnswer[] = [];
+  for (const row of raw) {
+    if (!row || typeof row !== "object") continue;
+    const rec = row as Record<string, unknown>;
+    const q = typeof rec.q === "string" ? rec.q.trim() : "";
+    const a = typeof rec.a === "string" ? rec.a.trim() : "";
+    if (q && a) out.push({ q, a });
+  }
+  return out;
 }
 
 function mapOrderStatus(
@@ -307,6 +325,13 @@ export function mapOrder(
     amount: o.total_amount,
     status: mapOrderStatus(o),
     date: formatOrderDate(o.date_created, region),
+    customAnswers: (o.custom_answers ?? [])
+      .map((g) => ({
+        ticketName: typeof g?.ticket_name === "string" ? g.ticket_name : "",
+        lineId: typeof g?.line_id === "number" ? g.line_id : null,
+        answers: mapCustomAnswers(g?.answers),
+      }))
+      .filter((g) => g.answers.length > 0),
   };
 }
 
@@ -337,6 +362,7 @@ export function mapSoldTicket(a: ApiAttendee): SoldTicket {
     carClub: text(a.car_club),
     isConcours: a.is_concours === true,
     vehiclePhoto: text(a.vehicle_photo),
+    customAnswers: mapCustomAnswers(a.custom_answers),
     orderEid: text(a.order_eid),
   };
 }

@@ -37,6 +37,11 @@ import {
 } from "@/components/ui/Icons";
 import { Pagination } from "@/components/ui/Pagination";
 import { clickableRow } from "@/components/ui/clickableRow";
+import {
+  ResponsesLink,
+  ResponsesModal,
+  type ResponseGroup,
+} from "@/components/ui/ResponsesModal";
 
 const PER_PAGE = 50;
 
@@ -75,6 +80,8 @@ export function OrdersTab() {
   const [page, setPage] = useState(() =>
     pageFromQuery(searchParams?.get("ordersPage")),
   );
+  // "View responses" modal for an order's custom-question answers.
+  const [responses, setResponses] = useState<ResponseGroup[] | null>(null);
 
   // Debounce typing before it hits the network.
   const debouncedSearch = useDebounced(search, 350);
@@ -302,6 +309,7 @@ export function OrdersTab() {
               <th>Amount</th>
               <th>Status</th>
               <th>Date</th>
+              <th>Additional info</th>
               <th></th>
             </tr>
           </thead>
@@ -347,6 +355,25 @@ export function OrdersTab() {
                 </td>
                 <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
                   {o.date}
+                </td>
+                <td>
+                  {o.customAnswers.length > 0 ? (
+                    <ResponsesLink
+                      ariaLabel={`View responses for order #${o.id}`}
+                      onOpen={() =>
+                        setResponses(
+                          o.customAnswers.map((g) => ({
+                            title: g.lineId
+                              ? `${g.ticketName || "Ticket"} · #${g.lineId}`
+                              : g.ticketName || "Ticket",
+                            answers: g.answers,
+                          })),
+                        )
+                      }
+                    />
+                  ) : (
+                    <span style={{ color: "var(--muted)" }}>-</span>
+                  )}
                 </td>
                 <td style={{ width: 44, textAlign: "right" }}>
                   <Dropdown className="row-action">
@@ -416,7 +443,7 @@ export function OrdersTab() {
             {rows.length === 0 && !isFirstLoad && (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   style={{
                     textAlign: "center",
                     padding: "32px 16px",
@@ -432,6 +459,14 @@ export function OrdersTab() {
             )}
           </tbody>
         </table>
+
+        {responses && (
+          <ResponsesModal
+            title="Additional info"
+            groups={responses}
+            onClose={() => setResponses(null)}
+          />
+        )}
 
         {totalPages > 1 && (
           <Pagination

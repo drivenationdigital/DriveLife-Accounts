@@ -393,6 +393,26 @@ function TicketCard({
           )
         )}
 
+        {!editing && (item.custom_answers?.length ?? 0) > 0 && (
+          <div
+            className="ticket-meta ticket-answers"
+            style={{ lineHeight: 1.7, marginTop: 8 }}
+          >
+            <p style={{ margin: "2px 0 4px" }}>
+              <b>Additional info:</b>
+            </p>
+            {(item.custom_answers ?? []).map((qa, i) => (
+              <p key={i} style={{ margin: "2px 0 6px" }}>
+                <span style={{ color: "var(--muted, #6b675f)", fontSize: 13 }}>
+                  {qa.q}
+                </span>
+                <br />
+                {qa.a}
+              </p>
+            ))}
+          </div>
+        )}
+
         <hr style={hrStyle} />
         <div className="ticket-product" style={{ lineHeight: 1.9 }}>
           <strong>1 × {item.product_title}</strong>

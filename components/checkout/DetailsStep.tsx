@@ -102,7 +102,32 @@ export function unitFieldSpecs(ticket: CheckoutTicket): UnitFieldSpec[] {
       kind: "checkbox",
     });
   }
+  // Custom questions. The "cq:" prefix marks a field the page folds
+  // into ONE cart meta value (`custom_answers`, JSON of question +
+  // answer) rather than syncing under its own key - see the page's
+  // syncUnitField.
+  for (const q of ticket.customQuestions ?? []) {
+    specs.push({ field: `${CUSTOM_QUESTION_PREFIX}${q.id}`, label: q.label, kind: "text" });
+  }
   return specs;
+}
+
+export const CUSTOM_QUESTION_PREFIX = "cq:";
+
+/** The `custom_answers` cart value for one unit: JSON of the answered
+ *  questions ([{id, q, a}]), or "" when nothing is answered yet. */
+export function customAnswersValue(
+  ticket: CheckoutTicket,
+  value: (field: string) => string,
+): string {
+  const list = (ticket.customQuestions ?? [])
+    .map((q) => ({
+      id: q.id,
+      q: q.label,
+      a: value(`${CUSTOM_QUESTION_PREFIX}${q.id}`).trim(),
+    }))
+    .filter((x) => x.a !== "");
+  return list.length ? JSON.stringify(list) : "";
 }
 
 /**
@@ -560,9 +585,18 @@ export function DetailsStep({
                         );
                       }
                       const locked = spec.field === "car_club" && !!cname;
+                      // Custom questions span the full card width on every
+                      // screen size; the fixed fields keep the two-column
+                      // layout on desktop.
+                      const fullWidth = spec.field.startsWith(
+                        CUSTOM_QUESTION_PREFIX,
+                      );
                       return (
-                        <Field
+                        <div
                           key={spec.field}
+                          className={fullWidth ? "sm:col-span-2" : "contents"}
+                        >
+                        <Field
                           label={spec.label}
                           required
                           error={fieldErrors[errKey]}
@@ -585,6 +619,7 @@ export function DetailsStep({
                             }
                           />
                         </Field>
+                        </div>
                       );
                     })}
                   </div>

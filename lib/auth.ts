@@ -177,7 +177,7 @@ export interface LoginFailure {
 const GENERIC_CREDENTIALS: LoginFailure = {
   field: null,
   code: "invalid_credentials",
-  message: "That email and password don't match an account.",
+  message: "Incorrect username or password",
 };
 
 /**
