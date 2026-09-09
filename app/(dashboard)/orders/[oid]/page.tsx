@@ -5,9 +5,11 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useOrderDetail, type OrderDetailItem } from "@/lib/orderDetail";
 import {
   useUpdateLineItemMeta,
+  useUpdateOrderCustomer,
   useResendOrder,
   useCancelOrder,
   orderTicketsUrl,
+  ticketDownloadUrl,
 } from "@/lib/orderActions";
 import {
   formatRegionDateString,
@@ -80,7 +82,61 @@ export default function OrderPage() {
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
+  const updateCustomer = useUpdateOrderCustomer();
   const runAction = useAction();
+
+  // Inline edit of the order's customer (name + email) from the header.
+  // Seeded from the order each time it opens, so a cancelled edit never
+  // leaks into the next one.
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [customerForm, setCustomerForm] = useState({
+    first_name: "",
+    last_name: "",
+    email: "",
+  });
+  const startCustomerEdit = () => {
+    if (!order) return;
+    setCustomerForm({
+      first_name: order.billing.first_name ?? "",
+      last_name: order.billing.last_name ?? "",
+      email: order.billing.email ?? "",
+    });
+    setEditingCustomer(true);
+  };
+  const saveCustomer = async () => {
+    if (!oid || updateCustomer.isPending) return;
+    const res = await runAction({
+      loadingLabel: "Saving customer details...",
+      successTitle: "Customer details updated",
+      errorTitle: "Couldn't save the customer details",
+      run: () =>
+        updateCustomer.mutateAsync({
+          oid,
+          customer: {
+            billing_first_name: customerForm.first_name.trim(),
+            billing_last_name: customerForm.last_name.trim(),
+            billing_email: customerForm.email.trim(),
+          },
+        }),
+    });
+    if (res) setEditingCustomer(false);
+  };
+  const customerField = (
+    key: keyof typeof customerForm,
+    placeholder: string,
+    type: "text" | "email" = "text",
+  ) => (
+    <input
+      type={type}
+      value={customerForm[key]}
+      placeholder={placeholder}
+      aria-label={placeholder}
+      onChange={(e) =>
+        setCustomerForm((f) => ({ ...f, [key]: e.target.value }))
+      }
+      style={metaInputStyle}
+    />
+  );
 
   const handleResend = () => {
     if (!oid || resend.isPending) return;
@@ -170,12 +226,43 @@ export default function OrderPage() {
                 {order.status_label}
               </span>
               <div className="order-customer">
-                <div className="order-customer-name">
-                  {order.billing.first_name} {order.billing.last_name}{" "}
-                  <span className="order-customer-email">
-                    ({order.billing.email})
-                  </span>
-                </div>
+                {editingCustomer ? (
+                  <div
+                    className="order-customer-edit"
+                    style={{ display: "grid", gap: 8, maxWidth: 420 }}
+                  >
+                    <div style={{ display: "flex", gap: 8 }}>
+                      {customerField("first_name", "First name")}
+                      {customerField("last_name", "Last name")}
+                    </div>
+                    {customerField("email", "Email address", "email")}
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        type="button"
+                        onClick={saveCustomer}
+                        disabled={updateCustomer.isPending}
+                        style={ticketSaveStyle}
+                      >
+                        {updateCustomer.isPending ? "Saving…" : "Save"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditingCustomer(false)}
+                        disabled={updateCustomer.isPending}
+                        style={ticketCancelStyle}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="order-customer-name">
+                    {order.billing.first_name} {order.billing.last_name}{" "}
+                    <span className="order-customer-email">
+                      ({order.billing.email})
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -201,6 +288,14 @@ export default function OrderPage() {
                   Resend Tickets
                 </button>
               )}
+              <button
+                type="button"
+                className="order-btn order-btn-gold-outline"
+                onClick={startCustomerEdit}
+                disabled={editingCustomer}
+              >
+                Edit
+              </button>
               {order.can_cancel && (
                 <button
                   type="button"
@@ -359,8 +454,8 @@ function TicketCard({
 
         {editing ? (
           <div className="ticket-meta-edit" style={{ margin: "12px 0" }}>
-            {field("full_name", "Meta name")}
-            {field("phone", "Meta phone")}
+            {field("full_name", "Name")}
+            {field("phone", "Phone number")}
             {field("car_make", "Car make")}
             {field("car_model", "Car model")}
             {field("car_reg", "Car reg")}
@@ -456,7 +551,7 @@ function TicketCard({
           />
         )}
         <a
-          href={item.download_url}
+          href={ticketDownloadUrl(item.download_url)}
           target="_blank"
           rel="noreferrer"
           className="ticket-download"

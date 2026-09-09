@@ -322,7 +322,7 @@ export function TicketsStep({
                 return (
                   <li
                     key={`section-${i}`}
-                    className="px-6 py-2.5 border-t border-ink-200 bg-ink-50 text-[11px] uppercase tracking-[0.14em] font-bold text-ink-500"
+                    className="px-6 py-2.5 border-t border-ink-200 bg-black text-[11px] uppercase tracking-[0.14em] font-bold text-white"
                   >
                     {t.name}
                   </li>

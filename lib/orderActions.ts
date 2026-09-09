@@ -114,6 +114,22 @@ export function useUpdateLineItemMeta() {
  * Uses NEXT_PUBLIC_CAREVENTS_URL when set, else the live carevents/uk
  * base (so it never falls back to a relative Next.js path, which 404s).
  */
+/**
+ * Absolute URL for a single-ticket PDF. The API hands back a relative
+ * "/controller/download?order=…&tid=…&single=…" path, which lives on
+ * the carevents site, not this app - rendered as-is it 404s on
+ * account.carevents.com. The endpoint is a directory, so the trailing
+ * slash is added too: without it Apache answers with a 301 to http://.
+ */
+export function ticketDownloadUrl(path: string): string {
+  if (/^https?:\/\//.test(path)) return path;
+  const base = (
+    process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com"
+  ).replace(/\/$/, "");
+  const fixed = path.replace(/^\/controller\/download(?=\?|$)/, "/controller/download/");
+  return `${base}${fixed.startsWith("/") ? "" : "/"}${fixed}`;
+}
+
 export function orderTicketsUrl(encryptedOrderId: string): string {
   const base = (
     process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com"
