@@ -25,25 +25,7 @@ import { useToast } from "@/context/ToastContext";
  * (embed - starting point, full feature TBD), Help & Support.
  */
 
-/**
- * While the new payment providers are still being tested, only this
- * user sees them. Everyone else gets Stripe exactly as before.
- *
- * A UI gate, NOT a security control - the API routes behind these cards
- * are still reachable by anyone who calls them directly. It exists to
- * stop organisers finding half-tested payment options, not to protect
- * anything. Remove it once Square, Mollie and PayPal are signed off.
- */
-const PAYMENT_PROVIDER_PREVIEW_USER_ID = 1;
-
 export default function SettingsPage() {
-  const { data } = useAccount();
-  // Default to hidden: while the account query is still loading, and if
-  // it ever fails, an organiser should see the old Stripe-only page
-  // rather than a flash of options they can't use yet.
-  const showNewProviders =
-    data?.account.id === PAYMENT_PROVIDER_PREVIEW_USER_ID;
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 md:px-6">
       {/* Payment Settings */}
@@ -54,18 +36,14 @@ export default function SettingsPage() {
               isn't offered until 30 Sep 2026. Remove the wrapper div once
               PayPal is switched on. The note stays mounted and functional. */}
           <div style={{ display: "none" }}>
-            {showNewProviders && <CardProcessorNote />}
+            <CardProcessorNote />
           </div>
           <StripeCard />
-          {showNewProviders && (
-            <>
-              <SquareCard />
-              <MollieCard />
-              {/* PayPal shows as a "coming soon" placeholder until
-                  30 Sep 2026 - swap it back for <PaypalCard /> to enable. */}
-              <PaypalComingSoonCard />
-            </>
-          )}
+          <SquareCard />
+          <MollieCard />
+          {/* PayPal shows as a "coming soon" placeholder until
+              30 Sep 2026 - swap it back for <PaypalCard /> to enable. */}
+          <PaypalComingSoonCard />
         </div>
       </Section>
 

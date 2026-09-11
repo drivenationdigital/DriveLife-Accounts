@@ -47,16 +47,51 @@ const PHOTO_URL = `${WP_BASE}/get-tickets/next-photo-upload.php`;
 
 const AJAX_URL = `${WP_BASE}/wp-admin/admin-ajax.php`;
 
-class UpstreamError extends Error {}
+class UpstreamError extends Error {
+  /** Markup-stripped upstream body, kept even when the message is generic. */
+  detail: string;
+  constructor(message: string, detail = "") {
+    super(message);
+    this.detail = detail;
+  }
+}
+
+/**
+ * Best-effort `sub` claim from a dl-accounts JWT, for log lines only.
+ * No verification here - the PHP side verifies before trusting it.
+ */
+function jwtSub(token: string): string {
+  try {
+    const part = token.split(".")[1] ?? "";
+    const json = Buffer.from(
+      part.replace(/-/g, "+").replace(/_/g, "/"),
+      "base64",
+    ).toString("utf8");
+    return String((JSON.parse(json) as { sub?: unknown }).sub ?? "?");
+  } catch {
+    return "?";
+  }
+}
 
 /**
  * POST form-encoded fields to a PHP endpoint and parse the JSON it
  * echoes. Empty bodies and non-JSON output become typed errors
  * instead of client-side "Unexpected end of JSON input".
  */
+// Per-call ceiling on the PHP backend. Placing an order is the one call
+// that can legitimately run long (payment capture, order rows, the
+// confirmation emails) - it used to also generate every ticket PDF inline,
+// which is what pushed big orders past the old 25s and showed the
+// organiser "ticketing service unavailable" for an order that had in fact
+// completed. The PDFs now build in the background, but the save keeps a
+// generous ceiling so a slow mail relay can't produce the same false alarm.
+const DEFAULT_TIMEOUT_MS = 30_000;
+const SAVE_ORDER_TIMEOUT_MS = 120_000;
+
 async function phpPost(
   url: string,
   fields: Record<string, string>,
+  timeoutMs: number = DEFAULT_TIMEOUT_MS,
 ): Promise<unknown> {
   const body = new URLSearchParams(fields);
   const res = await fetch(url, {
@@ -64,7 +99,7 @@ async function phpPost(
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: body.toString(),
     cache: "no-store",
-    signal: AbortSignal.timeout(25_000),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const text = (await res.text()).trim();
   if (!res.ok) {
@@ -75,30 +110,42 @@ async function phpPost(
     // full body server-side (pm2 logs), and pass a trimmed version to
     // the client outside production so it shows up in the network tab
     // without having to shell into the server.
+    // Strip markup BEFORE logging. The server injects a ~80KB New Relic
+    // <script> at the top of every HTML error page, so logging the raw
+    // body's first 4000 chars captured nothing but minified JS and the
+    // actual PHP message never reached the logs (2026-09-07 outage).
+    const detail = text
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]*>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
     console.error(
-      `[checkout] ${url} -> HTTP ${res.status}\n${text.slice(0, 4000)}`,
+      `[checkout] ${url} -> HTTP ${res.status}\n${detail.slice(0, 4000)}`,
     );
     const showDetail =
       process.env.NODE_ENV !== "production" ||
       process.env.CHECKOUT_DEBUG_UPSTREAM === "1";
-    const detail = text
-      .replace(/<[^>]*>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
     throw new UpstreamError(
       showDetail && detail
         ? `Ticketing service error (HTTP ${res.status}) at ${url.split("/").pop()}: ${detail.slice(0, 400)}`
         : `Ticketing service error (HTTP ${res.status})`,
+      `HTTP ${res.status} at ${url.split("/").pop()}: ${detail.slice(0, 400)}`,
     );
   }
   if (!text) {
-    throw new UpstreamError("EMPTY_RESPONSE");
+    throw new UpstreamError(
+      "EMPTY_RESPONSE",
+      `HTTP ${res.status} with empty body at ${url.split("/").pop()}`,
+    );
   }
   try {
     return JSON.parse(text);
   } catch {
     throw new UpstreamError(
       `Unexpected response from ticketing service: ${text.slice(0, 160)}`,
+      `non-JSON body at ${url.split("/").pop()}: ${text.slice(0, 400)}`,
     );
   }
 }
@@ -217,6 +264,7 @@ export async function POST(request: NextRequest) {
   }
 
   const s = (key: string): string => str(body[key]);
+  let boxOffice: Record<string, string> | null = null;
 
   try {
     switch (body.action) {
@@ -605,20 +653,47 @@ export async function POST(request: NextRequest) {
         if (body.boxOffice) {
           const dashToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
           if (!dashToken) {
+            console.warn(
+              `[checkout][box-office] save refused: no dashboard cookie eid=${s("eventEid")} cart=${s("cartToken").slice(0, 12)}`,
+            );
             return err("Sign in to the dashboard to place box office orders.");
           }
           fields.admin_token = dashToken;
+          // Diagnostics (2026-09-09): one line per box-office save on
+          // the way in and on the way out, so a failing organiser can
+          // be matched to the PHP-side entry in dl-accounts.log.
+          boxOffice = {
+            user: jwtSub(dashToken),
+            eid: s("eventEid"),
+            cart: s("cartToken").slice(0, 12),
+            provider: s("provider") || "stripe",
+            paymentStatus: s("paymentStatus"),
+            marker: s("paymentIntentId"),
+          };
+          console.log(
+            `[checkout][box-office] save start ${JSON.stringify(boxOffice)}`,
+          );
         }
         for (const [name, value] of Object.entries(form)) {
           fields[`form[${name}]`] = str(value);
         }
-        const resp = (await phpPost(EMBED_URL, fields)) as Record<
+        const resp = (await phpPost(EMBED_URL, fields, SAVE_ORDER_TIMEOUT_MS)) as Record<
           string,
           unknown
         >;
         if (resp.status === "success" && resp.order_id) {
           const orderNumber = ccDecrypt(str(resp.order_id));
+          if (boxOffice) {
+            console.log(
+              `[checkout][box-office] save ok ${JSON.stringify({ ...boxOffice, order: orderNumber })}`,
+            );
+          }
           return NextResponse.json({ ...resp, order_number: orderNumber });
+        }
+        if (boxOffice) {
+          console.warn(
+            `[checkout][box-office] save rejected ${JSON.stringify({ ...boxOffice, status: resp.status, message: resp.message ?? null })}`,
+          );
         }
         return NextResponse.json(resp);
       }
@@ -652,10 +727,27 @@ export async function POST(request: NextRequest) {
         );
     }
   } catch (e) {
-    const message =
+    const detail =
+      e instanceof UpstreamError && e.detail
+        ? e.detail
+        : e instanceof Error
+          ? e.message
+          : String(e);
+    // Always say WHICH call failed, for whom. Before this the only trace
+    // of a failed save was the generic message the buyer saw.
+    console.error(
+      `[checkout] action=${str(body.action)} eid=${s("eventEid")} cart=${s("cartToken").slice(0, 12)} boxOffice=${body.boxOffice ? "yes" : "no"}${boxOffice ? " user=" + boxOffice.user : ""} failed: ${detail.slice(0, 600)}`,
+    );
+    let message =
       e instanceof UpstreamError && e.message !== "EMPTY_RESPONSE"
         ? e.message
         : "The ticketing service is unavailable. Please try again.";
+    // Box-office callers are signed-in organisers working from the
+    // dashboard, not the public: hand them the upstream reason so the
+    // failure can be diagnosed from the screen without server access.
+    if (body.boxOffice && e instanceof UpstreamError && e.detail) {
+      message += ` [${e.detail.slice(0, 300)}]`;
+    }
     return NextResponse.json({ status: "error", message });
   }
 }
