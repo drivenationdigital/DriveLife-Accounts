@@ -47,6 +47,9 @@ export function EventHero() {
   const del = useDeleteEvent();
 
   const eventUrl = `https://${event.url}`;
+  // A draft has no public page - its permalink 404s on carevents.com -
+  // so the link row and the View button are withheld until it's live.
+  const isDraft = event.status === "draft";
 
   const copyUrl = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -186,27 +189,29 @@ export function EventHero() {
               </span>
             </div>
 
-            <div className="event-url">
-              <LinkIcon
-                style={{
-                  width: 14,
-                  height: 14,
-                  flexShrink: 0,
-                  color: "var(--muted)",
-                }}
-              />
-              <a href={eventUrl} target="_blank" rel="noopener noreferrer">
-                {event.url}
-              </a>
-              <button
-                type="button"
-                className="copy-btn"
-                title="Copy link"
-                onClick={copyUrl}
-              >
-                <CopyIcon />
-              </button>
-            </div>
+            {!isDraft && (
+              <div className="event-url">
+                <LinkIcon
+                  style={{
+                    width: 14,
+                    height: 14,
+                    flexShrink: 0,
+                    color: "var(--muted)",
+                  }}
+                />
+                <a href={eventUrl} target="_blank" rel="noopener noreferrer">
+                  {event.url}
+                </a>
+                <button
+                  type="button"
+                  className="copy-btn"
+                  title="Copy link"
+                  onClick={copyUrl}
+                >
+                  <CopyIcon />
+                </button>
+              </div>
+            )}
 
           </div>
 
@@ -220,13 +225,15 @@ export function EventHero() {
             >
               <EditIcon /> Edit Event
             </button>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={openPublic}
-            >
-              <ExternalLinkIcon /> View
-            </button>
+            {!isDraft && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={openPublic}
+              >
+                <ExternalLinkIcon /> View
+              </button>
+            )}
 
             <Dropdown>
               <DropdownTrigger

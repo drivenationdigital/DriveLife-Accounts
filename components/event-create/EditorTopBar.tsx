@@ -26,27 +26,59 @@ export function EditorTopBar() {
   const { run, phase, isSaving } = useEditorSave();
   const region = useEventRegion();
 
-  // Whether the event is already live on the server. Drives the CTA
-  // wording: publishing is a one-way moment; after that the same
-  // button is just saving changes.
-  const alreadyPublished = state.livePostStatus === "publish";
-
-  // The topbar's rocket is an explicit "go live" - it publishes
-  // regardless of the panel selection, except when the user has set up
-  // a schedule (in which case we honour it and save as scheduled).
+  // The topbar button does exactly what the Publish panel's radio says
+  // - nothing more. It used to force "published" whenever the event
+  // wasn't live yet, which made sense for a brand-new event (the radio
+  // defaults to Publish now anyway) but trapped an organiser who had
+  // taken a live event back to Draft: every later edit could only be
+  // saved by publishing again. Now Draft saves a draft, Publish now
+  // publishes, Schedule schedules, and the label says which.
+  //
   // Saving keeps you in the editor; useEditorSave pops the success
   // toast and refreshes the save-state pill.
-  const onPublish = async () => {
+  const onSave = async () => {
     if (isSaving) return;
     try {
-      await run({
-        overrideStatus:
-          state.status === "scheduled" ? "scheduled" : "published",
-      });
+      await run();
     } catch {
       // Error surfaces via `phase` on the status pill below.
     }
   };
+
+  // What the server holds right now, as opposed to what the radio says.
+  const alreadyPublished = state.livePostStatus === "publish";
+  const alreadyScheduled = state.livePostStatus === "future";
+  const currentlyVisible = alreadyPublished || alreadyScheduled;
+
+  // Whether this click takes the event from not-live to live (or
+  // scheduled) - the one-way moment that earns the rocket. Everything
+  // else, including unpublishing, is a plain save.
+  const willGoLive =
+    (state.status === "published" && !alreadyPublished) ||
+    (state.status === "scheduled" && !alreadyScheduled);
+
+  // Short enough for the mobile topbar; the Publish panel's big button
+  // carries the longer wording. "Save as draft" flags the one case
+  // where a save changes visibility: a live or scheduled event being
+  // pulled back to draft.
+  const ctaLabel =
+    state.status === "draft"
+      ? currentlyVisible
+        ? "Save as draft"
+        : "Save"
+      : state.status === "scheduled"
+        ? alreadyScheduled
+          ? "Save"
+          : "Schedule"
+        : alreadyPublished
+          ? "Save"
+          : "Publish";
+  const busyLabel = willGoLive
+    ? state.status === "scheduled"
+      ? "Scheduling…"
+      : "Publishing…"
+    : "Saving…";
+  const ctaIcon = willGoLive ? "fa-solid fa-rocket" : "fa-solid fa-floppy-disk";
 
   // `encryptedId` is set once the event exists server-side. Before that
   // - a brand new event still being drafted - there is no overview page
@@ -139,36 +171,25 @@ export function EditorTopBar() {
           </a>
         )} */}
 
-        {/* Publish/Save - primary CTA. Label hides on phones, icon
-            stays. Reads "Save" once the event is already live. */}
+        {/* Save/Publish - primary CTA. Wording and icon follow the
+            Publish panel's radio plus what the server currently holds
+            (see ctaLabel above). */}
         <button
           type="button"
-          onClick={onPublish}
+          onClick={onSave}
           disabled={isSaving}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <i
             className={`text-xs ${
-              isSaving
-                ? "fa-solid fa-spinner fa-spin"
-                : alreadyPublished
-                  ? "fa-solid fa-floppy-disk"
-                  : "fa-solid fa-rocket"
+              isSaving ? "fa-solid fa-spinner fa-spin" : ctaIcon
             }`}
             aria-hidden
           />
           {/* Label shows on all breakpoints - a bare icon on phones
-              read as ambiguous, and "Save"/"Publish" is short enough
-              to fit the mobile topbar. */}
-          <span>
-            {isSaving
-              ? alreadyPublished
-                ? "Saving…"
-                : "Publishing…"
-              : alreadyPublished
-                ? "Save"
-                : "Publish"}
-          </span>
+              read as ambiguous, and every variant is short enough to
+              fit the mobile topbar. */}
+          <span>{isSaving ? busyLabel : ctaLabel}</span>
         </button>
       </div>
     </header>

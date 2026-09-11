@@ -96,18 +96,59 @@ export function DatesPanel() {
       });
       return;
     }
+    // The end date follows the start date unless the user has set it
+    // to something else on purpose. "On purpose" is detected without a
+    // flag: an end date that is empty, or still equal to the start
+    // date it was last synced to, has never been chosen independently
+    // (most events are single-day, so this saves a second trip into
+    // the picker). A deliberately later end date - a multi-day event -
+    // is left alone, with one exception: an end date that would now
+    // fall BEFORE the new start date is impossible, so it snaps to the
+    // start date in every case.
+    //
+    // Dates are ISO yyyy-mm-dd strings, so plain string comparison is
+    // chronological.
+    if (pickerTarget.key === "startDate" && next) {
+      const end = state.endDate;
+      if (!end || end === state.startDate || end < next) {
+        dispatch({ type: "SET_FIELD", key: "endDate", value: next });
+      }
+    }
+    // Same rule from the other side: an end date picked before the
+    // start date is clamped to the start date rather than saved as an
+    // inverted range.
+    if (
+      pickerTarget.key === "endDate" &&
+      next &&
+      state.startDate &&
+      next < state.startDate
+    ) {
+      next = state.startDate;
+    }
+    // Recurring series: the "until" date can't precede the first date
+    // either. It is only ever moved when it would be inverted - an
+    // ongoing series has no until date to keep in sync.
+    if (
+      pickerTarget.key === "recurringFirstDate" &&
+      next &&
+      state.recurringUntilDate &&
+      state.recurringUntilDate < next
+    ) {
+      dispatch({ type: "SET_FIELD", key: "recurringUntilDate", value: next });
+    }
+    if (
+      pickerTarget.key === "recurringUntilDate" &&
+      next &&
+      state.recurringFirstDate &&
+      next < state.recurringFirstDate
+    ) {
+      next = state.recurringFirstDate;
+    }
     dispatch({
       type: "SET_FIELD",
       key: pickerTarget.key,
       value: next,
     });
-    // Picking a start date pre-fills an empty end date with the same
-    // day - most events are single-day, so this saves a second trip
-    // into the picker. An end date the user has already set is never
-    // overwritten.
-    if (pickerTarget.key === "startDate" && next && !state.endDate) {
-      dispatch({ type: "SET_FIELD", key: "endDate", value: next });
-    }
   };
 
   const goTo = (key: string) => {

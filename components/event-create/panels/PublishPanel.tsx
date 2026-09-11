@@ -133,6 +133,11 @@ export function PublishPanel() {
   const fullUrl =
     state.permalink.trim() ||
     `${siteBase}/${slugify(state.title) || "your-event"}`;
+  // Only a live event has a page to link to. A draft's permalink 404s
+  // on carevents.com (and a never-saved event has no real slug at
+  // all), so showing it invites copying a dead link - the card hides
+  // it until the event is actually published.
+  const showUrl = state.livePostStatus === "publish";
   // Display drops the scheme and truncates the last path segment so a
   // long slug doesn't blow out the card. The href and the clipboard
   // both carry the FULL url.
@@ -298,27 +303,41 @@ export function PublishPanel() {
               value={`${state.categoryIds.length} selected`}
             />
           </dl>
-          <div className="p-3 bg-white/10 border border-white/10 rounded-lg flex items-center gap-2">
-            <i
-              className="fa-solid fa-link text-gold-400 text-xs"
-              aria-hidden
-            />
-            <a
-              href={fullUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs font-mono text-ink-200 hover:text-white hover:underline transition truncate min-w-0 flex-1"
-            >
-              {summaryUrl}
-            </a>
-            <button
-              type="button"
-              onClick={onCopyUrl}
-              className="text-xs text-gold-400 hover:text-gold-300 transition font-semibold shrink-0"
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
-          </div>
+          {showUrl ? (
+            <div className="p-3 bg-white/10 border border-white/10 rounded-lg flex items-center gap-2">
+              <i
+                className="fa-solid fa-link text-gold-400 text-xs"
+                aria-hidden
+              />
+              <a
+                href={fullUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-mono text-ink-200 hover:text-white hover:underline transition truncate min-w-0 flex-1"
+              >
+                {summaryUrl}
+              </a>
+              <button
+                type="button"
+                onClick={onCopyUrl}
+                className="text-xs text-gold-400 hover:text-gold-300 transition font-semibold shrink-0"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          ) : (
+            <div className="p-3 bg-white/10 border border-white/10 rounded-lg flex items-center gap-2">
+              <i
+                className="fa-regular fa-eye-slash text-gold-400 text-xs"
+                aria-hidden
+              />
+              <span className="text-xs text-ink-200">
+                {state.livePostStatus === "future"
+                  ? "Your event link will appear here once it goes live."
+                  : "Your event link will appear here once it's published."}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 

@@ -103,7 +103,14 @@ interface SquareTokenResult {
 }
 
 interface SquareDigitalWallet {
-  attach: (target: string) => Promise<void>;
+  attach: (
+    target: string,
+    options?: {
+      buttonColor?: "default" | "black" | "white";
+      buttonSizeMode?: "static" | "fill";
+      buttonType?: "long" | "short";
+    },
+  ) => Promise<void>;
   tokenize: () => Promise<SquareTokenResult>;
   destroy?: () => Promise<void>;
 }
@@ -606,7 +613,15 @@ function SquarePanel({
           await googlePay.destroy?.();
           return;
         }
-        await googlePay.attach(`#${googlePayId}`);
+        // "fill" stretches the button to its container - the default
+        // "static" is a fixed ~240px, which looked stranded when Google
+        // Pay was the only wallet on offer and sat alone above the
+        // card form. Black matches the Apple Pay button beside it.
+        await googlePay.attach(`#${googlePayId}`, {
+          buttonColor: "black",
+          buttonSizeMode: "fill",
+          buttonType: "long",
+        });
         googlePayRef.current = googlePay;
         if (!cancelled) setGooglePayReady(true);
       } catch (e) {

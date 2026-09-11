@@ -77,6 +77,12 @@ export function useEditorSave() {
         encryptedId: res.encrypted_id,
         postId: res.event_id,
         livePostStatus: liveStatus,
+        // Publishing turns a draft's ?p= permalink into the real slug,
+        // and the Publish panel shows the URL the moment the event is
+        // live - so take the fresh one when the backend sends it.
+        ...(typeof res.permalink === "string" && res.permalink !== ""
+          ? { permalink: res.permalink }
+          : {}),
       },
     });
 

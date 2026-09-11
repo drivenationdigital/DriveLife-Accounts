@@ -155,6 +155,9 @@ export interface ApiEventUpdateResponse {
   event_id: number;
   encrypted_id: string;
   post_status: string;
+  /** Public URL after the save - pretty once published, the ?p= form
+   *  while a draft. Optional: older backends don't send it. */
+  permalink?: string;
   updated_at: string | null;
 }
 

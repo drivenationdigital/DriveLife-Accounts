@@ -17,6 +17,7 @@ import { PublishPanel } from "@/components/event-create/panels/PublishPanel";
 import { ShowCarsPanel } from "@/components/event-create/panels/ShowCarsPanel";
 import { TicketsPanel } from "@/components/event-create/panels/TicketsPanel";
 import { TradersPanel } from "@/components/event-create/panels/TradersPanel";
+import { SellTicketsPrompt } from "@/components/modals/SellTicketsPrompt";
 import { useEventCreate } from "@/context/EventCreateContext";
 import {
   DEFAULT_STEP,
@@ -187,6 +188,9 @@ function PageInner() {
         </div>
       </div>
       <EditorBottomBar />
+      {/* First-event nudge to connect a payment provider. Renders
+          nothing unless its conditions hold - see the component. */}
+      <SellTicketsPrompt />
     </>
   );
 }
