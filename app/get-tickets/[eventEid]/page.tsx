@@ -290,7 +290,9 @@ export default function GetTicketsPage({
   const [billing, setBilling] = useState<BillingState>(EMPTY_BILLING);
   const [attendee, setAttendee] = useState<AttendeeState>(EMPTY_ATTENDEE);
   const [heardAbout, setHeardAbout] = useState("");
-  const [futureUpdates, setFutureUpdates] = useState(true);
+  // Marketing consents, both pre-ticked. See DetailsStep for the copy.
+  const [marketingOrganiser, setMarketingOrganiser] = useState(true);
+  const [marketingCarevents, setMarketingCarevents] = useState(true);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -738,8 +740,14 @@ export default function GetTicketsPage({
       payment_method_title: PAYMENT_METHOD_TITLES[provider],
     };
     // Never opt a customer into marketing from a box-office order -
-    // they weren't the one ticking the box.
-    if (futureUpdates && !isBoxOffice) form.future_updates = "1";
+    // they weren't the one ticking the boxes.
+    if (!isBoxOffice) {
+      form.marketing_organiser = marketingOrganiser ? "1" : "0";
+      form.marketing_carevents = marketingCarevents ? "1" : "0";
+      // The key a backend from before the two consents reads; it maps
+      // to the same order column as marketing_organiser.
+      if (marketingOrganiser) form.future_updates = "1";
+    }
     if (showAttendee) {
       form.attendee_display = attendee.attendee_display ? "checked" : "";
       form.attendee_name = attendee.attendee_name;
@@ -1233,8 +1241,10 @@ export default function GetTicketsPage({
           showAttendee={showAttendee}
           heardAbout={heardAbout}
           onHeardAboutChange={setHeardAbout}
-          futureUpdates={futureUpdates}
-          onFutureUpdatesChange={setFutureUpdates}
+          marketingOrganiser={marketingOrganiser}
+          onMarketingOrganiserChange={setMarketingOrganiser}
+          marketingCarevents={marketingCarevents}
+          onMarketingCareventsChange={setMarketingCarevents}
           termsAccepted={termsAccepted}
           onTermsChange={setTermsAccepted}
           unitValue={unitValue}

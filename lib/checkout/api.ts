@@ -72,7 +72,9 @@ export interface CheckoutTicket {
   maxQuantity: number;
   isSection: boolean;
   soldOut: boolean;
-  /** ISO date when a not-yet-on-sale ticket goes live, else null. */
+  /** When a ticket is not on sale yet: the moment it goes live as
+   *  site-local wall-clock text, "YYYY-MM-DD HH:MM:SS" (no timezone -
+   *  format it, never parse it as an instant). Null when on sale. */
   earlyLiveDate: string | null;
   secretMatched: boolean;
   flags: CheckoutTicketFlags;

@@ -2,7 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { CheckoutTicket, CouponRow } from "@/lib/checkout/api";
-import { formatRegionCurrency, type Region } from "@/lib/regions";
+import {
+  DATE_STYLES,
+  formatRegionCurrency,
+  formatRegionDate,
+  formatRegionTime,
+  type Region,
+} from "@/lib/regions";
 import { ButtonSpinner } from "@/components/apply/ApplyIcons";
 
 /**
@@ -396,16 +402,7 @@ export function TicketsStep({
                         Goes live
                         <br />
                         <span className="font-semibold text-ink-700">
-                          {new Date(t.earlyLiveDate).toLocaleString(
-                            region.locale,
-                            {
-                              day: "2-digit",
-                              month: "2-digit",
-                              year: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            },
-                          )}
+                          {formatSaleStart(t.earlyLiveDate, region)}
                         </span>
                       </p>
                     ) : t.soldOut ? (
@@ -555,4 +552,16 @@ function CheckoutButton({
       {checkingOut ? "Reserving…" : "Checkout"}
     </button>
   );
+}
+
+/**
+ * "2026-10-01 09:00:00" (site-local wall clock) → "1 Oct 2026, 09:00" /
+ * "Oct 1, 2026, 9:00 AM". Formatted as a date plus a time of day rather
+ * than parsed as an instant, so the viewer's timezone never shifts it.
+ */
+function formatSaleStart(raw: string, region: Region): string {
+  const [datePart = "", timePart = ""] = raw.trim().split(/[ T]/);
+  const date = formatRegionDate(datePart, region, DATE_STYLES.shortWithYear);
+  const time = formatRegionTime(timePart.slice(0, 5), region);
+  return time ? `${date}, ${time}` : date;
 }

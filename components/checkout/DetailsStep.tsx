@@ -334,8 +334,10 @@ export function DetailsStep({
   showAttendee,
   heardAbout,
   onHeardAboutChange,
-  futureUpdates,
-  onFutureUpdatesChange,
+  marketingOrganiser,
+  onMarketingOrganiserChange,
+  marketingCarevents,
+  onMarketingCareventsChange,
   termsAccepted,
   onTermsChange,
   unitValue,
@@ -367,8 +369,14 @@ export function DetailsStep({
   showAttendee: boolean;
   heardAbout: string;
   onHeardAboutChange: (v: string) => void;
-  futureUpdates: boolean;
-  onFutureUpdatesChange: (v: boolean) => void;
+  /** "Keep me updated about future events from this event organiser" -
+   *  the organiser's own Brevo/Mailchimp list. */
+  marketingOrganiser: boolean;
+  onMarketingOrganiserChange: (v: boolean) => void;
+  /** "I'd like to hear about other future events from CarEvents.com" -
+   *  the CarEvents.com newsletter for this site. */
+  marketingCarevents: boolean;
+  onMarketingCareventsChange: (v: boolean) => void;
   termsAccepted: boolean;
   onTermsChange: (v: boolean) => void;
   unitValue: (pid: string, index: number, field: string) => string;
@@ -787,18 +795,34 @@ export function DetailsStep({
             onChange={(e) => onHeardAboutChange(e.target.value)}
           />
         </Field>
-        <label className="flex items-start gap-2.5 text-sm text-ink-700">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-gold-500 mt-0.5"
-            checked={futureUpdates}
-            onChange={(e) => onFutureUpdatesChange(e.target.checked)}
-          />
-          <span>
-            {event.newsletter_label ||
-              `Keep me updated about future events from ${event.company_name}.`}
-          </span>
-        </label>
+        {/* Two separate consents, both pre-ticked: the organiser's own
+            mailing list and the CarEvents.com newsletter. They go to
+            the backend as marketing_organiser / marketing_carevents. */}
+        <div className="space-y-3">
+          <label className="flex items-start gap-2.5 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-gold-500 mt-0.5"
+              checked={marketingOrganiser}
+              onChange={(e) => onMarketingOrganiserChange(e.target.checked)}
+            />
+            <span>
+              Keep me updated about future events from this event organiser
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 text-sm text-ink-700">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-gold-500 mt-0.5"
+              checked={marketingCarevents}
+              onChange={(e) => onMarketingCareventsChange(e.target.checked)}
+            />
+            <span>
+              I&apos;d like to hear about other future events from
+              CarEvents.com
+            </span>
+          </label>
+        </div>
         <div className="pt-1 space-y-3">
           <label className="flex items-start gap-2.5 text-sm text-ink-700">
             <input

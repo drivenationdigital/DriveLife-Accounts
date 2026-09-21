@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 
 import {
   type Ticket,
@@ -10,6 +11,8 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
+import type { SiteKey } from "@/lib/apiTypes";
+import { usePaymentProviders } from "@/lib/paymentProviders";
 import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -30,6 +33,11 @@ import { FullScreenDatePicker } from "./FullScreenDatePicker";
  * used in DatesPanel.
  */
 type DateTarget = "saleStart" | "saleEnd";
+
+/** The time inputs sit beside a full-width date button. `.input` (an
+ *  unlayered editor.css rule) sets width:100% and outranks Tailwind's
+ *  layered `w-*` utilities, so the width has to be inline. */
+const TIME_INPUT_STYLE = { width: "8.5rem", flex: "0 0 8.5rem" } as const;
 
 /**
  * Initial value for the quantity input: how many are still AVAILABLE,
@@ -54,9 +62,17 @@ export function TicketDrawer({
   isSaving = false,
   isDeleting = false,
   errorMessage = null,
+  eid = null,
+  site,
 }: {
   open: boolean;
   editing: Ticket | null;
+  /** The event being edited (server eid + its blog). Scopes the
+   *  payment-provider check to the event's primary organiser. Without
+   *  one (a brand-new, unsaved event) the signed-in user's own
+   *  connections are checked instead. */
+  eid?: string | null;
+  site?: SiteKey;
   onClose: () => void;
   onSave: (ticket: Ticket) => void;
   onRemove: (id: TicketId) => void;
@@ -70,6 +86,31 @@ export function TicketDrawer({
   // The event's region - drives the price field's currency symbol and
   // the date fields' day/month ordering.
   const region = useEventRegion();
+
+  // A paid ticket needs somewhere for the money to go. With nothing
+  // connected - no Stripe, Square, Mollie or PayPal - the price field
+  // is locked at free and says why, rather than letting an organiser
+  // set a price that the checkout has no account to charge to. Only a
+  // definite "nothing connected" locks it: while the status is still
+  // loading the field stays usable, so a slow request never blocks an
+  // organiser who is connected.
+  //
+  // "Connected" means connected on the EVENT'S PRIMARY ORGANISER - the
+  // first user in its organiser field - because that is the account
+  // the checkout charges through. A co-organiser or admin editing the
+  // event sees the owner's status, not their own, and the note names
+  // the owner rather than sending them to their own settings page.
+  const providers = usePaymentProviders(eid ? { eid, site } : undefined);
+  const canTakePayments = providers.data
+    ? providers.data.stripe_connected ||
+      providers.data.providers.square.connected ||
+      providers.data.providers.mollie.connected ||
+      providers.data.providers.paypal.connected
+    : true;
+  // Whose connections decided that. Absent (own status, or an older
+  // backend that ignores eid) reads as "you".
+  const paymentOwner = providers.data?.organiser ?? null;
+  const ownerIsSelf = !paymentOwner || paymentOwner.is_self;
   // Numeric inputs are stored as strings so the user can clear them
   // without React turning empty into NaN. We parse on save.
   const [name, setName] = useState(() => editing?.name ?? "");
@@ -95,6 +136,14 @@ export function TicketDrawer({
   );
   const [saleEnd, setSaleEnd] = useState<string | null>(
     () => editing?.saleEnd ?? null,
+  );
+  // Time of day for each bound, "HH:MM". Kept as strings for the native
+  // time inputs; empty when the matching date is unset.
+  const [saleStartTime, setSaleStartTime] = useState<string>(
+    () => (editing?.saleStart ? (editing.saleStartTime ?? "") : ""),
+  );
+  const [saleEndTime, setSaleEndTime] = useState<string>(
+    () => (editing?.saleEnd ? (editing.saleEndTime ?? "") : ""),
   );
   const [requireCarDetails, setRequireCarDetails] = useState(
     () => editing?.requireCarDetails ?? false,
@@ -179,9 +228,17 @@ export function TicketDrawer({
     }
   };
 
+  // A window that ends before it starts can never sell anything. Only
+  // checked when both bounds are set - either alone is an open-ended
+  // window and always valid.
+  const saleWindowInvalid =
+    !!saleStart &&
+    !!saleEnd &&
+    `${saleEnd} ${saleEndTime || "23:59"}` < `${saleStart} ${saleStartTime || "00:00"}`;
+
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || saleWindowInvalid) return;
     const id = editing?.id ?? (makeLocalId("tkt") as TicketId);
 
     // Belt-and-braces: if the user managed to save with secret on but
@@ -201,10 +258,18 @@ export function TicketDrawer({
       additionalInfo: additionalInfo.trim(),
       quantity: nextQuantity,
       quantitySold: sold,
-      price: Math.max(0, parseFloat(price)),
+      // Locked field: a new ticket is free, an existing one keeps the
+      // price it already had - the field showed it, greyed out.
+      price: canTakePayments
+        ? Math.max(0, parseFloat(price))
+        : editing && Number.isFinite(editing.price)
+          ? editing.price
+          : 0,
       limitPerOrder: parseFloat(limitPerOrder),
       saleStart,
       saleEnd,
+      saleStartTime: saleStart ? saleStartTime || null : null,
+      saleEndTime: saleEnd ? saleEndTime || null : null,
       requireCarDetails,
       requireCarClubName,
       individualAttendeeDetails,
@@ -264,7 +329,9 @@ export function TicketDrawer({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!name.trim() || isSaving || isDeleting}
+                disabled={
+                  !name.trim() || saleWindowInvalid || isSaving || isDeleting
+                }
                 className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
               >
                 {isSaving && (
@@ -372,28 +439,116 @@ export function TicketDrawer({
               type="number"
               inputMode="decimal"
               step="0.01"
-              className="input"
+              className="input disabled:bg-ink-100 disabled:text-ink-400 disabled:cursor-not-allowed"
               placeholder="0.00"
               value={price}
               onChange={(e) => setPrice(e.target.value)}
               min={0}
+              disabled={!canTakePayments}
+              aria-describedby={
+                canTakePayments ? undefined : "ticket-price-locked-note"
+              }
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
+        {/* Why the price is locked, with the way to unlock it. Sits
+            under the row so it reads as belonging to the price field
+            without squeezing the two-column grid. */}
+        {!canTakePayments && (
+          <p
+            id="ticket-price-locked-note"
+            className="-mt-2 text-xs leading-snug text-ink-500 flex items-start gap-2"
+          >
+            <i
+              className="fa-solid fa-circle-info text-gold-500 mt-0.5"
+              aria-hidden
+            />
+            {ownerIsSelf ? (
+              <span>
+                To take payments online, please visit the{" "}
+                <Link
+                  href="/settings"
+                  className="font-semibold text-gold-600 hover:text-gold-700 underline"
+                >
+                  settings page
+                </Link>{" "}
+                to connect a payment platform.
+              </span>
+            ) : (
+              <span>
+                To take payments online, this event&apos;s organiser
+                {paymentOwner?.name ? (
+                  <>
+                    {" "}
+                    (<strong className="font-semibold text-ink-700">{paymentOwner.name}</strong>)
+                  </>
+                ) : null}{" "}
+                needs to connect a payment platform on their settings page.
+                Payments always go to the first organiser listed on the
+                event.
+              </span>
+            )}
+          </p>
+        )}
+
+        {/* Sale window. Each bound is a date plus a time of day; the
+            time input only wakes up once a date is picked, and picking a
+            date seeds it with the whole-day default (00:00 / 23:59) so
+            what the organiser sees is exactly what gets stored. Leaving
+            a bound empty means no limit on that side. */}
+        <div className="space-y-3">
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
               On sale from
             </label>
-            {renderDateField("saleStart", saleStart)}
+            <div className="flex items-stretch gap-2">
+              <div className="flex-1 min-w-0">
+                {renderDateField("saleStart", saleStart)}
+              </div>
+              <input
+                type="time"
+                className="input disabled:bg-ink-100 disabled:text-ink-400 disabled:cursor-not-allowed"
+                style={TIME_INPUT_STYLE}
+                value={saleStartTime}
+                onChange={(e) => setSaleStartTime(e.target.value)}
+                disabled={!saleStart}
+                aria-label="On sale from - time"
+                title={saleStart ? "Time the ticket goes on sale" : "Pick a date first"}
+              />
+            </div>
           </div>
           <div>
             <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
               On sale until
             </label>
-            {renderDateField("saleEnd", saleEnd)}
+            <div className="flex items-stretch gap-2">
+              <div className="flex-1 min-w-0">
+                {renderDateField("saleEnd", saleEnd)}
+              </div>
+              <input
+                type="time"
+                className="input disabled:bg-ink-100 disabled:text-ink-400 disabled:cursor-not-allowed"
+                style={TIME_INPUT_STYLE}
+                value={saleEndTime}
+                onChange={(e) => setSaleEndTime(e.target.value)}
+                disabled={!saleEnd}
+                aria-label="On sale until - time"
+                title={saleEnd ? "Time sales close" : "Pick a date first"}
+              />
+            </div>
           </div>
+          {saleWindowInvalid ? (
+            <p className="text-xs text-red-600" role="alert">
+              Sales can&apos;t end before they start - check the dates and
+              times.
+            </p>
+          ) : (
+            <p className="text-xs text-ink-500">
+              Leave both blank to keep the ticket on sale indefinitely. Times
+              are in the event&apos;s local time.
+            </p>
+          )}
         </div>
 
         <div>
@@ -506,10 +661,21 @@ export function TicketDrawer({
         onChange={(next) => {
           if (pickerTarget === "saleStart") {
             setSaleStart(next);
+            // A fresh date gets the whole-day default time; clearing
+            // the date clears its time too.
+            if (!next) setSaleStartTime("");
+            else if (!saleStartTime) setSaleStartTime("00:00");
             // Pre-fill an empty end date with the start date; a value
             // the user already picked is never overwritten.
-            if (next && !saleEnd) setSaleEnd(next);
-          } else if (pickerTarget === "saleEnd") setSaleEnd(next);
+            if (next && !saleEnd) {
+              setSaleEnd(next);
+              if (!saleEndTime) setSaleEndTime("23:59");
+            }
+          } else if (pickerTarget === "saleEnd") {
+            setSaleEnd(next);
+            if (!next) setSaleEndTime("");
+            else if (!saleEndTime) setSaleEndTime("23:59");
+          }
         }}
       />
     </>

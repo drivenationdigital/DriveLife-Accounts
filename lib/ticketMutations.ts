@@ -59,6 +59,9 @@ export interface ApiTicketSaveBody {
   quantity?: number | null;
   saleStart?: string | null;
   saleEnd?: string | null;
+  /** "HH:MM" in the event's local time; null/absent = whole day. */
+  saleStartTime?: string | null;
+  saleEndTime?: string | null;
   limitPerOrder?: number | null;
   requireCarDetails?: boolean;
   requireCarClubName?: boolean;
@@ -99,6 +102,8 @@ export function mapTicketToBody(t: Ticket): ApiTicketSaveBody {
     quantity: Number.isFinite(t.quantity) ? t.quantity : null,
     saleStart: t.saleStart,
     saleEnd: t.saleEnd,
+    saleStartTime: t.saleStart ? (t.saleStartTime ?? null) : null,
+    saleEndTime: t.saleEnd ? (t.saleEndTime ?? null) : null,
     limitPerOrder: Number.isFinite(t.limitPerOrder) ? t.limitPerOrder : null,
     requireCarDetails: t.requireCarDetails,
     requireCarClubName: t.requireCarClubName,

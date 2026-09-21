@@ -188,12 +188,20 @@ function normaliseTicket(row: RawRow) {
     maxQuantity = limitPerOrder;
   }
 
+  // Sale window. The backend decides it in the site's local time (the
+  // clock the organiser set it in) and sends `sale_state`; the start is
+  // passed through as wall-clock text for display, never parsed as an
+  // instant here, which would shift it by this server's timezone. A
+  // backend without sale_state gets the old instant comparison.
   let earlyLiveDate: string | null = null;
   const startRaw = str(row.ticket_date_start);
-  if (startRaw) {
+  const saleState = str(row.sale_state);
+  if (saleState) {
+    if (saleState === "early" && startRaw) earlyLiveDate = startRaw;
+  } else if (startRaw) {
     const start = new Date(startRaw.replace(" ", "T"));
     if (!Number.isNaN(start.getTime()) && start.getTime() > Date.now()) {
-      earlyLiveDate = start.toISOString();
+      earlyLiveDate = startRaw;
     }
   }
 

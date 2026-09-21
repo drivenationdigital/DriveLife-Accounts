@@ -16,6 +16,16 @@ import {
   usePaypalConnectUrl,
   useSquareConnectUrl,
 } from "@/lib/paymentProviders";
+import {
+  MARKETING_PROVIDER_LABELS,
+  useConnectMarketing,
+  useDisconnectMarketing,
+  useMarketingLists,
+  useMarketingSettings,
+  useSaveMarketingList,
+  type MarketingList,
+  type MarketingProvider,
+} from "@/lib/marketingSettings";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 
@@ -45,6 +55,11 @@ export default function SettingsPage() {
               30 Sep 2026 - swap it back for <PaypalCard /> to enable. */}
           <PaypalComingSoonCard />
         </div>
+      </Section>
+
+      {/* Email marketing */}
+      <Section title="Email marketing settings">
+        <EmailMarketingCard />
       </Section>
 
       {/* Website Widgets */}
@@ -589,6 +604,422 @@ function CheckIcon() {
     >
       <polyline points="20 6 9 17 4 12" />
     </svg>
+  );
+}
+
+// ─── Email marketing card ─────────────────────────────────────────────
+
+const PROVIDER_HELP: Record<
+  MarketingProvider,
+  { where: string; url: string; listNoun: string }
+> = {
+  brevo: {
+    where: "Brevo → SMTP & API → API keys",
+    url: "https://app.brevo.com/settings/keys/api",
+    listNoun: "list",
+  },
+  mailchimp: {
+    where: "Mailchimp → Account & billing → Extras → API keys",
+    url: "https://admin.mailchimp.com/account/api/",
+    listNoun: "audience",
+  },
+};
+
+const marketingInputCls =
+  "w-full rounded-lg border border-ink-200 bg-ink-50/50 px-4 py-2.5 text-sm text-ink-700 focus:border-gold-400 focus:outline-none focus:ring-2 focus:ring-gold-500/20";
+
+/**
+ * Link a Brevo or Mailchimp account with an API key, then choose the
+ * list new contacts go to. Buyers who tick "Keep me updated about
+ * future events from this event organiser" at checkout are added to
+ * that list by the backend after the order completes.
+ *
+ * Two states: a connect form (provider + key) until a key has been
+ * verified, then the connected banner with the list chooser. The key
+ * itself never comes back from the server - only its last four
+ * characters - so reconnecting means pasting it again.
+ */
+function EmailMarketingCard() {
+  const { data, isLoading, error: loadError } = useMarketingSettings();
+  const connect = useConnectMarketing();
+  const fetchLists = useMarketingLists();
+  const saveList = useSaveMarketingList();
+  const disconnect = useDisconnectMarketing();
+  const confirm = useConfirm();
+  const toast = useToast();
+
+  const settings = data?.settings;
+  const connected = Boolean(settings?.connected);
+  const provider = settings?.provider ?? null;
+  const providerLabel = provider ? MARKETING_PROVIDER_LABELS[provider] : "";
+
+  // ---- Connect form ----
+  const [formProvider, setFormProvider] = useState<MarketingProvider>("brevo");
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  // ---- List chooser ----
+  // `lists` is null until fetched for the current connection; the
+  // connect response carries them so there is no second round-trip.
+  const [lists, setLists] = useState<MarketingList[] | null>(null);
+  const [listsError, setListsError] = useState<string | null>(null);
+  const [selectedList, setSelectedList] = useState<string>("");
+  const [listsFor, setListsFor] = useState<string | null>(null);
+
+  // The saved choice seeds the dropdown once settings arrive (and again
+  // after a disconnect/reconnect changes what is saved).
+  const savedListId = settings?.list_id ?? "";
+  const [seededFrom, setSeededFrom] = useState<string | null>(null);
+  if (settings && seededFrom !== `${provider}:${savedListId}`) {
+    setSeededFrom(`${provider}:${savedListId}`);
+    setSelectedList(savedListId);
+  }
+
+  const loadLists = async () => {
+    setListsError(null);
+    try {
+      const res = await fetchLists.mutateAsync();
+      setLists(res.lists);
+    } catch (err) {
+      setListsError(
+        err instanceof Error && err.message
+          ? err.message
+          : `Couldn't load your ${providerLabel} lists.`,
+      );
+    }
+  };
+
+  // Fetch the lists once per connection. Keyed on the provider + key
+  // hint so a reconnect with a different key refetches.
+  const connectionKey = connected
+    ? `${provider}:${settings?.api_key_hint ?? ""}`
+    : null;
+  useEffect(() => {
+    if (!connectionKey) {
+      setLists(null);
+      setListsFor(null);
+      return;
+    }
+    if (listsFor === connectionKey) return;
+    setListsFor(connectionKey);
+    if (lists === null) void loadLists();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [connectionKey]);
+
+  const onConnect = async () => {
+    setFormError(null);
+    const key = apiKey.trim();
+    if (!key) {
+      setFormError(`Paste your ${MARKETING_PROVIDER_LABELS[formProvider]} API key.`);
+      return;
+    }
+    try {
+      const res = await connect.mutateAsync({ provider: formProvider, api_key: key });
+      setApiKey("");
+      setShowKey(false);
+      setLists(res.lists);
+      setListsFor(`${res.settings.provider}:${res.settings.api_key_hint}`);
+      setListsError(res.lists_error);
+      toast.success(`${MARKETING_PROVIDER_LABELS[formProvider]} connected.`);
+    } catch (err) {
+      setFormError(
+        err instanceof Error && err.message
+          ? err.message
+          : `Couldn't connect ${MARKETING_PROVIDER_LABELS[formProvider]}.`,
+      );
+    }
+  };
+
+  const onSaveList = async () => {
+    const chosen = lists?.find((l) => l.id === selectedList);
+    try {
+      await saveList.mutateAsync({
+        list_id: selectedList,
+        list_name: chosen?.name ?? "",
+      });
+      toast.success(
+        selectedList
+          ? `New contacts will be added to "${chosen?.name ?? selectedList}".`
+          : "List cleared - no contacts will be added until you choose one.",
+      );
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message
+          ? err.message
+          : "Couldn't save the list. Please try again.",
+      );
+    }
+  };
+
+  const onDisconnect = async () => {
+    if (disconnect.isPending) return;
+    const ok = await confirm({
+      title: `Disconnect ${providerLabel}?`,
+      message:
+        "New checkout contacts will no longer be added to your list. Contacts already on it are not affected.",
+      confirmLabel: "Disconnect",
+      danger: true,
+    });
+    if (!ok) return;
+    try {
+      await disconnect.mutateAsync();
+      setLists(null);
+      setListsFor(null);
+      setSelectedList("");
+      toast.success(`${providerLabel} disconnected.`);
+    } catch {
+      toast.error(`Couldn't disconnect ${providerLabel}. Please try again.`);
+    }
+  };
+
+  const help = PROVIDER_HELP[formProvider];
+  const listNoun = provider ? PROVIDER_HELP[provider].listNoun : "list";
+  const listDirty = selectedList !== savedListId;
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between gap-4">
+        <h3 className="text-lg font-bold text-ink-900">Email marketing</h3>
+        {connected && (
+          <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 ring-1 ring-emerald-200">
+            {providerLabel}
+          </span>
+        )}
+      </div>
+      <p className="mt-1 text-sm text-ink-500">
+        Link Brevo or Mailchimp and every buyer who ticks{" "}
+        <em>&ldquo;Keep me updated about future events from this event
+        organiser&rdquo;</em>{" "}
+        at checkout is added to the list you choose, with their name and
+        phone number where given.
+      </p>
+
+      {isLoading ? (
+        <p className="mt-3 text-sm text-ink-400">Checking your email marketing connection…</p>
+      ) : loadError ? (
+        <p className="mt-3 text-sm text-red-600">
+          Couldn&apos;t load your email marketing settings. Refresh the page to
+          try again.
+        </p>
+      ) : connected && settings ? (
+        <>
+          <ConnectedBanner
+            title={`${providerLabel} is connected`}
+            detail={`Account: ${settings.account_name || "unnamed"}. API key ending ${settings.api_key_hint || "…"}.`}
+          />
+
+          <div className="mt-5 space-y-2">
+            <label
+              htmlFor="marketing-list"
+              className="block text-sm font-semibold text-ink-900"
+            >
+              Add new contacts to
+            </label>
+            {lists === null && !listsError ? (
+              <p className="text-sm text-ink-400">
+                Loading your {providerLabel} {listNoun}s…
+              </p>
+            ) : listsError ? (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                <p>{listsError}</p>
+                <button
+                  type="button"
+                  onClick={loadLists}
+                  disabled={fetchLists.isPending}
+                  className="mt-2 text-sm font-semibold text-amber-900 underline disabled:opacity-60"
+                >
+                  {fetchLists.isPending ? "Retrying…" : "Try again"}
+                </button>
+              </div>
+            ) : lists && lists.length === 0 ? (
+              <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                There are no {listNoun}s on this {providerLabel} account yet.
+                Create one in {providerLabel}, then{" "}
+                <button
+                  type="button"
+                  onClick={loadLists}
+                  className="font-semibold underline"
+                >
+                  refresh
+                </button>
+                .
+              </p>
+            ) : (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                <select
+                  id="marketing-list"
+                  className={marketingInputCls}
+                  value={selectedList}
+                  onChange={(e) => setSelectedList(e.target.value)}
+                >
+                  <option value="">— No {listNoun} (don&apos;t add contacts) —</option>
+                  {lists?.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.name}
+                      {l.contacts > 0 ? ` (${l.contacts.toLocaleString()})` : ""}
+                    </option>
+                  ))}
+                  {/* A saved list the fetch didn't return (deleted on
+                      the provider, or beyond the page limit) still
+                      shows so the organiser can see what is set. */}
+                  {savedListId &&
+                    !lists?.some((l) => l.id === savedListId) && (
+                      <option value={savedListId}>
+                        {settings.list_name || savedListId} (not found on{" "}
+                        {providerLabel})
+                      </option>
+                    )}
+                </select>
+                <button
+                  type="button"
+                  onClick={onSaveList}
+                  disabled={!listDirty || saveList.isPending}
+                  className="shrink-0 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-6 py-2.5 text-sm font-bold text-white transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saveList.isPending ? "Saving…" : "Save"}
+                </button>
+              </div>
+            )}
+
+            {savedListId ? (
+              <p className="text-xs text-ink-500">
+                New contacts are currently added to{" "}
+                <strong className="text-ink-700">
+                  {settings.list_name || savedListId}
+                </strong>
+                .
+              </p>
+            ) : (
+              <p className="text-xs font-semibold text-amber-700">
+                Choose a {listNoun} and save to start adding contacts.
+              </p>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={onDisconnect}
+            disabled={disconnect.isPending}
+            className="mt-5 inline-flex items-center gap-2 rounded-lg border border-red-200 bg-white px-5 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {disconnect.isPending ? "Disconnecting…" : `Disconnect ${providerLabel}`}
+          </button>
+        </>
+      ) : (
+        <div className="mt-4 space-y-4">
+          <div>
+            <p className="mb-2 text-sm font-semibold text-ink-900">
+              Choose a platform
+            </p>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {(Object.keys(MARKETING_PROVIDER_LABELS) as MarketingProvider[]).map(
+                (p) => {
+                  const active = formProvider === p;
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => {
+                        setFormProvider(p);
+                        setFormError(null);
+                      }}
+                      aria-pressed={active}
+                      className={`flex items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
+                        active
+                          ? "border-gold-500 bg-gold-50 ring-2 ring-gold-500/20"
+                          : "border-ink-200 bg-white hover:border-gold-300"
+                      }`}
+                    >
+                      <span>
+                        <span className="block text-sm font-bold text-ink-900">
+                          {MARKETING_PROVIDER_LABELS[p]}
+                        </span>
+                        <span className="block text-xs text-ink-500">
+                          {p === "brevo"
+                            ? "Contacts & lists"
+                            : "Audiences"}
+                        </span>
+                      </span>
+                      <span
+                        className={`flex h-5 w-5 items-center justify-center rounded-full border ${
+                          active
+                            ? "border-gold-500 bg-gold-500 text-white"
+                            : "border-ink-300 bg-white"
+                        }`}
+                        aria-hidden
+                      >
+                        {active && <CheckIcon />}
+                      </span>
+                    </button>
+                  );
+                },
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label
+              htmlFor="marketing-api-key"
+              className="mb-2 block text-sm font-semibold text-ink-900"
+            >
+              {MARKETING_PROVIDER_LABELS[formProvider]} API key
+            </label>
+            <div className="flex items-stretch gap-2">
+              <input
+                id="marketing-api-key"
+                type={showKey ? "text" : "password"}
+                className={`${marketingInputCls} font-mono`}
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                placeholder={
+                  formProvider === "brevo" ? "xkeysib-…" : "…-us21"
+                }
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <button
+                type="button"
+                onClick={() => setShowKey((v) => !v)}
+                className="shrink-0 rounded-lg border border-ink-200 bg-white px-3 text-xs font-semibold text-ink-600 transition hover:bg-ink-50"
+              >
+                {showKey ? "Hide" : "Show"}
+              </button>
+            </div>
+            <p className="mt-1.5 text-xs text-ink-500">
+              Create one under{" "}
+              <a
+                href={help.url}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-gold-600 hover:underline"
+              >
+                {help.where}
+              </a>
+              . It is stored encrypted and only ever used to add contacts to
+              the {help.listNoun} you pick.
+            </p>
+          </div>
+
+          {formError && (
+            <p className="text-sm font-semibold text-red-600" role="alert">
+              {formError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={onConnect}
+            disabled={connect.isPending}
+            className="inline-flex items-center gap-2 rounded-lg bg-gradient-to-r from-gold-500 to-gold-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm shadow-gold-500/20 transition hover:from-gold-600 hover:to-gold-700 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {connect.isPending
+              ? `Checking with ${MARKETING_PROVIDER_LABELS[formProvider]}…`
+              : `Connect ${MARKETING_PROVIDER_LABELS[formProvider]}`}
+          </button>
+        </div>
+      )}
+    </Card>
   );
 }
 

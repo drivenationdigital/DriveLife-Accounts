@@ -477,7 +477,9 @@ function mapTicketRow(row: ApiEventTicket): TicketListItem {
     quantitySold: parseCount(row.stock_sold),
     price: parseFloat(row.price),
     saleStart: extractIsoDate(row.ticket_date_start),
+    saleStartTime: extractIsoTime(row.ticket_date_start),
     saleEnd: extractIsoDate(row.ticket_date_end),
+    saleEndTime: extractIsoTime(row.ticket_date_end),
     // limit_per_order: 0 is the WP "no limit" sentinel. We translate
     // to NaN so the editor's `Number.isFinite` checks treat it as
     // unset (the limit field's placeholder text shows). If the user
@@ -520,9 +522,6 @@ function mapTicketList(rows: ApiEventTicket[]): TicketListItem[] {
  * Pull a "YYYY-MM-DD" out of the ticket table's "YYYY-MM-DD HH:MM:SS"
  * format. Returns null for missing/empty values so the editor's
  * datepicker treats the field as unset.
- *
- * The editor doesn't yet show the time portion of ticket sale
- * windows - only the date. Times default to 00:00 on save.
  */
 function extractIsoDate(raw: string | null): string | null {
   if (!raw) return null;
@@ -531,6 +530,17 @@ function extractIsoDate(raw: string | null): string | null {
   const datePart = trimmed.slice(0, 10);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(datePart)) return null;
   return datePart;
+}
+
+/**
+ * The "HH:MM" half of the same column, for the drawer's time inputs.
+ * Null when the value carries no time (or no value at all). The column
+ * holds the organiser's local wall-clock time, so no zone conversion.
+ */
+function extractIsoTime(raw: string | null): string | null {
+  if (!raw) return null;
+  const m = /^\d{4}-\d{2}-\d{2}[ T](\d{2}):(\d{2})/.exec(raw.trim());
+  return m ? `${m[1]}:${m[2]}` : null;
 }
 
 /**

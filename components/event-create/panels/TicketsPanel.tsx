@@ -17,6 +17,7 @@ import {
 import {
   formatRegionAmount,
   formatRegionShortDate,
+  formatRegionTime,
   type Region,
 } from "@/lib/regions";
 import {
@@ -728,6 +729,8 @@ export function TicketsPanel() {
         key={`tkt-${ticketDrawerOpen ? "open" : "closed"}-${editingTicket?.id ?? "new"}`}
         open={ticketDrawerOpen}
         editing={editingTicket}
+        eid={eid}
+        site={site}
         onClose={() => {
           // Reset any error from a previous failed save so the next
           // open of the drawer starts clean.
@@ -1073,6 +1076,18 @@ function RowActions({
  *  is shown too.
  *
  *  A NaN quantity means unlimited, so no stock line is shown at all. */
+/** ", 17:00" for a sale bound with a time of day; nothing for the
+ *  whole-day default (00:00 start / 23:59 end), which reads as noise. */
+function saleTimeSuffix(
+  time: string | null | undefined,
+  wholeDay: string,
+  region: Region,
+): string {
+  if (!time || time === wholeDay) return "";
+  const formatted = formatRegionTime(time, region);
+  return formatted ? `, ${formatted}` : "";
+}
+
 function ticketSubtitle(t: Ticket, region: Region): string {
   const parts: string[] = [];
   const available = t.quantity;
@@ -1087,9 +1102,13 @@ function ticketSubtitle(t: Ticket, region: Region): string {
   if (t.requireCarDetails) {
     parts.push("Requires car details");
   } else if (t.saleEnd) {
-    parts.push(`Sales end ${formatRegionShortDate(t.saleEnd, region)}`);
+    parts.push(
+      `Sales end ${formatRegionShortDate(t.saleEnd, region)}${saleTimeSuffix(t.saleEndTime, "23:59", region)}`,
+    );
   } else if (t.saleStart) {
-    parts.push(`On sale from ${formatRegionShortDate(t.saleStart, region)}`);
+    parts.push(
+      `On sale from ${formatRegionShortDate(t.saleStart, region)}${saleTimeSuffix(t.saleStartTime, "00:00", region)}`,
+    );
   } else {
     parts.push("On sale now");
   }

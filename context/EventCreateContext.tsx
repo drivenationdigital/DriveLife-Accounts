@@ -144,9 +144,16 @@ export type Ticket = {
   quantitySold: number;
   /** Price in major units (£), e.g. 12.5 for £12.50. Stored as number. */
   price: number;
-  /** ISO yyyy-mm-dd, or null if not set (defaults to "on sale now"). */
+  /** ISO yyyy-mm-dd, or null if not set. Neither set ⇒ on sale
+   *  indefinitely; only a start ⇒ "goes live" then on sale with no end;
+   *  only an end ⇒ on sale now until then. */
   saleStart: string | null;
   saleEnd: string | null;
+  /** Time of day for each bound, "HH:MM" in the event's local time.
+   *  Optional so older call sites keep typechecking: absent or null
+   *  means the whole day (00:00 for the start, 23:59 for the end). */
+  saleStartTime?: string | null;
+  saleEndTime?: string | null;
   /** Maximum tickets a single order can buy. NaN ⇒ unset. */
   limitPerOrder: number;
   /** Extra requirement toggles. `requireCarDetails` is the cue for

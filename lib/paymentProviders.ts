@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiPost } from "./apiClient";
+import type { SiteKey } from "./apiTypes";
 
 /**
  * Organiser-owned payment providers (PayPal and Square).
@@ -87,6 +88,18 @@ export interface PaymentProvidersResponse {
   card_processor: CardProcessor;
   /** True when a Stripe Connect account is linked. */
   stripe_connected: boolean;
+  /**
+   * Whose providers these are when the query was scoped to an event:
+   * the event's primary organiser (first user in its organiser field),
+   * which is the account the checkout charges through. Null (or absent
+   * on an older backend) for the caller's own providers.
+   */
+  organiser?: {
+    id: number;
+    name: string;
+    /** True when the primary organiser is the signed-in user. */
+    is_self: boolean;
+  } | null;
 }
 
 export interface SavePaypalBody {
@@ -123,14 +136,34 @@ export interface SaveProviderResponse {
   card_processor: CardProcessor;
 }
 
-export function usePaymentProviders() {
+/**
+ * Payment provider status.
+ *
+ * With no argument: the signed-in user's own connections (settings
+ * page). With `{ eid, site }`: the connections of that event's primary
+ * organiser - the first user in its organiser field - which is what the
+ * checkout charges through regardless of who is editing. The editor
+ * uses the scoped form so a co-organiser or admin sees the price field
+ * locked or unlocked by the owner's setup, not their own.
+ */
+export function usePaymentProviders(scope?: {
+  eid: string;
+  site?: SiteKey;
+}) {
+  const eid = scope?.eid ?? null;
   return useQuery<PaymentProvidersResponse, Error>({
-    queryKey: ["payment-providers"],
+    queryKey: ["payment-providers", eid ?? "me"],
     queryFn: () =>
-      apiPost<PaymentProvidersResponse, Record<string, never>>(
-        "/payment-providers",
-        {},
-      ),
+      eid
+        ? apiPost<PaymentProvidersResponse, { eid: string }>(
+            "/payment-providers",
+            { eid },
+            scope?.site ? { site: scope.site } : undefined,
+          )
+        : apiPost<PaymentProvidersResponse, Record<string, never>>(
+            "/payment-providers",
+            {},
+          ),
     staleTime: 30_000,
   });
 }
