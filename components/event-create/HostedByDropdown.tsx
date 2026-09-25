@@ -1,8 +1,12 @@
 "use client";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { useHostOptions, type HostOption } from "@/lib/hostOptions";
-import { useEventRegion } from "@/lib/useEventSteps";
+import {
+  useAllHostOptions,
+  useSuggestedSite,
+  type HostOption,
+} from "@/lib/hostOptions";
+import { DEFAULT_REGION_KEY, resolveRegion } from "@/lib/regions";
 
 /**
  * "Hosted by" dropdown - sits under the event title.
@@ -16,10 +20,14 @@ import { useEventRegion } from "@/lib/useEventSteps";
  * being created under, rather than have the field vanish and leave the
  * host unstated.
  *
- * The options are region-scoped - a club you admin in the UK isn't a
- * host you can pick for a US event - so the list reloads when the
- * country changes, and the region picker resets the selection to "Me"
- * rather than carrying a stale club id across.
+ * Clubs and venues from EVERY region are listed, each labelled with its
+ * country, and picking one switches the event's region to match - a
+ * club you admin in the UK can only host a UK event, so the host decides
+ * the country rather than the other way round. (Before this the list
+ * followed the country picker, which starts on the UK for everyone, so a
+ * US organiser saw only "Me" until they thought to change the country.)
+ * Changing the country by hand still resets the host to "Me", since the
+ * old host doesn't exist on the new region.
  *
  * Writes hostType / hostId / hostName into the create-event context;
  * the save mapper turns hostType into the legacy event_type.
@@ -32,10 +40,12 @@ const ME_OPTION: HostOption = { type: "me", id: null, name: "Me", role: "" };
 
 export function HostedByDropdown() {
   const { state, dispatch } = useEventCreate();
-  // Clubs and venues are per-region, so this list changes with the
-  // country picker above it.
-  const region = useEventRegion();
-  const { data, isLoading } = useHostOptions(region.key);
+  const { data, isLoading } = useAllHostOptions();
+  // The region the event is currently on, mirroring RegionSelector's
+  // fallback chain, so a host picked before any explicit country choice
+  // still compares against the right region.
+  const suggested = useSuggestedSite();
+  const currentSite = state.site ?? suggested ?? DEFAULT_REGION_KEY;
 
   // "Me" is guaranteed present. The API is documented to return it
   // first, but an empty list (a region with no host-options support, or
@@ -46,15 +56,16 @@ export function HostedByDropdown() {
     ? fetched
     : [ME_OPTION, ...fetched];
 
-  // Build a stable value string per option ("me", "club:123", …).
+  // Build a stable value string per option ("me", "club:uk:123", …).
+  // The region is part of it because post ids repeat across regions.
   const valueOf = (o: HostOption) =>
-    o.type === "me" ? "me" : `${o.type}:${o.id}`;
+    o.type === "me" ? "me" : `${o.type}:${o.site ?? ""}:${o.id}`;
   const storedValue =
-    state.hostType === "me" ? "me" : `${state.hostType}:${state.hostId}`;
-  // A stored host that isn't in this region's list would leave the
-  // select showing its first option while state still held the old id.
-  // Region changes already reset the host, so this only covers the gap
-  // while the new region's options are in flight.
+    state.hostType === "me"
+      ? "me"
+      : `${state.hostType}:${currentSite}:${state.hostId}`;
+  // A stored host that isn't in the list (still loading, or reset by a
+  // manual country change) shows as "Me" rather than the first option.
   const currentValue = options.some((o) => valueOf(o) === storedValue)
     ? storedValue
     : "me";
@@ -62,9 +73,23 @@ export function HostedByDropdown() {
   const onChange = (raw: string) => {
     const picked = options.find((o) => valueOf(o) === raw);
     if (!picked) return;
+    // A club or venue lives on one region: hosting under it puts the
+    // event there. Set the region first so the country picker follows.
+    if (picked.type !== "me" && picked.site && picked.site !== currentSite) {
+      dispatch({ type: "SET_FIELD", key: "site", value: picked.site });
+    }
     dispatch({ type: "SET_FIELD", key: "hostType", value: picked.type });
     dispatch({ type: "SET_FIELD", key: "hostId", value: picked.id });
     dispatch({ type: "SET_FIELD", key: "hostName", value: picked.name });
+  };
+
+  // "Burnyzz (Venue · USA)": the country tells the user which region
+  // the event will be created on when they pick it.
+  const labelOf = (o: HostOption) => {
+    if (o.type === "me") return "Me";
+    const kind = o.type === "club" ? "Club" : "Venue";
+    const abbr = o.site ? resolveRegion(o.site).abbr : "";
+    return `${o.name} (${kind}${abbr ? ` · ${abbr}` : ""})`;
   };
 
   return (
@@ -102,8 +127,7 @@ export function HostedByDropdown() {
         >
           {options.map((o) => (
             <option key={valueOf(o)} value={valueOf(o)}>
-              {o.type === "me" ? "Me" : `${o.name}`}
-              {o.type === "club" ? " (Club)" : o.type === "venue" ? " (Venue)" : ""}
+              {labelOf(o)}
             </option>
           ))}
         </select>

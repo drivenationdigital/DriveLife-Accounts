@@ -332,6 +332,22 @@ export async function POST(request: NextRequest) {
         return ok({ valid: !!resp.valid });
       }
 
+      case "resumeCart": {
+        // Abandoned-cart resume: get-tickets/next/retrieve-cart.php minted
+        // a cart carrying the buyer's billing details and sent them here
+        // with ?cart=. Verify it and hand the details back so the
+        // details step is prefilled. Only strings pass through.
+        const resp = (await phpPost(AJAX_URL, {
+          action: "verify_cart_token",
+          cart_token: s("cartToken"),
+        })) as { valid?: boolean; billing_fields?: Record<string, unknown> };
+        const billing: Record<string, string> = {};
+        for (const [k, v] of Object.entries(resp.billing_fields ?? {})) {
+          if (typeof v === "string") billing[k] = v;
+        }
+        return ok({ valid: !!resp.valid, billing });
+      }
+
       case "addToBasket": {
         const items = Array.isArray(body.items)
           ? (body.items as { pid: string; qty: number }[])
@@ -587,11 +603,16 @@ export async function POST(request: NextRequest) {
           );
         }
 
+        // An embedded checkout returns in the TOP window (Mollie's page
+        // cannot be framed), which has none of the iframe's storage - so
+        // the cart token rides on the return URL and the server-side
+        // stash (mollie.php) supplies the rest.
         const returnUrl =
           `${origin}/get-tickets/${encodeURIComponent(s("eventEid"))}` +
-          `?${MOLLIE_RETURN_PARAM}=1`;
+          `?${MOLLIE_RETURN_PARAM}=1` +
+          (body.embedded ? `&cart=${encodeURIComponent(s("cartToken"))}` : "");
 
-        const resp = (await phpPost(MOLLIE_URL, {
+        const createFields: Record<string, string> = {
           action: "create",
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
@@ -600,7 +621,14 @@ export async function POST(request: NextRequest) {
           // here. Empty means "use Mollie's hosted page".
           card_token: s("cardToken"),
           site: s("site") || "uk",
-        })) as Record<string, unknown>;
+        };
+        // The order form, for the webhook to complete the order with
+        // if the buyer never returns. Same flattening as saveOrder.
+        const mollieForm = (body.form ?? {}) as Record<string, unknown>;
+        for (const [name, value] of Object.entries(mollieForm)) {
+          createFields[`form[${name}]`] = str(value);
+        }
+        const resp = (await phpPost(MOLLIE_URL, createFields)) as Record<string, unknown>;
         if (resp.status !== "success") {
           return err(
             str(resp.message) || "Could not start the Mollie payment.",
@@ -626,14 +654,23 @@ export async function POST(request: NextRequest) {
           site: s("site") || "uk",
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
+          // mollie_status rides along so a poller can tell "still
+          // open, keep waiting" from a payment that actually failed.
           return err(
             str(resp.message) || "Mollie could not confirm this payment.",
+            { mollieStatus: str(resp.mollie_status) },
           );
         }
+        // order_completed: the webhook finished the order before the
+        // buyer got back. Hand the page what its confirmation needs.
+        const completed = resp.order_completed === true;
         return ok({
           transactionId: str(resp.transaction_id),
           paymentStatus: str(resp.payment_status),
           total: num(resp.total),
+          orderCompleted: completed,
+          orderId: completed ? str(resp.order_id) : "",
+          orderNumber: completed ? String(resp.order_number ?? "") : "",
         });
       }
 

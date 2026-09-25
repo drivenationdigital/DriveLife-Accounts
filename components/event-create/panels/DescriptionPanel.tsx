@@ -17,6 +17,7 @@ import { useUploadEventImage, useRemoveEventImage } from "@/lib/imageMutations";
 import { ApiError } from "@/lib/apiClient";
 
 import { PanelHeader } from "../PanelHeader";
+import { EventLogoField } from "../EventLogoField";
 import { EditorTextarea } from "../EditorTextarea";
 
 /**
@@ -27,6 +28,8 @@ import { EditorTextarea } from "../EditorTextarea";
  *      surface an upload UI later (when we wire image upload). For
  *      now, Replace prompts a URL paste, Remove clears the field.
  *      The full upload flow lives in the Gallery panel.
+ *      Followed by the optional event logo (EventLogoField), printed
+ *      on tickets and shown on the checkout and application forms.
  *
  *   2. About text - textarea with a decorative formatting toolbar.
  *      The toolbar buttons don't do anything; rich-text editing would
@@ -253,6 +256,9 @@ export function DescriptionPanel() {
           </p>
         )}
       </div>
+
+      {/* ---- Event logo (optional) ---- */}
+      <EventLogoField />
 
       {/* ---- Description with toolbar ---- */}
       <div className="mb-8">

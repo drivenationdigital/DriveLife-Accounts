@@ -584,7 +584,7 @@ function PaypalComingSoonCard() {
         <PaypalLogo className="h-7 w-auto shrink-0" />
       </div>
       <p className="mt-1 text-sm text-ink-500">
-        PayPal integration available from 30th September 2026
+        PayPal integration available from 30th October 2026
       </p>
     </Card>
   );

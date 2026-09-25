@@ -10,6 +10,7 @@ import { eventEditorPath } from "@/lib/siteRoutes";
 import { HostedByDropdown } from "@/components/event-create/HostedByDropdown";
 import { RegionSelector } from "@/components/event-create/RegionSelector";
 import { DEFAULT_REGION_KEY } from "@/lib/regions";
+import { useSuggestedSite } from "@/lib/hostOptions";
 
 /**
  * Create-event entry screen.
@@ -31,17 +32,17 @@ export default function CreateEventPage() {
 
   const [title, setTitle] = useState(state.title);
   const [error, setError] = useState<string | null>(null);
+  // Same fallback chain as RegionSelector, so what the picker shows is
+  // what the event is created on.
+  const suggestedSite = useSuggestedSite();
 
-  // Derive the legacy event_type from the host selection. Kept in sync
-  // with HOST_TYPE_TO_EVENT_TYPE in lib/eventMutations.ts.
-  const eventTypeFromHost = (
-    hostType: typeof state.hostType,
-  ): "general" | "dev_club" | "venue_dover" =>
-    hostType === "club"
-      ? "dev_club"
-      : hostType === "venue"
-        ? "venue_dover"
-        : "general";
+  // WP's ACF event_type select only knows 1=public, 2=private, 3=club,
+  // and every storefront listing keeps an event only when it is "1". The
+  // host (me/club/venue) travels separately as host_type/host_id, so a
+  // new event is always created public. The old host-derived placeholders
+  // ("general"/"dev_club"/"venue_dover") hid every event from search.
+  // Kept in sync with PUBLIC_EVENT_TYPE in lib/eventMutations.ts.
+  const eventTypeFromHost = (_hostType: typeof state.hostType): "1" => "1";
 
   const submit = async () => {
     const trimmed = title.trim();
@@ -59,7 +60,7 @@ export default function CreateEventPage() {
       // Default rather than omit: the region drives locale, currency
       // and whether the editor shows any ticketing at all, so the rest
       // of the flow always wants a concrete answer.
-      const site = state.site ?? DEFAULT_REGION_KEY;
+      const site = state.site ?? suggestedSite ?? DEFAULT_REGION_KEY;
       const result = await createEvent.mutateAsync({
         title: trimmed,
         event_type: eventTypeFromHost(state.hostType),

@@ -1,12 +1,14 @@
 "use client";
 
 import {
+  useEffect,
   useMemo,
   useRef,
   useState,
   type FormEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import DOMPurify from "isomorphic-dompurify";
 import type {
   CartData,
@@ -268,31 +270,99 @@ function PhotoField({
   );
 }
 
-function CollapsibleTerms({ event }: { event: CheckoutEvent }) {
-  const [open, setOpen] = useState(false);
-  const html = useMemo(() => {
-    const combined = [event.terms_html, event.site_terms_html]
-      .filter(Boolean)
-      .join("<hr />");
-    return DOMPurify.sanitize(combined);
-  }, [event.terms_html, event.site_terms_html]);
-  if (!html) return null;
-  return (
-    <div>
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="text-[13px] font-semibold text-gold-600 hover:text-gold-700 transition"
+/**
+ * Terms & conditions in a modal, opened from the link inside the
+ * "I accept the terms & conditions" label. Shows the event's own terms
+ * first, then the site terms, separated by a rule - the same combined
+ * HTML the old inline panel showed. "Accept & close" ticks the box for
+ * the buyer as well as closing. Portalled to <body> so the checkout
+ * card's own stacking and overflow can't clip it.
+ */
+function TermsModal({
+  html,
+  onClose,
+  onAccept,
+}: {
+  html: string;
+  onClose: () => void;
+  onAccept: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    // Stop the page scrolling behind the overlay.
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="checkout-terms-title"
+      onClick={onClose}
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-ink-900/75 p-0 sm:items-center sm:p-6"
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="flex max-h-[88vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:max-h-[85vh] sm:rounded-2xl"
       >
-        {open ? "Hide terms & conditions" : "View terms & conditions"}
-      </button>
-      {open && (
+        <div className="flex items-center justify-between gap-4 border-b border-ink-100 px-5 py-4">
+          <h2
+            id="checkout-terms-title"
+            className="text-base font-extrabold text-ink-900"
+          >
+            Terms &amp; conditions
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-ink-500 transition hover:bg-ink-100 hover:text-ink-900"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.5"
+              strokeLinecap="round"
+              aria-hidden
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         <div
-          className="mt-3 max-h-64 overflow-y-auto text-xs text-ink-600 leading-relaxed bg-ink-50 border border-ink-100 rounded-xl p-4 [&_h1]:text-sm [&_h1]:font-bold [&_h2]:text-[13px] [&_h2]:font-bold [&_p]:mb-2"
+          className="overflow-y-auto px-5 py-4 text-sm leading-relaxed text-ink-700 [&_a]:text-gold-600 [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-bold [&_hr]:my-5 [&_hr]:border-ink-100 [&_ol]:mb-3 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:list-disc [&_ul]:pl-5"
           dangerouslySetInnerHTML={{ __html: html }}
         />
-      )}
-    </div>
+        <div className="flex flex-col-reverse gap-2 border-t border-ink-100 px-5 py-4 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-ink-200 bg-white px-5 py-2.5 text-sm font-semibold text-ink-700 transition hover:bg-ink-50"
+          >
+            Close
+          </button>
+          <button
+            type="button"
+            onClick={onAccept}
+            className="rounded-lg bg-gold-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-gold-600"
+          >
+            Accept &amp; close
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -401,6 +471,16 @@ export function DetailsStep({
   boxOffice: boolean;
 }) {
   const units = useMemo(() => cartUnits(cart, tickets), [cart, tickets]);
+  // Terms & conditions modal, opened from the link in the accept label.
+  // Event terms first, then site terms; sanitised once per event.
+  const [termsOpen, setTermsOpen] = useState(false);
+  const termsHtml = useMemo(() => {
+    const combined = [event.terms_html, event.site_terms_html]
+      .filter(Boolean)
+      .join("<hr />");
+    return combined ? DOMPurify.sanitize(combined) : "";
+  }, [event.terms_html, event.site_terms_html]);
+
   const [couponCode, setCouponCode] = useState("");
   const [couponError, setCouponError] = useState<string | null>(null);
 
@@ -824,24 +904,53 @@ export function DetailsStep({
           </label>
         </div>
         <div className="pt-1 space-y-3">
-          <label className="flex items-start gap-2.5 text-sm text-ink-700">
+          {/* The checkbox and its wording are separate elements rather
+              than one wrapping <label>: a wrapping label would toggle
+              the box whenever the "terms & conditions" link was clicked.
+              The plain words still act as labels for the input. */}
+          <div className="flex items-start gap-2.5 text-sm text-ink-700">
             <input
+              id="checkout-accept-terms"
               type="checkbox"
               className="w-4 h-4 accent-gold-500 mt-0.5"
               checked={termsAccepted}
               onChange={(e) => onTermsChange(e.target.checked)}
             />
             <span>
-              I accept the terms &amp; conditions{" "}
+              <label htmlFor="checkout-accept-terms" className="cursor-pointer">
+                I accept the
+              </label>{" "}
+              {termsHtml ? (
+                <button
+                  type="button"
+                  onClick={() => setTermsOpen(true)}
+                  className="font-semibold text-gold-600 underline underline-offset-2 transition hover:text-gold-700"
+                >
+                  terms &amp; conditions
+                </button>
+              ) : (
+                <label htmlFor="checkout-accept-terms" className="cursor-pointer">
+                  terms &amp; conditions
+                </label>
+              )}{" "}
               <span className="text-gold-600">*</span>
             </span>
-          </label>
+          </div>
           {fieldErrors.terms && (
             <p className="text-xs text-red-600" role="alert">
               {fieldErrors.terms}
             </p>
           )}
-          <CollapsibleTerms event={event} />
+          {termsOpen && termsHtml && (
+            <TermsModal
+              html={termsHtml}
+              onClose={() => setTermsOpen(false)}
+              onAccept={() => {
+                onTermsChange(true);
+                setTermsOpen(false);
+              }}
+            />
+          )}
         </div>
       </Section>
       )}

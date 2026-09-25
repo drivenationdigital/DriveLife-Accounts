@@ -10,6 +10,7 @@ import { cx } from "@/lib/utils";
 import type { TabKey } from "@/context/types";
 
 import { OverviewTab } from "@/components/tabs/OverviewTab";
+import { AttendingTab } from "@/components/tabs/AttendingTab";
 import { OrdersTab } from "@/components/tabs/OrdersTab";
 import { TicketsTab } from "@/components/tabs/TicketsTab";
 import { ShowCarsTab } from "@/components/tabs/ShowCarsTab";
@@ -77,6 +78,17 @@ export function EventTabs() {
   const hasTickets = isSeriesParent || tickets.length > 0;
   const ordersVisible = ticketingVisible && hasTickets;
 
+  // Attending - who has said they're coming, via the event page's "I'm
+  // attending" button or the free registration checkout. Only for an
+  // event that doesn't sell tickets ("Not required") with "Require
+  // attendees to register" switched on; a series parent has no
+  // registrations of its own.
+  const attendingVisible =
+    !isSeriesParent &&
+    event.region.ticketing &&
+    event.ticketType === 1 &&
+    event.requiresRegistration;
+
   // Every count comes from `tabCounts` - the server's totals for the
   // whole event, not the length of whatever slice this page happens to
   // have loaded. That matters most for the application tabs: /event
@@ -90,6 +102,9 @@ export function EventTabs() {
           { key: "past",     label: "Past Events",     count: occurrenceCounts.past },
         ] as TabDef[])
       : ([{ key: "overview", label: "Overview" }] as TabDef[])),
+    ...(attendingVisible
+      ? ([{ key: "attending", label: "Attending", count: tabCounts.attending }] as TabDef[])
+      : []),
     ...(ordersVisible
       ? ([
           { key: "orders",   label: "Orders",    count: tabCounts.orders },
@@ -164,6 +179,7 @@ export function EventTabs() {
 
       <div className="tab-panel">
         {currentTab === "overview" && <OverviewTab />}
+        {currentTab === "attending" && <AttendingTab />}
         {currentTab === "upcoming" && <OccurrenceTable scope="upcoming" />}
         {currentTab === "past" && <OccurrenceTable scope="past" />}
         {currentTab === "orders" && <OrdersTab />}

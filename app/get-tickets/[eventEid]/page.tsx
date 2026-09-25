@@ -49,13 +49,15 @@ import {
 import {
   addToBasket,
   applyCoupon,
+  checkMolliePayment,
+  CheckoutError,
   checkSecretCode,
   clearCartData,
   createCart,
-  createPaymentIntent,
   createMolliePayment,
-  checkMolliePayment,
+  createPaymentIntent,
   fetchTotals,
+  isMolliePending,
   MOLLIE_RETURN_PARAM,
   registerForEvent,
   removeCartUnit,
@@ -64,17 +66,18 @@ import {
   saveAttendeeFields,
   saveBillingFields,
   saveOrder,
+  resumeCart,
   updateTicketMeta,
   uploadVehiclePhoto,
   useCheckoutInfo,
   useCheckoutTickets,
   verifyCart,
-  CheckoutError,
   type CartData,
   type CartTotals,
   type CheckoutProvider,
   type CouponRow,
   type PaymentProviderId,
+  type ProviderChargeResult,
   type SaveOrderResult,
 } from "@/lib/checkout/api";
 
@@ -154,6 +157,58 @@ const EMAIL_RE = /\S+@\S+\.\S+/;
  * history.replaceState on purpose: React state stays the source of
  * truth and no navigation/re-render is triggered.
  */
+/**
+ * localStorage that cannot throw. Inside a third-party iframe some
+ * browsers partition or refuse site storage; the checkout must still
+ * work (a lost cart token just means a fresh cart).
+ */
+function storageGet(key: string): string | null {
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+function storageSet(key: string, value: string) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    // Unavailable - carry on without persistence.
+  }
+}
+function storageRemove(key: string) {
+  try {
+    window.localStorage.removeItem(key);
+  } catch {
+    // Nothing to remove.
+  }
+}
+
+/** True when this page is framed on another site (/embed/checkout). */
+function isFramed(): boolean {
+  try {
+    return typeof window !== "undefined" && window.parent !== window;
+  } catch {
+    return true;
+  }
+}
+
+/**
+ * "<pid>:<qty>,<pid>:<qty>" from an abandoned-cart resume link → the
+ * quantities to pre-select. Malformed entries are dropped.
+ */
+function parseResumeQuantities(param: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const part of param.split(",")) {
+    const i = part.lastIndexOf(":");
+    if (i <= 0) continue;
+    const pid = part.slice(0, i).trim();
+    const qty = parseInt(part.slice(i + 1), 10);
+    if (pid && Number.isFinite(qty) && qty > 0) out[pid] = qty;
+  }
+  return out;
+}
+
 function setUrlParam(key: string, value: string | null) {
   const url = new URL(window.location.href);
   if (value) url.searchParams.set(key, value);
@@ -178,6 +233,14 @@ export default function GetTicketsPage({
   // inside the effects, so the cart bootstrap and the resume agree
   // about which kind of page load this is.
   const mollieReturn = search?.get(MOLLIE_RETURN_PARAM) === "1";
+  // Abandoned-cart resume (get-tickets/next/retrieve-cart.php): the
+  // reminder link rebuilt the buyer's billing details into a fresh cart
+  // (`cart`) and lists the quantities they had picked (`resume`). The
+  // cart bootstrap adopts the token once; the hydration effect below
+  // then fills the quantities and the details step. A Mollie return
+  // carries `cart` too, but that flow owns it.
+  const resumeToken = mollieReturn ? "" : (search?.get("cart") ?? "").trim();
+  const resumeParam = mollieReturn ? "" : (search?.get("resume") ?? "").trim();
 
   // Box-office mode: an organiser placing an order from the dashboard,
   // with payment skipped. Requires the dashboard session cookie on top
@@ -220,11 +283,46 @@ export default function GetTicketsPage({
   // ── Cart token bootstrap ──────────────────────────────────────────
   const tokenKey = `ccnext_token_${eventEid}`;
   const [cartToken, setCartToken] = useState<string | null>(null);
+  // Set by the bootstrap when a resume link is followed; applied to the
+  // quantity/billing state (declared further down) once the token is in.
+  const resumeHydration = useRef<{
+    billing: Record<string, string>;
+    quantities: Record<string, number>;
+  } | null>(null);
   useEffect(() => {
     if (!eventEid) return;
     let cancelled = false;
     (async () => {
-      const existing = localStorage.getItem(tokenKey);
+      if (resumeToken || resumeParam) {
+        // Resume link. Adopt the cart it minted (billing details ride
+        // on it) in place of whatever token this browser had; if it
+        // has expired, carry on as a fresh visit but still pre-select
+        // the quantities. Either way the parameters come off the URL
+        // so a reload does not adopt twice.
+        const quantities = parseResumeQuantities(resumeParam);
+        let billing: Record<string, string> = {};
+        let adopted = false;
+        if (resumeToken) {
+          try {
+            const r = await resumeCart(resumeToken);
+            if (r.valid) {
+              billing = r.billing ?? {};
+              adopted = true;
+            }
+          } catch {
+            // Unknown or expired token - fresh visit below.
+          }
+        }
+        resumeHydration.current = { billing, quantities };
+        setUrlParam("cart", null);
+        setUrlParam("resume", null);
+        if (adopted) {
+          storageSet(tokenKey, resumeToken);
+          if (!cancelled) setCartToken(resumeToken);
+          return;
+        }
+      }
+      const existing = storageGet(tokenKey);
       if (existing) {
         try {
           const { valid } = await verifyCart(existing);
@@ -257,7 +355,7 @@ export default function GetTicketsPage({
       }
       try {
         const created = await createCart(eventEid);
-        localStorage.setItem(tokenKey, created.cartToken);
+        storageSet(tokenKey, created.cartToken);
         if (!cancelled) setCartToken(created.cartToken);
       } catch {
         // Surfaced when the user tries to check out.
@@ -288,6 +386,25 @@ export default function GetTicketsPage({
   } | null>(null);
 
   const [billing, setBilling] = useState<BillingState>(EMPTY_BILLING);
+
+  // Apply what a resume link carried, once the cart token is settled.
+  useEffect(() => {
+    const h = resumeHydration.current;
+    if (!h || !cartToken) return;
+    resumeHydration.current = null;
+    const keys = Object.keys(EMPTY_BILLING) as (keyof BillingState)[];
+    setBilling((b) => {
+      const next = { ...b };
+      for (const k of keys) {
+        const v = h.billing[k];
+        if (typeof v === "string" && v.trim() !== "") next[k] = v;
+      }
+      return next;
+    });
+    if (Object.keys(h.quantities).length) {
+      setQuantities((q) => ({ ...q, ...h.quantities }));
+    }
+  }, [cartToken]);
   const [attendee, setAttendee] = useState<AttendeeState>(EMPTY_ATTENDEE);
   const [heardAbout, setHeardAbout] = useState("");
   // Marketing consents, both pre-ticked. See DetailsStep for the copy.
@@ -759,7 +876,7 @@ export default function GetTicketsPage({
 
   const finishOrder = (res: SaveOrderResult, processing: boolean) => {
     const enc = res.order_id ?? "";
-    localStorage.removeItem(tokenKey);
+    storageRemove(tokenKey);
     setDeadline(null);
     if (completeUrl && !isBoxOffice) {
       const sep = completeUrl.includes("?") ? "&" : "?";
@@ -904,13 +1021,24 @@ export default function GetTicketsPage({
    * a half-empty form to update_session_order_ct and blanking fields
    * on the pending order row.
    */
-  const handleMollieRedirect = async (cardToken: string) => {
+  const handleMollieRedirect = async (
+    cardToken: string,
+    report: (message: string | null) => void,
+  ) => {
     if (!cartToken) return;
+    // The form goes with the create call so the server can stash it:
+    // Mollie's webhook completes the order with it if the buyer never
+    // comes back (closed tab, lost connection), and the return below
+    // uses the sessionStorage copy in the normal case.
+    const form = buildOrderForm("mollie");
+    const framed = isFramed();
     const created = await createMolliePayment(
       cartToken,
       eventEid,
       event?.site ?? "uk",
       cardToken,
+      form,
+      framed,
     );
 
     // Cleared outright - no 3-D Secure, so nothing to redirect to and
@@ -927,25 +1055,36 @@ export default function GetTicketsPage({
       );
     }
 
-    // Otherwise the buyer leaves for 3-D Secure. Stash what the resume
+    // The buyer leaves for Mollie's hosted page. Stash what the resume
     // needs, because a full navigation wipes React state.
     const pending: MolliePending = {
       cartToken,
       paymentId: created.paymentId,
-      form: buildOrderForm("mollie"),
+      form,
     };
     try {
       sessionStorage.setItem(MOLLIE_PENDING_KEY, JSON.stringify(pending));
     } catch {
       // Private mode with storage disabled - the payment would
       // complete at Mollie but we could not finish the order here.
-      throw new Error(
-        "Your browser is blocking site storage, which this payment method needs. Please allow it or pay another way.",
-      );
+      // Framed, the return carries the cart token instead, so storage
+      // is not needed.
+      if (!framed) {
+        throw new Error(
+          "Your browser is blocking site storage, which this payment method needs. Please allow it or pay another way.",
+        );
+      }
     }
+    report("Taking you to Mollie's secure payment page…");
+    // Framed on another site: Mollie's page refuses to be framed, so
+    // the TOP window goes, and the buyer returns to the full checkout
+    // page (the return URL carries the cart token - see mollieCreate).
     // assign() rather than `location.href = ...`: the React Compiler
     // treats the assignment as mutating a value outside the component.
-    // Same navigation either way.
+    if (framed && window.top) {
+      window.top.location.assign(created.checkoutUrl);
+      return;
+    }
     window.location.assign(created.checkoutUrl);
   };
 
@@ -992,15 +1131,26 @@ export default function GetTicketsPage({
     } catch {
       pending = null;
     }
+    // No stash (the payment started in an embedded checkout, whose
+    // storage this top-level page cannot see): the return URL carries
+    // the cart token, and the server holds the payment id and the
+    // order form against that cart.
+    if (!pending) {
+      const cartParam = search?.get("cart") ?? "";
+      if (cartParam) {
+        pending = { cartToken: cartParam, paymentId: "", form: {} };
+      }
+    }
 
     setUrlParam(MOLLIE_RETURN_PARAM, null);
+    setUrlParam("cart", null);
 
     // All state changes happen inside the async body: setting state
     // straight from an effect triggers a cascading re-render, and the
     // resume is asynchronous anyway.
     const resume = pending;
     (async () => {
-      if (!resume?.cartToken || !resume.paymentId) {
+      if (!resume?.cartToken) {
         setDetailsError(
           "We couldn't match that payment to your basket. If you were charged, please contact us before paying again.",
         );
@@ -1009,12 +1159,37 @@ export default function GetTicketsPage({
 
       setSubmitting(true);
       try {
-        const res = await checkMolliePayment(
-          resume.cartToken,
-          eventEid,
-          resume.paymentId,
-          event?.site ?? "uk",
-        );
+        // Mollie normally has the verdict before it sends the buyer
+        // back, but not always: a payment can still read as "open" for
+        // a few seconds. Ask again rather than fail on the first read.
+        let res: ProviderChargeResult | null = null;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          try {
+            res = await checkMolliePayment(
+              resume.cartToken,
+              eventEid,
+              resume.paymentId,
+              event?.site ?? "uk",
+            );
+            break;
+          } catch (e) {
+            if (!isMolliePending(e) || attempt === 7) throw e;
+            await new Promise((r) => setTimeout(r, 3000));
+          }
+        }
+        if (!res) throw new Error("Your payment could not be confirmed.");
+
+        // The webhook may already have completed the order (and
+        // cleared the cart) before the buyer got back. Nothing to
+        // save then - straight to the confirmation.
+        if (res.orderCompleted && res.orderId) {
+          finishOrder(
+            { status: "success", order_id: res.orderId, order_number: res.orderNumber ?? null },
+            res.paymentStatus === "processing",
+          );
+          return;
+        }
+
         const done = await saveOrder(
           resume.cartToken,
           eventEid,

@@ -17,6 +17,8 @@ const PUBLIC_PATHS = [
   // cookie is SameSite=Lax so it never arrives in a cross-site iframe anyway -
   // gating these would 302 to /login, which sends frame-ancestors 'none'.
   "/embed",
+  // Host-side resize helper loaded by third-party pages that embed us.
+  "/embed.js",
   // Public application forms, linked directly from event pages and
   // organiser-shared URLs - applicants have no account.
   "/apply",

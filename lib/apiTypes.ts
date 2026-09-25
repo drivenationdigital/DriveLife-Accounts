@@ -389,6 +389,15 @@ export interface ApiAttendee {
   /** Encrypted order id for deep-linking to the order detail page.
    *  Optional for the same backend-version reason. */
   order_eid?: string;
+  /** Where the ticket came from. Absent or "order" is an order item;
+   *  "show_car" is a confirmed FREE show car application, which is a
+   *  ticket in its own right (scan code, QR email) but has no order -
+   *  so `order_id` is 0 and `order_eid` is "". */
+  source?: "order" | "show_car";
+  /** Display reference for an order-less ticket, e.g. "SC-123". */
+  ticket_ref?: string;
+  /** The ce_show_car_applications id behind a "show_car" row. */
+  application_id?: number;
 }
 
 export interface ApiDiscount {
@@ -693,6 +702,7 @@ export type ApiTradersStub =
 export interface ApiTabCounts {
   orders?: number;
   tickets?: number;
+  attending?: number;
   show_cars?: number;
   clubs?: number;
   traders?: number;
@@ -709,6 +719,13 @@ export interface EventResponse {
    *  2 = CarEvents Ticketing, 3 = external website. Optional for
    *  back-compat with deployments that pre-date it. */
   ticket_type?: number;
+  /** "Require attendees to register" (editor: Tickets & entry, in the
+   *  "Not required" mode). With it on and no tickets, the event view
+   *  shows an Attending tab. Optional for back-compat. */
+  requires_registration?: boolean;
+  /** Rows in carevents_event_attendees for this event - both checkout
+   *  registrations and the event page's "I'm attending" button. */
+  attendees_count?: number;
   /** Non-null ONLY when the eid resolves to a recurring series parent.
    *  Switch the whole view on `occurrences !== null`. */
   occurrences?: ApiOccurrences | null;

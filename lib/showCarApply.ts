@@ -48,6 +48,9 @@ export interface ShowCarPublicResponse {
   event_start_date?: string | null;
   event_end_date?: string | null;
   /** The organiser's "Show car information" copy (sanitised HTML). */
+  /** The event's logo (editor: Description step), shown above the form
+   *  title. Optional until every API deploy echoes it. */
+  event_logo?: string | null;
   event_info?: string | null;
   /** The blog this event lives on - see the note in carClubApply.ts.
    *  Optional until the public endpoints echo one back. */
@@ -81,6 +84,14 @@ export interface ShowCarApplicationBody {
    *  Empty string when no photo was attached - the PHP endpoint
    *  treats empty / missing as "no photo" and stores NULL. */
   photoUrl: string;
+  /** "Keep me updated about future events from this event organiser" -
+   *  stored as marketing_opt_in on the application row and, where the
+   *  organiser has Brevo/Mailchimp connected, pushed to their list. */
+  marketingOrganiser: boolean;
+  /** "I'd like to hear about other future events from CarEvents.com" -
+   *  stored as ce_marketing_opt_in and pushed to the CarEvents.com
+   *  newsletter list for the event's site. */
+  marketingCarevents: boolean;
 }
 
 export interface ShowCarApplicationResponse {

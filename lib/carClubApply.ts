@@ -25,6 +25,9 @@ export interface CarClubPublicResponse {
   event_start_date?: string | null;
   event_end_date?: string | null;
   event_info?: string;
+  /** The event's logo (editor: Description step), shown above the form
+   *  title. Optional until every API deploy echoes it. */
+  event_logo?: string | null;
   car_clubs_enabled: boolean;
   require_ticket?: boolean;
   ticket_cost?: number | null;
@@ -47,6 +50,14 @@ export interface CarClubApplicationBody {
   contactPhone: string;
   memberCount: string; // kept as string in the form; server coerces to int
   notes: string;
+  /** "Keep me updated about future events from this event organiser" -
+   *  stored as marketing_opt_in on the application row and, where the
+   *  organiser has Brevo/Mailchimp connected, pushed to their list. */
+  marketingOrganiser: boolean;
+  /** "I'd like to hear about other future events from CarEvents.com" -
+   *  stored as ce_marketing_opt_in and pushed to the CarEvents.com
+   *  newsletter list for the event's site. */
+  marketingCarevents: boolean;
 }
 
 export interface CarClubApplicationResponse {

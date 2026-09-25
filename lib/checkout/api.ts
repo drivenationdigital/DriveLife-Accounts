@@ -252,6 +252,18 @@ export function verifyCart(cartToken: string) {
   return checkoutAction<{ valid: boolean }>("verifyCart", { cartToken });
 }
 
+/**
+ * Abandoned-cart resume: adopt the cart the reminder email's link
+ * created (see get-tickets/next/retrieve-cart.php) and read back the
+ * billing details it carries.
+ */
+export function resumeCart(cartToken: string) {
+  return checkoutAction<{ valid: boolean; billing: Record<string, string> }>(
+    "resumeCart",
+    { cartToken },
+  );
+}
+
 export interface AddToBasketResult {
   status: "success" | "maxqty";
   added_tickets?: CartData;
@@ -381,6 +393,14 @@ export interface ProviderChargeResult {
   /** Stripe's vocabulary: "succeeded" or "processing". */
   paymentStatus: string;
   total: number;
+  /**
+   * Mollie only: the order was already completed server-side (by the
+   * webhook) before this check, so there is nothing left to save -
+   * go straight to the confirmation with `orderId` / `orderNumber`.
+   */
+  orderCompleted?: boolean;
+  orderId?: string;
+  orderNumber?: string;
 }
 
 /** Opens a PayPal order sized to the cart. Returns its PayPal id. */
@@ -479,13 +499,36 @@ export function createMolliePayment(
   eventEid: string,
   site: string,
   cardToken?: string,
+  /**
+   * The order form the page would send on return. Stashed server-side
+   * so Mollie's webhook can complete the order with the same data if
+   * the buyer never comes back.
+   */
+  form?: Record<string, string>,
+  /**
+   * True when the checkout is framed on another site. The return URL
+   * then carries the cart token, because the top-level page Mollie
+   * sends the buyer back to cannot see the iframe's storage.
+   */
+  embedded?: boolean,
 ) {
   return checkoutAction<MollieCreateResult>("mollieCreate", {
     cartToken,
     eventEid,
     site,
     cardToken: cardToken ?? "",
+    form: form ?? {},
+    embedded: !!embedded,
   });
+}
+
+/**
+ * True for the status endpoint's "not completed yet" answer - the
+ * payment is still open at Mollie (the buyer is mid 3-D Secure), as
+ * opposed to a payment Mollie has decided against.
+ */
+export function isMolliePending(err: unknown): boolean {
+  return err instanceof CheckoutError && err.extra?.mollieStatus === "open";
 }
 
 export function checkMolliePayment(

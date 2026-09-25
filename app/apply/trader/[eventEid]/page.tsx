@@ -21,6 +21,7 @@ import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
 import { formatRegionDateRange, regionFromSite } from "@/lib/regions";
 import { SubmitOverlay } from "@/components/apply/SubmitOverlay";
+import { MarketingConsent } from "@/components/apply/MarketingConsent";
 import {
   ArrowRightIcon,
   ButtonSpinner,
@@ -60,6 +61,8 @@ const INITIAL_FORM: FormState = {
   email: "",
   contactPhone: "",
   notes: "",
+  marketingOrganiser: true,
+  marketingCarevents: true,
 };
 
 export default function TraderApplyPage({
@@ -204,6 +207,15 @@ export default function TraderApplyPage({
         label="Submitting your application…"
       />
       <header className="mb-7">
+        {data.event_logo && (
+          // eslint-disable-next-line @next/next/no-img-element -- remote
+          // Cloudflare/WordPress URL with unknown dimensions.
+          <img
+            src={data.event_logo}
+            alt={data.event_title}
+            className="max-h-24 max-w-[240px] w-auto h-auto rounded-xl mb-5 object-contain"
+          />
+        )}
         <p className="text-[11px] uppercase tracking-[0.18em] text-gold-600 font-bold mb-2">
           Trader Application
         </p>
@@ -375,6 +387,22 @@ export default function TraderApplyPage({
               placeholder="Anything else the organiser should know"
             />
           </Field>
+        </Section>
+
+        {/* Same two consents as the ticket checkout, both pre-ticked.
+            Stored on the application whatever the organiser has
+            connected; see components/apply/MarketingConsent.tsx. */}
+        <Section step={4} title="Before you go">
+          <MarketingConsent
+            organiser={form.marketingOrganiser}
+            carevents={form.marketingCarevents}
+            onOrganiserChange={(checked) =>
+              setForm((f) => ({ ...f, marketingOrganiser: checked }))
+            }
+            onCareventsChange={(checked) =>
+              setForm((f) => ({ ...f, marketingCarevents: checked }))
+            }
+          />
         </Section>
 
         {submitError && (

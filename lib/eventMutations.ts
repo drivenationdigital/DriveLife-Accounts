@@ -35,19 +35,13 @@ import {
 } from "./eventSaveMapper";
 
 /**
- * Map the "Hosted by" selection to the WP event_type whitelist the
- * /events route expects. Kept here so the host model (me/club/venue) is
- * the single source of truth on the client and the legacy event_type
- * string is derived only at the network boundary.
+ * WP's ACF event_type select only knows 1=public, 2=private, 3=club, and
+ * every storefront listing keeps an event only when it is "1". The host
+ * model (me/club/venue) is sent separately as host_type/host_id, so a new
+ * event is always created public; the old host-derived placeholders
+ * ("general"/"dev_club"/"venue_dover") hid every event from search.
  */
-const HOST_TYPE_TO_EVENT_TYPE: Record<
-  EventCreateState["hostType"],
-  "general" | "dev_club" | "venue_dover"
-> = {
-  me: "general",
-  club: "dev_club",
-  venue: "venue_dover",
-};
+const PUBLIC_EVENT_TYPE: CreateEventParams["event_type"] = "1";
 
 /** POST the update. `eid` and `site` ride in the query string (the
  *  route's registered args); the section payload is the JSON body.
@@ -126,8 +120,8 @@ export function useSaveEvent() {
           "/events",
           {
             title: state.title?.trim() || "Untitled event",
-            // Map the host model to the WP event_type whitelist.
-            event_type: HOST_TYPE_TO_EVENT_TYPE[state.hostType],
+            // Always public; the host rides in host_type/host_id.
+            event_type: PUBLIC_EVENT_TYPE,
             host_type: state.hostType,
             host_id: state.hostId,
           },

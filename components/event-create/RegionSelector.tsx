@@ -3,6 +3,7 @@
 import { useEventCreate } from "@/context/EventCreateContext";
 import { RegionSelect } from "@/components/ui/RegionSelect";
 import { DEFAULT_REGION_KEY, type RegionKey } from "@/lib/regions";
+import { useSuggestedSite } from "@/lib/hostOptions";
 
 /**
  * Region picker on the create-event screen.
@@ -17,7 +18,11 @@ import { DEFAULT_REGION_KEY, type RegionKey } from "@/lib/regions";
  */
 export function RegionSelector() {
   const { state, dispatch } = useEventCreate();
-  const value = (state.site ?? DEFAULT_REGION_KEY) as RegionKey;
+  // Until the user picks a country, start on the region the API
+  // suggests for them (where their clubs, venues or events are). The
+  // UK default only applies when there's nothing to go on.
+  const suggested = useSuggestedSite();
+  const value = (state.site ?? suggested ?? DEFAULT_REGION_KEY) as RegionKey;
 
   const onChange = (key: RegionKey) => {
     if (key !== value) {

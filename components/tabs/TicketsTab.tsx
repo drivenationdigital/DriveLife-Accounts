@@ -218,7 +218,9 @@ export function TicketsTab() {
             <tbody>
               {rows.map((t) => (
                 <tr
-                  key={t.id}
+                  // Order-item ids and show car application ids are
+                  // separate sequences, so the key needs the source too.
+                  key={`${t.source}-${t.id}`}
                   // The whole row opens the ticket's order. orderEid is
                   // "" on a backend that predates the field - those rows
                   // simply stay non-clickable rather than 404ing.
@@ -240,9 +242,20 @@ export function TicketsTab() {
                     : {})}
                 >
                   <td>
-                    <span className="mono order-id">#{t.orderId}</span>
+                    {t.source === "show_car" ? (
+                      // A confirmed free show car: a ticket without an
+                      // order, so there's nothing to open here.
+                      <span
+                        className="category-tag"
+                        title="Confirmed free show car - no order"
+                      >
+                        Show car
+                      </span>
+                    ) : (
+                      <span className="mono order-id">#{t.orderId}</span>
+                    )}
                   </td>
-                  <td className="mono">{t.id}</td>
+                  <td className="mono">{t.ticketRef}</td>
                   {/* Buyer and email share a cell, matching the Orders
                       table's customer column. */}
                   <td>

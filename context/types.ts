@@ -27,6 +27,13 @@ export interface EventDetail {
    *  box-office "Add Order" menu item - external-ticketing and
    *  no-ticketing events can't take orders here. */
   ceTicketing: boolean;
+  /** The editor's ticketing mode (ACF ticket_type): 1 = not required,
+   *  2 = CarEvents Ticketing, 3 = external website. An unset value
+   *  counts as 1, matching the public event template. */
+  ticketType: 1 | 2 | 3;
+  /** "Require attendees to register" from the Tickets & entry step.
+   *  With ticketType 1 this adds the Attending tab. */
+  requiresRegistration: boolean;
   status: EventStatus;
   date: string;
   timeRange: string;
@@ -118,6 +125,12 @@ export interface SoldTicket {
   customAnswers: CustomAnswer[];
   /** Encrypted order id for deep links; "" on older backends. */
   orderEid: string;
+  /** "order" for a bought ticket; "show_car" for a confirmed free show
+   *  car, which has a ticket but no order (orderId 0, orderEid ""). */
+  source: "order" | "show_car";
+  /** What to print in the Ticket ID column: the row id for an order
+   *  item, "SC-<id>" for a show car ticket. */
+  ticketRef: string;
 }
 
 /** One answered custom checkout question. */
@@ -324,6 +337,8 @@ export interface EventFeatures {
 export interface TabCounts {
   orders: number;
   tickets: number;
+  /** People registered to attend - see the Attending tab. */
+  attending: number;
   showCars: number;
   clubs: number;
   traders: number;
@@ -371,6 +386,7 @@ export interface EventData {
  *  instead. The two sets never appear together. */
 export type TabKey =
   | "overview"
+  | "attending"
   | "tickets"
   | "upcoming"
   | "past"

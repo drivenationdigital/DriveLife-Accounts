@@ -47,7 +47,7 @@ export const EVENT_CREATE_STEPS: EventCreateStep[] = [
     number: 3,
     label: "Description",
     mobileLabel: "Description",
-    sublabel: "Cover, copy, links",
+    sublabel: "Cover, logo, copy, links",
   },
   {
     key: "gallery",

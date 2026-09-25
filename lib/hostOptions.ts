@@ -12,6 +12,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiGet } from "./apiClient";
 import type { SiteKey } from "./apiTypes";
+import { isRegionKey, type RegionKey } from "./regions";
 
 export type HostType = "me" | "club" | "venue";
 
@@ -21,11 +22,19 @@ export interface HostOption {
   id: number | null;
   name: string;
   role: string;
+  /** The region the club/venue lives on. Only present on the
+   *  all-regions response; null for "me". */
+  site?: string | null;
 }
 
 interface HostOptionsResponse {
   success: true;
   options: HostOption[];
+  /** All-regions response only: where a new event should start for
+   *  this user - the region holding most of their clubs and venues,
+   *  else their latest event's, else the one they signed up on. null
+   *  when the API has nothing to go on. */
+  suggested_site?: string | null;
 }
 
 /**
@@ -43,4 +52,28 @@ export function useHostOptions(site: SiteKey) {
     enabled: Boolean(site),
     staleTime: 5 * 60_000,
   });
+}
+
+/**
+ * Clubs and venues on EVERY region, each tagged with its `site`, plus
+ * the region to start a new event on. The create screen uses this so a
+ * US organiser sees their US venue without first knowing to switch the
+ * country picker - picking the venue switches it for them.
+ *
+ * Always refetched on mount: a venue created moments earlier in the
+ * same session must show up here.
+ */
+export function useAllHostOptions() {
+  return useQuery<HostOptionsResponse, Error>({
+    queryKey: ["host-options", { scope: "all" }],
+    queryFn: () => apiGet<HostOptionsResponse>("/host-options?scope=all"),
+    staleTime: 0,
+  });
+}
+
+/** The API's suggested starting region, or null until it answers. */
+export function useSuggestedSite(): RegionKey | null {
+  const { data } = useAllHostOptions();
+  const key = data?.suggested_site;
+  return isRegionKey(key) ? key : null;
 }

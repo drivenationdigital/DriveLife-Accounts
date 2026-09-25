@@ -7,6 +7,8 @@ export const mockEventData: EventData = {
     id: "porsche-ft-genome-design-25-04-26",
     title: "Porsche ft. Genome Design",
     ceTicketing: true,
+    ticketType: 1,
+    requiresRegistration: false,
     status: "published",
     date: "Sat, 25 April 2026",
     timeRange: "09:00 - 16:00",
@@ -54,6 +56,8 @@ export const mockEventData: EventData = {
       vehiclePhoto: "",
       customAnswers: [],
       orderEid: "",
+      source: "order",
+      ticketRef: "1",
     },
     {
       id: 77442,
@@ -72,6 +76,8 @@ export const mockEventData: EventData = {
       vehiclePhoto: "",
       customAnswers: [],
       orderEid: "",
+      source: "order",
+      ticketRef: "2",
     },
     {
       id: 51664,
@@ -90,6 +96,8 @@ export const mockEventData: EventData = {
       vehiclePhoto: "",
       customAnswers: [],
       orderEid: "",
+      source: "order",
+      ticketRef: "3",
     },
   ],
   tickets: [
@@ -794,6 +802,7 @@ export const mockEventData: EventData = {
   // agrees with the rest of the fixture.
   tabCounts: {
     orders: 220,
+    attending: 0,
     tickets: 240,
     showCars: 42,
     clubs: 7,

@@ -186,6 +186,19 @@ function errorText(e: unknown, fallback: string): string {
   return e instanceof Error && e.message ? e.message : fallback;
 }
 
+/** Progress line for a step that is waiting on another window. */
+function PanelWaiting({ children }: { children: ReactNode }) {
+  return (
+    <p
+      className="flex items-start gap-2 rounded-lg border border-gold-200 bg-gold-50 px-3 py-2.5 text-sm text-ink-700"
+      role="status"
+    >
+      <ButtonSpinner />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 function PanelError({ children }: { children: ReactNode }) {
   return (
     <p className="text-sm text-red-600" role="alert">
@@ -221,10 +234,16 @@ function StripeForm({
         redirect: "if_required",
       });
       if (error) {
+        // A 3-D Secure challenge the buyer closed or failed comes back
+        // as payment_intent_authentication_failure (not a card_error),
+        // and "unexpected error" is the wrong thing to tell them.
+        const authFailed = error.code === "payment_intent_authentication_failure";
         setMessage(
-          error.type === "card_error" || error.type === "validation_error"
-            ? (error.message ?? "Your payment was not successful.")
-            : "An unexpected error occurred. Please try again.",
+          authFailed
+            ? "Your bank didn't confirm this payment. Please try again, or use a different card."
+            : error.type === "card_error" || error.type === "validation_error"
+              ? (error.message ?? "Your payment was not successful.")
+              : "An unexpected error occurred. Please try again.",
         );
         return;
       }
@@ -925,6 +944,9 @@ function SquarePanel({
  * Both outcomes are handled: `onPay` redirects when Mollie asks for
  * one, and completes in place when it doesn't.
  */
+/** Inline Mollie card fields (Mollie Components). Off - see MolliePanel. */
+const MOLLIE_INLINE_CARD = false;
+
 function MolliePanel({
   provider,
   total,
@@ -936,12 +958,19 @@ function MolliePanel({
   total: number;
   region: Region;
   dark: boolean;
-  /** Resolves once the payment is placed, or navigates away. */
-  onPay: (cardToken: string) => Promise<void>;
+  /** Resolves once the payment is placed, or navigates away. `report`
+   *  lets it show progress while the bank step runs in a popup. */
+  onPay: (
+    cardToken: string,
+    report: (message: string | null) => void,
+  ) => Promise<void>;
 }) {
   const [ready, setReady] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // Progress while the 3-D Secure popup is open - informational, not
+  // an error, so it gets its own slot rather than PanelError.
+  const [waiting, setWaiting] = useState<string | null>(null);
   const mollieRef = useRef<MollieInstance | null>(null);
 
   // Components are a PROGRESSIVE ENHANCEMENT, never a requirement.
@@ -957,7 +986,13 @@ function MolliePanel({
   // them an error would lose the sale; the hosted page has no
   // third-party script to block and always works.
   const [componentsFailed, setComponentsFailed] = useState(false);
-  const useComponents = Boolean(provider.profile_id) && !componentsFailed;
+  // Hosted page only (2026-09-21): Mollie's own page offers Apple Pay
+  // and Google Pay alongside cards, which the inline card fields do
+  // not, and its 3-D Secure step has to leave the page either way.
+  // The Components code is kept behind this switch for when Mollie's
+  // embedded wallets/3DS become generally available.
+  const useComponents =
+    MOLLIE_INLINE_CARD && Boolean(provider.profile_id) && !componentsFailed;
 
   // Mollie mounts by selector, so each field needs a real id. useId's
   // value contains colons, invalid in a CSS selector unless escaped -
@@ -1050,8 +1085,9 @@ function MolliePanel({
     setBusy(true);
     setMessage(null);
     try {
-      await onPay("");
+      await onPay("", setWaiting);
     } catch (err) {
+      setWaiting(null);
       setMessage(errorText(err, "Could not start the payment. Please try again."));
       setBusy(false);
     }
@@ -1061,9 +1097,11 @@ function MolliePanel({
     return (
       <div className="space-y-5">
         <p className="text-sm text-ink-600">
-          You&apos;ll be taken to our payment provider to enter your card
-          details securely, then brought straight back to complete your order.
+          You&apos;ll be taken to Mollie&apos;s secure payment page to pay by
+          card, Apple Pay or Google Pay (where offered), then brought straight
+          back here to complete your order.
         </p>
+        {waiting && <PanelWaiting>{waiting}</PanelWaiting>}
         {message && <PanelError>{message}</PanelError>}
         <button
           type="button"
@@ -1096,10 +1134,11 @@ function MolliePanel({
         );
         return;
       }
-      await onPay(token);
+      await onPay(token, setWaiting);
       // A redirect may be in flight - stay busy so the button can't be
       // pressed again while the page unloads.
     } catch (err) {
+      setWaiting(null);
       setMessage(
         errorText(err, "Your payment was not successful. Please try again."),
       );
@@ -1142,6 +1181,7 @@ function MolliePanel({
       {!ready && !message && (
         <p className="text-sm text-ink-500">Loading card form…</p>
       )}
+      {waiting && <PanelWaiting>{waiting}</PanelWaiting>}
       {message && <PanelError>{message}</PanelError>}
 
       <button
@@ -1185,7 +1225,10 @@ export function PaymentStep({
    * Places the Mollie payment with a card token from Components. May
    * navigate away for 3-D Secure rather than resolving in place.
    */
-  onMollieRedirect: (cardToken: string) => Promise<void>;
+  onMollieRedirect: (
+    cardToken: string,
+    report: (message: string | null) => void,
+  ) => Promise<void>;
 }) {
   const dark =
     parseApplyTheme(useSearchParams()?.get(APPLY_THEME_PARAM)) === "dark";

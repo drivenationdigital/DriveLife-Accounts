@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { withApplyTheme, type ApplyTheme } from "@/lib/applyTheme";
 import { applyFormUrl, type ApplyFormKind } from "@/lib/applyFormUrl";
+import { embedScriptSrc } from "@/lib/checkoutLinks";
 
 /**
  * "Application links" card used at the bottom of the Show Cars,
@@ -50,13 +51,18 @@ export function ApplicationLinksCard({
     `https://account.carevents.com/embed/${applicationKind}/${slug}`,
     theme,
   );
+  // The iframe plus the host-side helper that sizes it to the form's
+  // content (the embedded page reports its height; embed.js applies
+  // it). Without the script the frame stays at its initial height.
   const embedSnippet = `<iframe
   src="${embedSrc}"
   width="100%"
   height="800"
   frameborder="0"
   allow="payment"
-  title="${iframeTitle}"></iframe>`;
+  style="border:0;width:100%;"
+  title="${iframeTitle}"></iframe>
+<script src="${embedScriptSrc()}" async></script>`;
 
   const [copiedKey, setCopiedKey] = useState<"url" | "embed" | null>(null);
 

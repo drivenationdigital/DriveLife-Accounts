@@ -3,6 +3,7 @@ import { EmbedShell } from "@/components/embed/EmbedShell";
 import CarClubApplyPage from "@/app/apply/car-club/[eventEid]/page";
 import ShowCarApplyPage from "@/app/apply/show-car/[eventEid]/page";
 import TraderApplyPage from "@/app/apply/trader/[eventEid]/page";
+import GetTicketsPage from "@/app/get-tickets/[eventEid]/page";
 
 /**
  * Dynamic embeddable application form.
@@ -20,11 +21,13 @@ import TraderApplyPage from "@/app/apply/trader/[eventEid]/page";
  * inside the frame.
  *
  * Adding a type later = add it to EMBED_TYPES + a case in renderForm.
+ * "checkout" is the ticket checkout itself (Tickets step → Link or embed
+ * checkout).
  * Framing is allowed on /embed/* via next.config headers.
  */
 
 // Allowlisted embed types. Unknown types 404.
-const EMBED_TYPES = ["car-club", "show-cars", "trader"] as const;
+const EMBED_TYPES = ["car-club", "show-cars", "trader", "checkout"] as const;
 type EmbedType = (typeof EMBED_TYPES)[number];
 
 function isEmbedType(value: string): value is EmbedType {
@@ -56,6 +59,11 @@ function renderForm(type: EmbedType, identifier: string) {
       return <ShowCarApplyPage params={params} />;
     case "trader":
       return <TraderApplyPage params={params} />;
+    case "checkout":
+      // The ticket checkout, framed on an organiser's own site. The
+      // page notices it is framed (window.parent) where behaviour has
+      // to differ - Mollie's hosted page opens in the top window.
+      return <GetTicketsPage params={params} />;
     default:
       // Exhaustiveness guard - a new EmbedType without a case fails here.
       return assertNever(type);

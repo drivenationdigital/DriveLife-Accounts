@@ -233,7 +233,8 @@ export function useEventCategories(site: SiteKey) {
  *  `dl-accounts-create-event.php`. */
 export type CreateEventParams = {
   title: string;
-  event_type: "general" | "dev_club" | "venue_dover";
+  /** ACF select: 1=public, 2=private, 3=club. Listings only show "1". */
+  event_type: "1" | "2" | "3";
   host_type?: "me" | "club" | "venue"; 
   host_id?: number | null;
 };

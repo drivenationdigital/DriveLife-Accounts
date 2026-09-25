@@ -138,6 +138,9 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     // Defaults to false so a missing field hides ticketing-only
     // actions rather than offering a box office that can't sell.
     ceTicketing: false,
+    // Both overridden in mapEventResponse from the response root.
+    ticketType: 1,
+    requiresRegistration: false,
     status:
       core.post_status === "publish"
         ? "published"
@@ -364,6 +367,8 @@ export function mapSoldTicket(a: ApiAttendee): SoldTicket {
     vehiclePhoto: text(a.vehicle_photo),
     customAnswers: mapCustomAnswers(a.custom_answers),
     orderEid: text(a.order_eid),
+    source: a.source === "show_car" ? "show_car" : "order",
+    ticketRef: text(a.ticket_ref) || String(a.ticket_id),
   };
 }
 
@@ -589,6 +594,7 @@ function extractTabCounts(
   return {
     orders: api.orders ?? sales.kpis.order_count,
     tickets: api.tickets ?? sales.kpis.ticket_count,
+    attending: api.attending ?? resp.attendees_count ?? 0,
     showCars: api.show_cars ?? features.show_cars.counts.total,
     clubs: api.clubs ?? features.car_clubs.counts.total,
     traders: api.traders ?? features.traders.counts.total,
@@ -614,6 +620,10 @@ export function mapEventResponse(
   const event = mapEventDetail(core, opts.fallbackSite);
   // "CarEvents Ticketing" selected in the editor (ACF ticket_type 2).
   event.ceTicketing = resp.ticket_type === 2;
+  // Unset / 0 behaves as "Not required", as on the public event page.
+  event.ticketType =
+    resp.ticket_type === 2 || resp.ticket_type === 3 ? resp.ticket_type : 1;
+  event.requiresRegistration = resp.requires_registration === true;
   // Everything below formats in the event's own region - dates and
   // money both move with it. Resolved before the application lists
   // because their "Applied" labels need it too.

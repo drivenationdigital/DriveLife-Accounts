@@ -61,13 +61,18 @@ export function useEmbedAutoResize(options?: {
       );
     };
 
-    // Coalesce bursts (validation errors, step swaps) into one post per frame.
+    // Coalesce bursts (validation errors, step swaps) into one post per
+    // tick. A timer rather than requestAnimationFrame: browsers pause
+    // animation frames in background tabs, so a page loaded in a tab the
+    // visitor has not switched to yet would never report a height and
+    // the host frame would sit at its placeholder size. Timers still run
+    // (throttled) while hidden, and measuring forces layout regardless.
     const post = () => {
       if (frame) return;
-      frame = window.requestAnimationFrame(() => {
+      frame = window.setTimeout(() => {
         frame = 0;
         measure();
-      });
+      }, 16);
     };
 
     post();
@@ -75,14 +80,22 @@ export function useEmbedAutoResize(options?: {
     const ro = new ResizeObserver(post);
     ro.observe(el);
 
+    // Layout may have changed while the tab was hidden (ResizeObserver
+    // is paused too); re-measure the moment it is shown.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") post();
+    };
+
     window.addEventListener("resize", post);
     window.addEventListener("load", post);
+    document.addEventListener("visibilitychange", onVisible);
 
     return () => {
-      if (frame) window.cancelAnimationFrame(frame);
+      if (frame) window.clearTimeout(frame);
       ro.disconnect();
       window.removeEventListener("resize", post);
       window.removeEventListener("load", post);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [minHeight, maxHeight]);
 
