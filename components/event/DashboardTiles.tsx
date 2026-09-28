@@ -8,7 +8,7 @@ import {
   TicketIcon,
   CarIcon,
   BuildingIcon,
-  UserIcon,
+  StoreIcon,
 } from "@/components/ui/Icons";
 
 interface Tile {
@@ -23,7 +23,7 @@ const TILES: Tile[] = [
   { label: "Tickets", href: "/my-tickets", icon: <TicketIcon /> },
   { label: "Clubs", href: "/clubs", icon: <CarIcon /> },
   { label: "Venues", href: "/venues", icon: <BuildingIcon /> },
-  { label: "Account", href: "/account", icon: <UserIcon /> },
+  { label: "Businesses", href: "/businesses", icon: <StoreIcon /> },
 ];
 
 export function DashboardTiles() {

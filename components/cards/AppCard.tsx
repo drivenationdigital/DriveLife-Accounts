@@ -1,7 +1,7 @@
 "use client";
 
 import { useUI } from "@/context/UIContext";
-import { CarEventsEyeIcon, TrashIcon } from "@/components/ui/Icons";
+import { ApplicationActionsMenu } from "@/components/applications/ApplicationActionsMenu";
 import type { Club, Trader, DetailPayload } from "@/context/types";
 import {
   useApproveClubApplication,
@@ -12,7 +12,6 @@ import {
   useRejectTraderApplication,
 } from "@/lib/traderApplications";
 import { useAction } from "@/context/ActionContext";
-import { useToast } from "@/context/ToastContext";
 
 type AppCardProps =
   | { kind: "club"; entity: Club }
@@ -21,7 +20,6 @@ type AppCardProps =
 export function AppCard(props: AppCardProps) {
   const { openDetail } = useUI();
   const runAction = useAction();
-  const toast = useToast();
 
   // Approve / reject mutations - the pair is picked by kind below.
   const clubApprove = useApproveClubApplication();
@@ -158,15 +156,8 @@ export function AppCard(props: AppCardProps) {
       <div className="app-card-body">{body}</div>
 
       <div className="app-card-actions">
-        {isPending ? (
+        {isPending && (
           <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={stopThen(openView)}
-            >
-              <CarEventsEyeIcon /> Details
-            </button>
             <button
               type="button"
               className="btn btn-primary"
@@ -184,31 +175,13 @@ export function AppCard(props: AppCardProps) {
               {rejecter.isPending ? "Rejecting…" : "Reject"}
             </button>
           </>
+        )}
+        {/* View / Resend confirmation / Delete. The card itself also
+            opens the detail modal on click. */}
+        {props.kind === "club" ? (
+          <ApplicationActionsMenu kind="club" entity={props.entity} />
         ) : (
-          <>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              style={{ flex: 1 }}
-              onClick={stopThen(openView)}
-            >
-              <CarEventsEyeIcon /> Details
-            </button>
-            {/* Delete has no backend endpoint yet - surface that
-                honestly instead of a confirm dialog that silently does
-                nothing. Wire to a useDelete*Application mutation once the
-                endpoint exists. */}
-            <button
-              type="button"
-              className="btn btn-secondary btn-delete"
-              title="Delete (coming soon)"
-              onClick={stopThen(() =>
-                toast.info("Deleting applications isn't available yet."),
-              )}
-            >
-              <TrashIcon />
-            </button>
-          </>
+          <ApplicationActionsMenu kind="trader" entity={props.entity} />
         )}
       </div>
     </div>

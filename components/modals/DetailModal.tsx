@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 
 import { useUI } from "@/context/UIContext";
 import { statusPillClass } from "@/lib/utils";
-import { XIcon, CheckIcon, EditIcon } from "@/components/ui/Icons";
+import { XIcon, CheckIcon, EditIcon, DownloadIcon } from "@/components/ui/Icons";
+import { downloadImage } from "@/lib/downloadImage";
 import type { ShowCar, Club, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
 import { useApproveClubApplication, useRejectClubApplication, useUpdateClubSpaces } from "@/lib/clubApplications";
@@ -33,6 +34,19 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
             : undefined
         }
       >
+        {car.photoUrl && (
+          <button
+            type="button"
+            className="detail-photo-download"
+            title="Download photo"
+            aria-label="Download photo"
+            onClick={() =>
+              downloadImage(car.photoUrl as string, car.reg || car.model || "show-car")
+            }
+          >
+            <DownloadIcon />
+          </button>
+        )}
         {car.category && (
           <span className="showcar-category">{car.category}</span>
         )}

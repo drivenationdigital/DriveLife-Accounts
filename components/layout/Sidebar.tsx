@@ -16,6 +16,8 @@ import {
   CalendarIcon,
   CarIcon,
   BuildingIcon,
+  StoreIcon,
+  FolderIcon,
   SettingsIcon,
   UserIcon,
 } from "@/components/ui/Icons";
@@ -104,6 +106,11 @@ export function Sidebar() {
     pathname === "/clubs" || pathname.startsWith("/clubs/");
   const isVenues =
     pathname === "/venues" || pathname.startsWith("/venues/");
+  const isBusinesses =
+    pathname === "/businesses" || pathname.startsWith("/businesses/");
+  const isOrganiserResources =
+    pathname === "/organiser-resources" ||
+    pathname.startsWith("/organiser-resources/");
   const isSettings =
     pathname === "/settings" || pathname.startsWith("/settings/");
   const isEvents =
@@ -177,6 +184,20 @@ export function Sidebar() {
           label="My Venues"
           href="/venues"
           active={isVenues}
+          onClick={() => handleClick("")}
+        />
+        <NavItem
+          icon={<StoreIcon />}
+          label="My Businesses"
+          href="/businesses"
+          active={isBusinesses}
+          onClick={() => handleClick("")}
+        />
+        <NavItem
+          icon={<FolderIcon />}
+          label="Event Resources"
+          href="/organiser-resources"
+          active={isOrganiserResources}
           onClick={() => handleClick("")}
         />
       </div>

@@ -35,6 +35,12 @@ const OPTIONS: CreateOption[] = [
     href: "/venue/create",
     icon: <BuildingIcon />,
   },
+  {
+    title: "Business",
+    description: "List a trader, service or specialist for customers and organisers to find.",
+    href: "/business/create",
+    icon: <StoreIcon />,
+  },
 ];
 
 export default function CreateHubPage() {
@@ -51,7 +57,7 @@ export default function CreateHubPage() {
         </p>
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-3">
+      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         {OPTIONS.map((opt) => (
           <Link
             key={opt.href}
@@ -124,6 +130,26 @@ function CarIcon() {
       <path d="M4 17h16v-3a1 1 0 00-1-1H5a1 1 0 00-1 1z" />
       <circle cx="7.5" cy="17.5" r="1.5" />
       <circle cx="16.5" cy="17.5" r="1.5" />
+    </svg>
+  );
+}
+
+function StoreIcon() {
+  return (
+    <svg
+      width="30"
+      height="30"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M3 9l1.5-5h15L21 9" />
+      <path d="M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0" />
+      <path d="M5 11v10h14V11" />
+      <path d="M10 21v-6h4v6" />
     </svg>
   );
 }

@@ -114,6 +114,12 @@ export type HydratedEventState = Pick<
   | "scheduledTime"
   | "visibility"
   | "hostName"
+  | "promoRequested"
+  | "promoRequestedAt"
+  | "marketingListId"
+  | "marketingListName"
+  | "marketingInheritedListName"
+  | "marketingOrganiser"
 >;
 
 export function mapEventEditResponse(
@@ -207,6 +213,9 @@ export function mapEventEditResponse(
 
     // ---- Traders --------------------------------------------------------
     ...mapTraders(response.traders),
+
+    // ---- Marketing ------------------------------------------------------
+    ...mapMarketing(response.marketing),
 
     // ---- Publish ------------------------------------------------------
     ...mapPublish(response.publish),
@@ -327,7 +336,10 @@ function mapShowCars(
       showCarsLimitEnabled: false,
       showCarsMax: NaN,
       showCarsInfo: "",
-      showCarCategories: [],
+      // Categories exist independently of the toggle (a new event
+      // starts with "General Show Cars"), so keep them: the panel lists
+      // them the moment show cars are switched on.
+      showCarCategories: (api?.categories ?? []).map(mapShowCarCategory),
     };
   }
   const c = api.config;
@@ -385,6 +397,55 @@ function mapTraders(api: ApiEventEditResponse["traders"] | undefined | null): {
   return {
     tradersEnabled: true,
     traderCategories: (api.categories ?? []).map(mapTraderCategory),
+  };
+}
+
+/**
+ * Map the marketing block. Absent (older backend) → defaults: nothing
+ * requested, no override, organiser unknown (the panel then falls back
+ * to the signed-in user's own connection).
+ */
+function mapMarketing(
+  api: ApiEventEditResponse["marketing"] | undefined | null,
+): Pick<
+  HydratedEventState,
+  | "promoRequested"
+  | "promoRequestedAt"
+  | "marketingListId"
+  | "marketingListName"
+  | "marketingInheritedListName"
+  | "marketingOrganiser"
+> {
+  if (!api) {
+    return {
+      promoRequested: false,
+      promoRequestedAt: null,
+      marketingListId: "",
+      marketingListName: "",
+      marketingInheritedListName: "",
+      marketingOrganiser: null,
+    };
+  }
+  const o = api.organiser;
+  return {
+    promoRequested: Boolean(api.promo_requested),
+    promoRequestedAt: api.promo_requested_at ?? null,
+    marketingListId: api.list_id ?? "",
+    marketingListName: api.list_name ?? "",
+    marketingInheritedListName: api.inherited_list_name ?? "",
+    marketingOrganiser: o
+      ? {
+          id: o.id,
+          name: o.name ?? "",
+          isSelf: Boolean(o.is_self),
+          connected: Boolean(o.connected),
+          provider: o.provider ?? null,
+          providerLabel: o.provider_label ?? "",
+          accountName: o.account_name ?? "",
+          defaultListId: o.default_list_id ?? "",
+          defaultListName: o.default_list_name ?? "",
+        }
+      : null,
   };
 }
 

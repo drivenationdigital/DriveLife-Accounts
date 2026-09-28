@@ -13,6 +13,7 @@ import { DatesPanel } from "@/components/event-create/panels/DatesPanel";
 import { DescriptionPanel } from "@/components/event-create/panels/DescriptionPanel";
 import { DiscountsPanel } from "@/components/event-create/panels/DiscountsPanel";
 import { GalleryPanel } from "@/components/event-create/panels/GalleryPanel";
+import { MarketingPanel } from "@/components/event-create/panels/MarketingPanel";
 import { PublishPanel } from "@/components/event-create/panels/PublishPanel";
 import { ShowCarsPanel } from "@/components/event-create/panels/ShowCarsPanel";
 import { TicketsPanel } from "@/components/event-create/panels/TicketsPanel";
@@ -80,6 +81,9 @@ function ActivePanel() {
 
     case "traders":
       return <TradersPanel />;
+
+    case "marketing":
+      return <MarketingPanel />;
 
     case "publish":
       return <PublishPanel />;
@@ -218,7 +222,7 @@ function EditorSkeleton() {
       <div className="lg:flex">
         {/* Sidebar - visible only at lg+, same width as the real one. */}
         <aside className="hidden lg:block lg:w-72 lg:shrink-0 border-r border-ink-200 bg-white p-4">
-          {Array.from({ length: 10 }).map((_, i) => (
+          {Array.from({ length: 11 }).map((_, i) => (
             <div key={i} className="flex items-center gap-3 py-3">
               <span className="skeleton-shimmer h-7 w-7 rounded-full" />
               <span

@@ -5,12 +5,13 @@ import {
   CalendarIcon,
   CarIcon,
   BuildingIcon,
+  StoreIcon,
   XIcon,
   ChevRightIcon,
 } from "@/components/ui/Icons";
 import { useRouter } from "next/navigation";
 
-type CreateType = "event" | "club" | "venue";
+type CreateType = "event" | "club" | "venue" | "business";
 
 const options: Array<{
   type: CreateType;
@@ -36,6 +37,12 @@ const options: Array<{
     desc: "Add a new venue for events and meets",
     icon: <BuildingIcon />,
   },
+  {
+    type: "business",
+    title: "Create Business",
+    desc: "List a trader, service or specialist in the directory",
+    icon: <StoreIcon />,
+  },
 ];
 
 export function CreateModal() {
@@ -52,6 +59,9 @@ export function CreateModal() {
         break;
       case "venue":
         router.push("/venue/create");
+        break;
+      case "business":
+        router.push("/business/create");
         break;
     }
 

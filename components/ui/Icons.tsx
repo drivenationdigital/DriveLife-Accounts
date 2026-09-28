@@ -237,6 +237,21 @@ export const BuildingIcon = (p: IconProps) => (
   </svg>
 );
 
+export const StoreIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M3 9l1.5-5h15L21 9" />
+    <path d="M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0" />
+    <path d="M5 11v10h14V11" />
+    <path d="M10 21v-6h4v6" />
+  </svg>
+);
+
+export const FolderIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+  </svg>
+);
+
 export const SettingsIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <circle cx="12" cy="12" r="3" />

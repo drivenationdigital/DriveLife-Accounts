@@ -1,5 +1,5 @@
 /**
- * The 10 steps of the event-create wizard. Defined once here and re-used
+ * The 11 steps of the event-create wizard. Defined once here and re-used
  * by every piece of chrome (sidebar, mobile tab bar, mobile bottom bar)
  * and by the panel router in the orchestrator page.
  *
@@ -17,6 +17,7 @@ export type EventCreateStepKey =
   | "show-cars"
   | "car-clubs"
   | "traders"
+  | "marketing"
   | "publish";
 
 export type EventCreateStep = {
@@ -92,8 +93,15 @@ export const EVENT_CREATE_STEPS: EventCreateStep[] = [
     sublabel: "Trade applications",
   },
   {
-    key: "publish",
+    key: "marketing",
     number: 10,
+    label: "Marketing",
+    mobileLabel: "Marketing",
+    sublabel: "Promotion & mailing lists",
+  },
+  {
+    key: "publish",
+    number: 11,
     label: "Publish",
     mobileLabel: "Publish",
     sublabel: "Status & visibility",
@@ -124,7 +132,7 @@ export const TICKETING_STEP_KEYS: EventCreateStepKey[] = [
  *
  * A listing-only region has no ticketing, so those five steps aren't
  * shown at all rather than shown-and-broken. Both live regions are
- * ticketed now, so every event currently gets all ten steps - this
+ * ticketed now, so every event currently gets all eleven steps - this
  * still matters for a site that launches listing-only. They're
  * removed rather than disabled because a disabled step still implies
  * "not yet" - here the answer is "not in this country".

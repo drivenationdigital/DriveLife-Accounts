@@ -221,6 +221,20 @@ export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
   "/venue-edit",
   "/venue-update",
   "/venue-delete",
+  "/business-create",
+  "/business-edit",
+  "/business-update",
+  "/business-delete",
+  "/business-image-upload-url",
+  "/business-image-confirm",
+  "/business-image",
+  "/business-owner-add",
+  "/business-owner-remove",
+  "/business-traders-checkout",
+  "/business-traders-sync",
+  "/business-traders-cancel",
+  "/business-traders-resume",
+  "/business-traders-portal",
 ]);
 
 export interface RequestOptions {

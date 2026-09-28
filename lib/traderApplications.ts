@@ -152,3 +152,46 @@ export function useConfirmTraderApplication() {
     },
   });
 }
+
+export interface TraderResendResponse {
+  success: true;
+  application_id: number;
+  status: string;
+  sent: string;
+  to: string;
+}
+export interface TraderDeleteResponse {
+  success: true;
+  application_id: number;
+  deleted: true;
+}
+
+/** Resend the approval email (pay link / invoice note) or, for a
+ *  confirmed online pitch, its ticket email. 409 while pending or
+ *  rejected. */
+export function useResendTraderConfirmation() {
+  return useMutation<TraderResendResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<TraderResendResponse, { application_id: number }>(
+        "/event-trader-application-resend",
+        { application_id: applicationId },
+      ),
+  });
+}
+
+/** Permanently delete a trader application (the row only - a paid pitch
+ *  is an order, handled from Orders). */
+export function useDeleteTraderApplication() {
+  const qc = useQueryClient();
+  return useMutation<TraderDeleteResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<TraderDeleteResponse, { application_id: number }>(
+        "/event-trader-application-delete",
+        { application_id: applicationId },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-trader-applications"] });
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}

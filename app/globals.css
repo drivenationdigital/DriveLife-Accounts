@@ -4558,6 +4558,7 @@
 .mes-title,
 .mt-title,
 .mv-title,
+.mb-title,
 .se-title,
 .gu-title,
 .event-title,
@@ -4575,7 +4576,8 @@
 /* Sub-line under a page title. Matches `.events-page .page-sub` so the
    club and venue headers read as the same family as "My Events". */
 .mc-sub,
-.mv-sub {
+.mv-sub,
+.mb-sub {
   color: var(--ink-3);
   font-size: 14px;
   margin: 0;
@@ -5202,3 +5204,87 @@
   height: 13px;
   flex-shrink: 0;
 }
+
+/* "⋯" application menu (show car / club rows, trader cards) */
+.app-actions-menu {
+  display: inline-flex;
+}
+.app-card-actions .app-actions-menu {
+  margin-left: auto;
+  align-self: center;
+}
+.col-actions .app-actions-menu {
+  justify-content: flex-end;
+  width: 100%;
+}
+
+/* Download button on the show car photo in the detail modal (top-left;
+   the category badge sits bottom-left) */
+.detail-photo-download {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(22, 21, 19, 0.72);
+  color: #fff;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  transition: background 0.15s ease;
+}
+.detail-photo-download:hover {
+  background: rgba(22, 21, 19, 0.9);
+}
+.detail-photo-download svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* ── Businesses (My Businesses grid + cards) ─────────────────────────── */
+.my-businesses { padding: 8px 0 40px; }
+.mb-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; border-bottom: 1px solid var(--border, #ecebe6); padding-bottom: 14px; margin-bottom: 24px; }
+.mb-header-text { min-width: 0; }
+.mb-title { font-size: 24px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0 0 6px; }
+.mb-create-btn { background: var(--gold-deep, #bd7420); color: #fff; font-weight: 700; font-size: 14px; padding: 9px 16px; border-radius: 8px; text-decoration: none; }
+.mb-create-btn:hover { filter: brightness(.95); }
+.mb-state { padding: 40px 24px; text-align: center; color: var(--muted, #6b6860); background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; }
+.mb-state.error { color: var(--danger, #c0492f); }
+.mb-pagination { display: flex; align-items: center; justify-content: center; gap: 16px; margin-top: 28px; }
+.mb-page-indicator { font-size: 14px; color: var(--muted, #6b6860); }
+
+.business-card { display: block; text-align: left; padding: 0; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; overflow: hidden; cursor: pointer; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s, transform .15s; width: 100%; }
+.business-card:hover { box-shadow: 0 6px 18px rgba(31,29,24,.1); transform: translateY(-2px); }
+.business-cover { position: relative; height: 190px; overflow: hidden; }
+.business-cover-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.business-cover-empty { background: #2a2824; }
+.business-cover-scrim { position: absolute; inset: 0; background: rgba(0,0,0,.3); }
+.business-logo-wrap { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.business-logo { width: 112px; height: 112px; object-fit: contain; border-radius: 12px; background: #fff; padding: 8px; }
+.business-cover-corner { position: absolute; top: 10px; right: 10px; display: flex; align-items: center; gap: 6px; }
+.business-badge { font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 6px; color: #fff; }
+.business-badge.unpublished { background: var(--gold-deep, #bd7420); }
+.business-badge.owner { background: #4a8a1e; }
+.business-trader-tag { position: absolute; left: 10px; bottom: 10px; display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 6px; background: rgba(184,152,85,.95); color: #fff; font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.business-body { padding: 16px 18px; }
+.business-title { font-size: 17px; font-weight: 700; color: var(--ink, #1f1d18); margin: 0 0 4px; }
+.business-tagline { font-size: 13px; color: var(--ink-2, #3d3a33); margin: 0 0 6px; }
+.business-cats { font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted, #6b6860); margin: 0 0 8px; }
+.business-location { display: flex; align-items: flex-start; gap: 6px; font-size: 13px; color: var(--muted, #6b6860); margin: 0; }
+.business-pin { width: 14px; height: 14px; flex: 0 0 auto; margin-top: 2px; }
+/* ── Uniform list cards ──────────────────────────────────────────────
+   Events, clubs, venues and businesses cards share one height per grid:
+   a 16:9 cover, clamped text, and grid-auto-rows: 1fr + stretch so every
+   row (and so every card) matches the tallest card in that grid. */
+.events-page .event-grid, .mc-grid, .mv-grid, .mb-grid { align-items: stretch; grid-auto-rows: 1fr; }
+.ev-card, .club-card, .venue-card, .business-card { height: 100%; display: flex; flex-direction: column; }
+.club-cover, .venue-cover, .business-cover { height: auto; aspect-ratio: 16 / 9; flex: none; }
+.ev-body, .club-body, .venue-body, .business-body { flex: 1; display: flex; flex-direction: column; }
+.club-title, .venue-title, .business-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; }
+.club-meta, .business-tagline, .business-cats { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-meta-item span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.venue-location span, .business-location span { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }

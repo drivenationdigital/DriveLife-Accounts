@@ -226,3 +226,46 @@ export function useUpdateClubSpaces() {
     },
   });
 }
+
+export interface ClubResendResponse {
+  success: true;
+  application_id: number;
+  status: string;
+  sent: string;
+  to: string;
+}
+export interface ClubDeleteResponse {
+  success: true;
+  application_id: number;
+  deleted: true;
+}
+
+/** Resend the confirmation (members' booking link) or the rejection,
+ *  whichever this club was last sent. 409 while still pending. */
+export function useResendClubConfirmation() {
+  return useMutation<ClubResendResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<ClubResendResponse, { application_id: number }>(
+        "/event-car-club-application-resend",
+        { application_id: applicationId },
+      ),
+  });
+}
+
+/** Permanently delete a club application. A confirmed club's slots are
+ *  released and its members' ticket closed server-side, hence the
+ *  ["event"] invalidation for the Clubs KPIs. */
+export function useDeleteClubApplication() {
+  const qc = useQueryClient();
+  return useMutation<ClubDeleteResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<ClubDeleteResponse, { application_id: number }>(
+        "/event-car-club-application-delete",
+        { application_id: applicationId },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
+      qc.invalidateQueries({ queryKey: ["event"] });
+    },
+  });
+}

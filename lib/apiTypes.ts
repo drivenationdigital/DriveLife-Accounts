@@ -617,7 +617,13 @@ export interface DisabledSection {
   reason?: "ticketing_unavailable" | string;
 }
 
-export type ApiShowCars = ApiShowCarsSection | DisabledSection;
+/** The categories ride along even when the section is off, so the editor
+ *  can show them (e.g. the default "General Show Cars" seeded at event
+ *  creation) as soon as the organiser switches show cars on. Optional for
+ *  older deploys. */
+export type ApiShowCars =
+  | ApiShowCarsSection
+  | (DisabledSection & { categories?: ApiShowCarCategory[] });
 
 /** Car clubs section in the /event-edit response. Single hidden
  *  ticket per event (vs. show cars' per-category tickets); ticket_id
@@ -669,6 +675,33 @@ export interface ApiTraderCategory {
   ticket_id: number | null;
   applications_open: string | null; // yyyy-mm-dd
   applications_close: string | null;
+}
+
+/** The `organiser` object in the editor's marketing block. */
+export interface ApiEventMarketingOrganiser {
+  id: number;
+  name: string;
+  is_self: boolean;
+  connected: boolean;
+  provider: "brevo" | "mailchimp" | null;
+  provider_label: string;
+  account_name: string;
+  default_list_id: string;
+  default_list_name: string;
+}
+
+/** Marketing block (editor /event-edit): the "Promote this event with
+ *  us" request and the per-event list override. `inherited_*` is the
+ *  series-level list a recurring occurrence follows when it has no
+ *  override of its own. */
+export interface ApiEventMarketingBlock {
+  promo_requested: boolean;
+  promo_requested_at: string | null;
+  list_id: string;
+  list_name: string;
+  inherited_list_id: string;
+  inherited_list_name: string;
+  organiser: ApiEventMarketingOrganiser;
 }
 
 /** Traders config block (editor /event-edit). */
@@ -1059,6 +1092,9 @@ export interface ApiEventEditResponse {
   /** Traders block (editor). Categories come from the dedicated
    *  ce_event_trader_categories table. */
   traders?: ApiTradersConfigBlock;
+  /** Marketing step. Optional so a backend that predates it still
+   *  parses; the mapper leaves the fields at their defaults. */
+  marketing?: ApiEventMarketingBlock;
   publish: {
     /** Raw WP status - FE mapper converts to draft/published/scheduled. */
     status: string;

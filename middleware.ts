@@ -24,6 +24,9 @@ const PUBLIC_PATHS = [
   "/apply",
   // Public ticket checkout - buyers are anonymous.
   "/get-tickets",
+  // Public landing pages that create the account as part of the flow
+  // (/join/traders: sign up, list a business, pay for the directory).
+  "/join",
 ];
 
 /** Signed-out pages that make no sense once you have a token - all of
@@ -72,6 +75,10 @@ const RESERVED_SEGMENTS = new Set([
   "venues",
   "club",
   "venue",
+  "businesses",
+  "business",
+  "organiser-resources",
+  "join",
   "create",
   "account",
   "settings",

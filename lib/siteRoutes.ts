@@ -121,3 +121,8 @@ export function clubEditPath(cid: string, site?: string | null): string {
 export function venueEditPath(vid: string, site?: string | null): string {
   return `/venue/${ref(vid, site)}/edit`;
 }
+
+/** The business edit wizard. */
+export function businessEditPath(bid: string, site?: string | null): string {
+  return `/business/${ref(bid, site)}/edit`;
+}

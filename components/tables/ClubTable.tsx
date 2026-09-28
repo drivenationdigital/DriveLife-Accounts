@@ -3,6 +3,7 @@
 import { useUI } from "@/context/UIContext";
 import { clickableRow } from "@/components/ui/clickableRow";
 import type { Club } from "@/context/types";
+import { ApplicationActionsMenu } from "@/components/applications/ApplicationActionsMenu";
 
 /**
  * Car club applications as a table.
@@ -78,10 +79,9 @@ function ClubTableRow({
   const { openDetail } = useUI();
   const open = () => openDetail({ type: "club", data: club });
 
-  const dateLabel =
-    club.status === "pending"
-      ? club.appliedLabel
-      : club.updatedLabel || club.appliedLabel;
+  // The column is "Applied" - always the application date, not the
+  // last time the row was touched (see ShowCarTable).
+  const dateLabel = club.appliedLabel;
 
   return (
     <tr {...clickableRow(open, { label: `Open ${club.name}` })}>
@@ -111,13 +111,7 @@ function ClubTableRow({
       </td>
       <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>{dateLabel}</td>
       <td className="col-actions">
-        <button
-          type="button"
-          className="btn btn-secondary btn-view"
-          onClick={open}
-        >
-          View
-        </button>
+        <ApplicationActionsMenu kind="club" entity={club} />
       </td>
     </tr>
   );

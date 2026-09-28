@@ -3,6 +3,7 @@
 import { useUI } from "@/context/UIContext";
 import { clickableRow } from "@/components/ui/clickableRow";
 import type { ShowCar } from "@/context/types";
+import { ApplicationActionsMenu } from "@/components/applications/ApplicationActionsMenu";
 
 /**
  * Show car applications as a table.
@@ -46,12 +47,11 @@ function ShowCarTableRow({ car }: { car: ShowCar }) {
 
   const owner = `${car.ownerFirstName} ${car.ownerLastName}`.trim();
 
-  // Pending applications show when they applied; everything else has
-  // moved on since, so the status-change label is the useful one.
-  const dateLabel =
-    car.status === "pending"
-      ? car.appliedLabel
-      : car.updatedLabel || car.appliedLabel;
+  // The column is "Applied", so it always shows when they applied.
+  // (It used to switch to the last-updated time once an application
+  // moved past pending, which any later bookkeeping on the row -
+  // linking an order, say - silently shifted to "today".)
+  const dateLabel = car.appliedLabel;
 
   return (
     <tr {...clickableRow(open, { label: `Open ${car.model}` })}>
@@ -94,13 +94,7 @@ function ShowCarTableRow({ car }: { car: ShowCar }) {
         )}
       </td>
       <td className="col-actions">
-        <button
-          type="button"
-          className="btn btn-secondary btn-view"
-          onClick={open}
-        >
-          View
-        </button>
+        <ApplicationActionsMenu kind="showcar" entity={car} />
       </td>
     </tr>
   );

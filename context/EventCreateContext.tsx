@@ -411,6 +411,26 @@ export type TraderCategory = {
 
 /** Top-level form state. Only Basics is wired up so far; later panels
  * will populate dates / description / tickets / etc. */
+/**
+ * Whose Brevo / Mailchimp account an event's opted-in contacts land in:
+ * the event's primary organiser (first user in its organiser field), the
+ * same account the checkout charges through. Mirrors the `organiser`
+ * object in the /event-edit `marketing` block.
+ */
+export type MarketingOrganiserInfo = {
+  id: number;
+  name: string;
+  /** True when the primary organiser is the signed-in user. */
+  isSelf: boolean;
+  connected: boolean;
+  provider: "brevo" | "mailchimp" | null;
+  providerLabel: string;
+  accountName: string;
+  /** The account-wide list chosen in Settings ("" = none yet). */
+  defaultListId: string;
+  defaultListName: string;
+};
+
 export type EventCreateState = {
   // ---- Server identity ----
   // Set after the create-event API responds (or when the editor is
@@ -634,6 +654,22 @@ export type EventCreateState = {
   tradersEnabled: boolean;
   traderCategories: TraderCategory[];
 
+  // ---- Marketing ----
+  // "Promote this event with us" (the CarEvents.com team is emailed when
+  // it is first ticked) and the per-event Brevo/Mailchimp list override.
+  // An empty marketingListId means "use the account-wide default from
+  // Settings". marketingOrganiser is read-only context from /event-edit:
+  // whose account the lists come from (the event's primary organiser)
+  // and whether it is connected; null until hydrated / for a new event.
+  promoRequested: boolean;
+  promoRequestedAt: string | null;
+  marketingListId: string;
+  marketingListName: string;
+  /** A recurring occurrence with no override of its own shows the
+   *  series-level list it inherits, by name. */
+  marketingInheritedListName: string;
+  marketingOrganiser: MarketingOrganiserInfo | null;
+
   // ---- Publish ----
   // `scheduled` adds two extra fields (scheduledDate / scheduledTime)
   // that are only meaningful when status === 'scheduled'. Kept as
@@ -739,6 +775,13 @@ const INITIAL_STATE: EventCreateState = {
   tradersEnabled: true,
   traderCategories: [],
 
+  promoRequested: false,
+  promoRequestedAt: null,
+  marketingListId: "",
+  marketingListName: "",
+  marketingInheritedListName: "",
+  marketingOrganiser: null,
+
   status: "published",
   scheduledDate: null,
   scheduledTime: "09:00",
@@ -815,6 +858,12 @@ type ScalarStateKey =
   | "carClubsTicketCost"
   | "carClubsInfo"
   | "tradersEnabled"
+  | "promoRequested"
+  | "promoRequestedAt"
+  | "marketingListId"
+  | "marketingListName"
+  | "marketingInheritedListName"
+  | "marketingOrganiser"
   | "status"
   | "scheduledDate"
   | "scheduledTime"

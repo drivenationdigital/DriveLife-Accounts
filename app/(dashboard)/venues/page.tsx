@@ -59,7 +59,7 @@ export default function MyVenuesPage() {
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
             gap: 20,
-            alignItems: "start",
+            alignItems: "stretch",
             opacity: isPlaceholderData ? 0.6 : 1,
           }}
         >

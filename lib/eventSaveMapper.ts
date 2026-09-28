@@ -128,6 +128,17 @@ export interface ApiEventUpdateMedia {
   gallery_order?: string[];
 }
 
+/**
+ * Marketing step. Every key is optional so the panel can save one half
+ * on its own (the promo tick and the list pick each autosave).
+ */
+export interface ApiEventUpdateMarketing {
+  promo_requested?: boolean;
+  /** "" = use the account-wide default list from Settings. */
+  list_id?: string;
+  list_name?: string;
+}
+
 export interface ApiEventUpdatePublish {
   status?: "draft" | "publish" | "future";
   scheduled_date?: string | null; // "YYYY-MM-DD"
@@ -146,6 +157,7 @@ export interface ApiEventUpdateRequest {
    *  individually via /event-trader, so there are no per-section
    *  fields to persist. */
   traders?: { enabled: boolean };
+  marketing?: ApiEventUpdateMarketing;
   media?: ApiEventUpdateMedia;
   publish?: ApiEventUpdatePublish;
 }
@@ -175,6 +187,7 @@ export function mapStateToUpdateRequest(
     car_clubs: mapCarClubs(state),
     show_cars: mapShowCars(state),
     traders: { enabled: state.tradersEnabled },
+    marketing: mapMarketing(state),
     media: mapMedia(state),
     publish: mapPublish(state),
   };
@@ -444,6 +457,29 @@ function mapMedia(state: EventCreateState): ApiEventUpdateMedia {
       img.kind === "remote" && img.cloudflareId ? [img.cloudflareId] : [],
     ),
   };
+}
+
+/**
+ * Marketing - the promo request always goes up (the server only acts on
+ * a change). The list override is sent when the account it belongs to
+ * is connected - the server rejects a list id for a disconnected
+ * account, and that must not block the rest of the save. For a
+ * brand-new event the organiser block hasn't been hydrated yet; a list
+ * can only have been picked from the signed-in user's own connected
+ * account, so a non-empty pick goes up as-is.
+ */
+function mapMarketing(state: EventCreateState): ApiEventUpdateMarketing {
+  const marketing: ApiEventUpdateMarketing = {
+    promo_requested: state.promoRequested,
+  };
+  const organiser = state.marketingOrganiser;
+  const sendList =
+    organiser === null ? state.marketingListId !== "" : organiser.connected;
+  if (sendList) {
+    marketing.list_id = state.marketingListId;
+    marketing.list_name = state.marketingListId ? state.marketingListName : "";
+  }
+  return marketing;
 }
 
 function mapPublish(state: EventCreateState): ApiEventUpdatePublish {

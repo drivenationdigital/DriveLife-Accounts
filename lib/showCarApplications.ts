@@ -137,3 +137,28 @@ export function useDeleteShowCarApplication() {
     },
   });
 }
+
+export interface ResendResponse {
+  success: true;
+  application_id: number;
+  status: string;
+  /** What went out: approval | ticket | confirmation | rejection. */
+  sent: string;
+  to: string;
+}
+
+/**
+ * Resend whatever the applicant was last sent for their current status
+ * (the approval email, or the ticket). The API answers 409 with a plain
+ * message when nothing has been sent yet (pending) or none exists
+ * (rejected show cars).
+ */
+export function useResendShowCarConfirmation() {
+  return useMutation<ResendResponse, Error, { applicationId: number }>({
+    mutationFn: ({ applicationId }) =>
+      apiPost<ResendResponse, { application_id: number }>(
+        "/event-show-car-application-resend",
+        { application_id: applicationId },
+      ),
+  });
+}
