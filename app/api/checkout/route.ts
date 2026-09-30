@@ -305,6 +305,12 @@ export async function POST(request: NextRequest) {
           return ok({ tickets });
         }
         const e = resp as { status?: string; message?: string };
+        // Nothing to list without a code (e.g. the event only has secret
+        // tickets) is an empty list, not a failure - the tickets step
+        // still has to render so the buyer can enter their secret code.
+        if (/no tickets found/i.test(e.message ?? "")) {
+          return ok({ tickets: [] });
+        }
         return err(e.message || "Couldn't load tickets for this event.");
       }
 

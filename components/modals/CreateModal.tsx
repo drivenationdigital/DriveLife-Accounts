@@ -9,7 +9,8 @@ import {
   XIcon,
   ChevRightIcon,
 } from "@/components/ui/Icons";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect } from "react";
 
 type CreateType = "event" | "club" | "venue" | "business";
 
@@ -45,6 +46,34 @@ const options: Array<{
   },
 ];
 
+/**
+ * Opens the create popup when the page is loaded with `?create` on the
+ * query string (e.g. `/?create=1`), so marketing links and the main site
+ * can deep-link straight to "What would you like to create?". The flag
+ * is dropped from the URL once consumed so a refresh, Back, or a shared
+ * link copied afterwards doesn't reopen it. Sits under Suspense because
+ * useSearchParams needs a boundary in a layout-level client component.
+ */
+function CreateModalUrlTrigger() {
+  const search = useSearchParams();
+  const { openCreateModal } = useUI();
+  const wantsCreate = search?.has("create") ?? false;
+
+  useEffect(() => {
+    if (!wantsCreate) return;
+    openCreateModal();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("create");
+    window.history.replaceState(
+      window.history.state,
+      "",
+      url.pathname + url.search + url.hash
+    );
+  }, [wantsCreate, openCreateModal]);
+
+  return null;
+}
+
 export function CreateModal() {
   const router = useRouter();
   const { createModalOpen, closeCreateModal } = useUI();
@@ -69,6 +98,10 @@ export function CreateModal() {
   };
 
   return (
+    <>
+    <Suspense fallback={null}>
+      <CreateModalUrlTrigger />
+    </Suspense>
     <div
       className={`modal-backdrop${createModalOpen ? " open" : ""}`}
       onClick={(e) => {
@@ -112,5 +145,6 @@ export function CreateModal() {
         </div>
       </div>
     </div>
+    </>
   );
 }

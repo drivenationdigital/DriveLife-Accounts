@@ -21,10 +21,13 @@ export interface ShowCarApplicationsResponse {
 }
 
 /** @param region the event's region - dates in the "Applied" labels
- *  are rendered in it. Pass `event.region` from the tab. */
+ *  are rendered in it. Pass `event.region` from the tab.
+ *  @param enabled pass the event's show car toggle - the endpoint
+ *  answers 409 when show cars are off, so there is nothing to fetch. */
 export function useShowCarApplications(
   eid: string | undefined,
   region: Region,
+  enabled: boolean = true,
 ) {
   return useQuery<ShowCarApplicationsResponse, Error, ShowCar[]>({
     queryKey: ["event-show-car-applications", eid],
@@ -32,7 +35,7 @@ export function useShowCarApplications(
       apiGet<ShowCarApplicationsResponse>(
         `/event-show-car-applications?eid=${encodeURIComponent(eid ?? "")}`,
       ),
-    enabled: !!eid,
+    enabled: !!eid && enabled,
     staleTime: 30_000,
     select: (data) => data.applications.map((r) => mapShowCar(r, region)),
   });

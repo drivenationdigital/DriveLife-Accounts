@@ -88,16 +88,29 @@ export function ShowCarsTab() {
     error,
     refetch,
     isFetching,
-  } = useShowCarApplications(eid, event.region);
+  } = useShowCarApplications(eid, event.region, features.show_cars.enabled);
 
-  // No show car tickets ⇒ feature isn't set up for this event. Checked
-  // before the loading state because it reads from the already-loaded
-  // event payload - no point shimmering a tab that's about to say
-  // "not enabled".
-  if (showCarTickets.length === 0) {
+  // Show cars switched off ⇒ nothing below applies, whatever tickets
+  // exist. Every event is seeded with a "General Show Cars" category at
+  // creation, so the presence of a show car ticket no longer implies
+  // the organiser has turned the feature on - only the toggle does.
+  // Checked before the loading state because it reads from the
+  // already-loaded event payload - no point shimmering a tab that's
+  // about to say "not enabled".
+  if (!features.show_cars.enabled) {
     return (
       <ComingSoonBanner
         title="Show cars not enabled for this event"
+        message="Turn on show cars in the event editor to start accepting applications."
+      />
+    );
+  }
+
+  // Enabled but no show car tickets ⇒ nothing to apply for yet.
+  if (showCarTickets.length === 0) {
+    return (
+      <ComingSoonBanner
+        title="No show car categories yet"
         message="Create a show car ticket type in the event editor to start accepting applications."
       />
     );

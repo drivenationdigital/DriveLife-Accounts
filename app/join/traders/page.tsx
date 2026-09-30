@@ -17,7 +17,7 @@ import {
 } from "@/lib/myBusinesses";
 import { businessEditPath } from "@/lib/siteRoutes";
 import { parseRef } from "@/lib/siteRef";
-import { REGION_LIST, DEFAULT_REGION_KEY, resolveRegion, type RegionKey } from "@/lib/regions";
+import { REGION_LIST, DEFAULT_REGION_KEY, isRegionKey, resolveRegion, type RegionKey } from "@/lib/regions";
 import { PaymentMarks } from "@/components/ui/PaymentMarks";
 
 /**
@@ -65,28 +65,16 @@ function writeSaved(saved: Saved | null) {
 }
 
 /**
- * The marketing sections render on the server (they're static); only
- * the three-step flow needs the query string and the auth cookie, so
- * it alone sits under the Suspense boundary and renders client-side.
+ * Form only - the marketing copy lives on carevents.com/uk/event-traders
+ * (US: /event-vendors), which links here with ?site=uk|us. The flow
+ * needs the query string and the auth cookie, so it sits under Suspense
+ * and renders client-side.
  */
 export default function JoinTradersPage() {
   return (
     <div className="min-h-screen bg-ink-50 text-ink-900">
-      <Header />
-      <Hero />
-      <PaymentStrip />
-      <HowItWorks />
-
-      <section id="join" className="scroll-mt-6 px-4 py-12 sm:py-16">
+      <section id="join" className="scroll-mt-6 px-4 py-10 sm:py-14">
         <div className="mx-auto max-w-2xl">
-          <div className="mb-6 text-center">
-            <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600">
-              Join the directory
-            </p>
-            <h2 className="mt-1 font-display text-3xl sm:text-4xl">
-              Three quick steps
-            </h2>
-          </div>
           <Suspense fallback={<FlowSkeleton />}>
             <JoinFlow />
           </Suspense>
@@ -95,16 +83,6 @@ export default function JoinTradersPage() {
           </p>
         </div>
       </section>
-
-      <Faq />
-
-      <footer className="border-t border-ink-200 bg-white px-4 py-8 text-center text-xs text-ink-400">
-        <p>
-          © {new Date().getFullYear()} CarEvents.com ·{" "}
-          <a href="https://www.carevents.com" className="hover:text-ink-700">carevents.com</a> ·{" "}
-          <Link href="/login" className="hover:text-ink-700">Sign in to your account</Link>
-        </p>
-      </footer>
     </div>
   );
 }
@@ -123,6 +101,7 @@ function FlowSkeleton() {
 function initialState(
   outcome: string | null,
   bidParam: string | null,
+  siteParam: string | null,
   isAuthenticated: boolean,
 ): { step: Step; site: RegionKey; saved: Saved | null } {
   const fromUrl = bidParam ? parseRef(bidParam) : null;
@@ -131,7 +110,9 @@ function initialState(
     fromUrl && fromUrl.id
       ? { bid: fromUrl.id, site: resolveRegion(fromUrl.site).key, title: stored?.title ?? "" }
       : stored;
-  const site = saved?.site ?? DEFAULT_REGION_KEY;
+  // A saved draft wins; otherwise the landing page's ?site= (UK page
+  // sends uk, US page sends us), then the default.
+  const site = saved?.site ?? (isRegionKey(siteParam) ? siteParam : DEFAULT_REGION_KEY);
   let step: Step = "account";
   if (outcome === "success" && saved) step = "done";
   else if (outcome === "cancelled" && saved) step = "pay";
@@ -148,8 +129,9 @@ function JoinFlow() {
   const outcome = searchParams.get("traders");
   const bidParam = searchParams.get("bid");
   const sessionId = searchParams.get("session_id");
+  const siteParam = searchParams.get("site");
 
-  const [initial] = useState(() => initialState(outcome, bidParam, isAuthenticated));
+  const [initial] = useState(() => initialState(outcome, bidParam, siteParam, isAuthenticated));
   const [step, setStep] = useState<Step>(initial.step);
   const [site, setSite] = useState<RegionKey>(initial.site);
   const [saved, setSaved] = useState<Saved | null>(initial.saved);
@@ -214,156 +196,6 @@ function JoinFlow() {
             </div>
           </div>
     </>
-  );
-}
-
-// ─── Marketing sections ───────────────────────────────────────────────
-
-function Header() {
-  return (
-    <header className="border-b border-ink-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <a href="https://www.carevents.com" className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo2-2.svg" alt="CarEvents.com" className="h-8 w-auto" />
-        </a>
-        <Link href="/login" className="text-sm font-semibold text-ink-600 hover:text-ink-900">
-          Sign in
-        </Link>
-      </div>
-    </header>
-  );
-}
-
-/**
- * Hero - the same layout as carevents.com/uk/event-organisers: full-bleed
- * photo, dark gradient overlay, centred heading + copy + two buttons,
- * and a note line pinned to the bottom edge. The photo is the organiser
- * page's hero.jpg, copied into public/images/.
- */
-function Hero() {
-  return (
-    <section
-      className="relative flex min-h-[560px] items-center justify-center overflow-hidden bg-[#111] bg-cover bg-no-repeat px-6 pb-24 pt-20 text-center text-white sm:py-24"
-      style={{ backgroundImage: "url(/images/join-traders-hero.jpg)", backgroundPosition: "center 40%" }}
-    >
-      <div
-        className="absolute inset-0 bg-[linear-gradient(180deg,rgba(0,0,0,.55)_0%,rgba(0,0,0,.45)_55%,rgba(0,0,0,.75)_100%)]"
-        aria-hidden
-      />
-      <div className="relative flex max-w-[820px] flex-col items-center gap-[22px]">
-        <h1 className="font-display text-[clamp(34px,5vw,64px)] font-bold leading-[1.08] text-white [text-wrap:balance]">
-          Get your business in front of event organisers
-        </h1>
-        <p className="max-w-[640px] text-base leading-[1.7] text-white/90 [text-wrap:pretty]">
-          Trade at car shows, meets and festivals? List your food, drink,
-          retail or service business in the CarEvents.com Event Traders
-          directory and be found by the organisers booking pitches for
-          their next event.
-        </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3.5">
-          <a
-            href="#join"
-            className="inline-block rounded bg-[#B8975A] px-[34px] py-4 text-[15px] font-semibold leading-[1.2] text-white transition hover:bg-[#a8874c]"
-          >
-            Join the directory
-          </a>
-          <a
-            href="#how"
-            className="inline-block rounded border-2 border-white/75 bg-transparent px-8 py-[14px] text-[15px] font-semibold leading-[1.2] text-white transition hover:border-white hover:bg-white/15"
-          >
-            How it works
-          </a>
-        </div>
-      </div>
-      <p className="absolute inset-x-0 bottom-6 px-6 text-center text-sm font-medium leading-snug text-white/90">
-        £20 a year in the UK · $20 a year in the USA · renews annually, cancel any time
-      </p>
-    </section>
-  );
-}
-
-/** Dark strip under the hero, like the organiser page's "Get paid your
- *  way" band, showing what Stripe Checkout accepts. */
-function PaymentStrip() {
-  return (
-    <section className="flex flex-col items-center gap-3.5 bg-[#141414] px-6 py-[26px]">
-      <span className="text-[11px] font-medium uppercase tracking-[.16em] text-[#8a8a8a]">
-        Secure payment by Stripe
-      </span>
-      <PaymentMarks variant="chips" />
-    </section>
-  );
-}
-
-function HowItWorks() {
-  const steps = [
-    { n: 1, title: "Create your account", body: "Your free CarEvents.com account - or sign in if you already have one." },
-    { n: 2, title: "Add your business", body: "Name, what you do and where you're based. Add photos and more later from your dashboard." },
-    { n: 3, title: "Pay securely with Stripe", body: "Card, Apple Pay or Google Pay. You're listed the moment payment clears." },
-  ];
-  return (
-    <section id="how" className="scroll-mt-6 bg-white px-4 py-12 sm:py-16">
-      <div className="mx-auto max-w-6xl">
-        <div className="text-center">
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-gold-600">How it works</p>
-          <h2 className="mt-1 font-display text-3xl sm:text-4xl">Listed in three steps</h2>
-        </div>
-        <ol className="mt-10 grid gap-6 md:grid-cols-3">
-          {steps.map((s) => (
-            <li key={s.n} className="flex gap-4">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gold-500 font-bold text-white">
-                {s.n}
-              </span>
-              <div>
-                <h3 className="font-bold">{s.title}</h3>
-                <p className="mt-1 text-sm text-ink-500">{s.body}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </div>
-    </section>
-  );
-}
-
-function Faq() {
-  const items = [
-    {
-      q: "Who is the directory for?",
-      a: "Any business that trades at events: food and drink vendors, retail and merchandise stalls, detailers, photographers, service providers and more. Organisers search it when they need exhibitors.",
-    },
-    {
-      q: "How much does it cost?",
-      a: "£20 a year on the UK directory or $20 a year on the USA directory, paid by card through Stripe. It renews automatically each year and we email you a week before every renewal.",
-    },
-    {
-      q: "Can I cancel?",
-      a: "Yes. Cancel renewal from your dashboard at any time - your listing stays live until the end of the year you've paid for.",
-    },
-    {
-      q: "What do organisers see?",
-      a: "Your business profile: logo, cover photo, gallery, description, categories, opening hours and contact details. They contact you directly to arrange a pitch.",
-    },
-    {
-      q: "I already have a CarEvents.com account.",
-      a: "Great - sign in at the first step and we'll attach the business to your existing account.",
-    },
-  ];
-  return (
-    <section className="px-4 py-12 sm:py-16">
-      <div className="mx-auto max-w-3xl">
-        <h2 className="text-center font-display text-3xl sm:text-4xl">Questions</h2>
-        <dl className="mt-8 divide-y divide-ink-200 rounded-2xl bg-white shadow-sm ring-1 ring-ink-100">
-          {items.map((it) => (
-            <div key={it.q} className="p-5">
-              <dt className="font-semibold">{it.q}</dt>
-              <dd className="mt-1 text-sm text-ink-500">{it.a}</dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
   );
 }
 
@@ -549,6 +381,11 @@ function BusinessStep({
 
   const cats = options.data?.categories ?? [];
   const busy = create.isPending || update.isPending;
+  // "£20 p/year" / "$20 p/year" for the chosen region. The API's label
+  // reads "£20 per year"; fall back to the known price while it loads.
+  const priceLabel = options.data?.traders_directory.price_label
+    ? options.data.traders_directory.price_label.replace(/\s+per\s+year$/i, " p/year")
+    : site === "us" ? "$20 p/year" : "£20 p/year";
 
   const toggle = (slug: string) =>
     setCategories((c) => (c.includes(slug) ? c.filter((s) => s !== slug) : [...c, slug]));
@@ -610,7 +447,7 @@ function BusinessStep({
       </div>
 
       <div className="mt-4">
-        <Field label="Where do you mostly trade?" hint="This picks the directory you're listed in and the currency you pay in.">
+        <Field label="Where do you mostly trade?" hint="This picks the directory you're listed in.">
           <div className="grid grid-cols-2 gap-2">
             {REGION_LIST.map((r) => (
               <button
@@ -623,9 +460,6 @@ function BusinessStep({
                 aria-pressed={site === r.key}
               >
                 {r.label}
-                <span className="block text-xs font-normal text-ink-400">
-                  {r.key === "us" ? "$20 per year" : "£20 per year"}
-                </span>
               </button>
             ))}
           </div>
@@ -672,7 +506,12 @@ function BusinessStep({
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600" role="alert">{error}</p>
       )}
 
-      <button type="submit" disabled={busy} className={primaryBtn + " mt-6 w-full"}>
+      <p className="mt-6 text-center text-sm text-ink-500">
+        Directory membership:{" "}
+        <strong className="text-base font-bold text-ink-900">{priceLabel}</strong>
+      </p>
+
+      <button type="submit" disabled={busy} className={primaryBtn + " mt-2 w-full"}>
         {busy ? "Saving…" : "Continue to payment"}
       </button>
     </form>

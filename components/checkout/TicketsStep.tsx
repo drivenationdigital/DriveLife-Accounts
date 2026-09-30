@@ -319,7 +319,7 @@ export function TicketsStep({
 
         {buyable.length === 0 ? (
           <p className="p-6 text-sm text-ink-600">
-            There are currently no tickets available for this event.
+            There are no tickets currently available.
           </p>
         ) : (
           <ul>
