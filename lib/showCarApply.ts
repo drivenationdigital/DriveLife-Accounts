@@ -80,9 +80,8 @@ export interface ShowCarApplicationBody {
   /** Instagram handle without the leading "@". Optional. */
   instagram: string;
   notes: string;
-  /** Optional Cloudflare imagedelivery URL from `uploadShowCarPhoto`.
-   *  Empty string when no photo was attached - the PHP endpoint
-   *  treats empty / missing as "no photo" and stores NULL. */
+  /** Cloudflare imagedelivery URL from `uploadShowCarPhoto`. Required -
+   *  the PHP endpoint refuses an application without one. */
   photoUrl: string;
   /** "Keep me updated about future events from this event organiser" -
    *  stored as marketing_opt_in on the application row and, where the

@@ -59,10 +59,10 @@ import {
  * to. Organisers will email next steps once they review.
  *
  * Submit flow with photo:
- *   1. If a file was attached, upload to Cloudflare first
+ *   1. Upload the attached file to Cloudflare first
  *      (uploadShowCarPhoto handles the two-step CF dance).
  *   2. POST the application body with the resulting CF URL in
- *      photoUrl, or empty string when no photo.
+ *      photoUrl. A photo is required - submit is refused without one.
  *
  * Either step can fail; both error paths surface inline above the
  * button and re-enable submit so the user can retry.
@@ -116,6 +116,7 @@ export default function ShowCarApplyPage({
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const photoFieldRef = useRef<HTMLDivElement | null>(null);
 
   // The form is long, so the user is at the bottom of the page when
   // they submit - without this the success panel renders "above" them
@@ -220,7 +221,19 @@ export default function ShowCarApplyPage({
     e.preventDefault();
     if (!form.ticketEid) return;
 
-    // Upload photo first (if attached) so we have a CF URL to put
+    // The photo is required. The file input is visually hidden, so the
+    // browser can't point at it like the other required fields - say
+    // so inline and bring the field into view instead.
+    if (!photoFile) {
+      setPhotoError("Please add a photo of your car.");
+      photoFieldRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+
+    // Upload the photo first so we have a CF URL to put
     // in the body. We deliberately don't pre-upload on file select
     // - keeping it tied to submit means a user who picks a file
     // then bails doesn't leave an orphan CF image behind. (They
@@ -228,23 +241,21 @@ export default function ShowCarApplyPage({
     // small cost of doing this client-side without a "draft"
     // model.)
     let photoUrl = "";
-    if (photoFile) {
-      setPhotoUploading(true);
-      setPhotoError(null);
-      try {
-        photoUrl = await uploadShowCarPhoto({
-          eventEid,
-          file: photoFile,
-        });
-      } catch (err) {
-        setPhotoError(
-          err instanceof Error ? err.message : "Couldn't upload that photo.",
-        );
-        setPhotoUploading(false);
-        return; // bail before posting the application
-      }
+    setPhotoUploading(true);
+    setPhotoError(null);
+    try {
+      photoUrl = await uploadShowCarPhoto({
+        eventEid,
+        file: photoFile,
+      });
+    } catch (err) {
+      setPhotoError(
+        err instanceof Error ? err.message : "Couldn't upload that photo.",
+      );
       setPhotoUploading(false);
+      return; // bail before posting the application
     }
+    setPhotoUploading(false);
 
     try {
       await submit.mutateAsync({ ...form, eventEid, photoUrl });
@@ -536,7 +547,8 @@ export default function ShowCarApplyPage({
             />
           </Field>
 
-          <Field label="Photo (optional)">
+          <Field label="Photo" required>
+            <div ref={photoFieldRef}>
             {!photoPreview ? (
               <label className="block cursor-pointer border-2 border-dashed border-ink-300 rounded-lg p-6 text-center hover:border-gold-400 transition">
                 <input
@@ -578,6 +590,7 @@ export default function ShowCarApplyPage({
                 {photoError}
               </p>
             )}
+            </div>
           </Field>
         </Section>
 

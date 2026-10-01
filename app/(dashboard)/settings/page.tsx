@@ -51,9 +51,10 @@ export default function SettingsPage() {
           <StripeCard />
           <SquareCard />
           <MollieCard />
-          {/* PayPal shows as a "coming soon" placeholder until
-              30 Sep 2026 - swap it back for <PaypalCard /> to enable. */}
-          <PaypalComingSoonCard />
+          {/* Live still shows <PaypalComingSoonCard /> until launch; the
+              real card is enabled here so the sandbox connect flow can be
+              tested on staging (2026-10-01). */}
+          <PaypalCard />
         </div>
       </Section>
 
