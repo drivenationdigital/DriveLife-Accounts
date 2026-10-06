@@ -1451,26 +1451,12 @@ export async function POST(request: NextRequest) {
           // falls back to something generic for exactly the replies that
           // matter most (an OAuth refusal carries neither `message` nor
           // `details[0].description`), so the reply itself goes to pm2.
-<<<<<<< HEAD
           console.error(`[checkout] paypalCreate failed\n${JSON.stringify(resp)}`);
 
           // `debug` is only present for a sandbox app - see paypal.php.
           return err(str(resp.message) || "Could not start the PayPal payment.", {
             ...(resp.debug ? { debug: resp.debug } : {}),
           });
-=======
-          console.error(
-            `[checkout] paypalCreate failed\n${JSON.stringify(resp)}`,
-          );
-
-          // `debug` is only present for a sandbox app - see paypal.php.
-          return err(
-            str(resp.message) || "Could not start the PayPal payment.",
-            {
-              ...(resp.debug ? { debug: resp.debug } : {}),
-            },
-          );
->>>>>>> cddb0c0 (Claude changes)
         }
         // approveUrl is PayPal's own link for a client with no popup to
         // approve in (the mobile app). This page ignores it and uses the JS
