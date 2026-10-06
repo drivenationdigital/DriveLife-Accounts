@@ -45,6 +45,7 @@
 
 import type { ApiEventDateRow } from "@/lib/apiTypes";
 import type { EventCreateState } from "@/context/EventCreateContext";
+import { isBelowMinimumAmount } from "@/lib/ticketPrice";
 
 // ============================================================
 // Request / response types
@@ -412,7 +413,12 @@ function mapCarClubs(state: EventCreateState): ApiEventUpdateSection {
 
   if (state.carClubsRequireTicket) {
     const cost = finiteOrUndefined(state.carClubsTicketCost);
-    if (cost !== undefined) section.ticket_cost = cost;
+    // A cost of 0.01 - 0.99 can't be charged (lib/ticketPrice) and the
+    // backend refuses it, which would fail the whole event save. Leave
+    // it out so the rest still saves; the panel flags the field.
+    if (cost !== undefined && !isBelowMinimumAmount(cost)) {
+      section.ticket_cost = cost;
+    }
   }
 
   return section;

@@ -9,6 +9,7 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
+import { isBelowMinimumAmount, minimumPriceMessage } from "@/lib/ticketPrice";
 import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -85,9 +86,13 @@ export function ShowCarCategoryDrawer({
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
+  // Free or at least 1.00 - see lib/ticketPrice.
+  const costTooLow =
+    requireTicket && isBelowMinimumAmount(parseFloat(ticketCost));
+
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || costTooLow) return;
     const id = editing?.id ?? (makeLocalId("scc") as ShowCarCategoryId);
     // Safety net: if the user cleared the code, regenerate before
     // save so the row isn't persisted with an empty secret_code (the
@@ -153,7 +158,7 @@ export function ShowCarCategoryDrawer({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!name.trim() || isSaving || isDeleting}
+                disabled={!name.trim() || costTooLow || isSaving || isDeleting}
                 className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
               >
                 {isSaving && (
@@ -287,6 +292,11 @@ export function ShowCarCategoryDrawer({
                 value={ticketCost}
                 onChange={(e) => setTicketCost(e.target.value)}
               />
+              {costTooLow && (
+                <p className="mt-1.5 text-xs text-red-600" role="alert">
+                  {minimumPriceMessage(region)}
+                </p>
+              )}
             </div>
           )}
         </div>

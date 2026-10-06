@@ -10,6 +10,7 @@ import {
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { makeLocalId } from "@/lib/makeLocalId";
 import { generateSecretCode } from "@/lib/generateSecretCode";
+import { isBelowMinimumAmount, minimumPriceMessage } from "@/lib/ticketPrice";
 import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -82,9 +83,15 @@ export function TraderCategoryDrawer({
   );
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
+  // An online pitch fee is paid through the checkout, so it is free or
+  // at least 1.00 - see lib/ticketPrice. In-person fees are only shown
+  // for reference and can be anything.
+  const feeTooLow =
+    paymentMode === "online" && isBelowMinimumAmount(Number(costStr));
+
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed) return;
+    if (!trimmed || feeTooLow) return;
     const id = editing?.id ?? (makeLocalId("tc") as TraderCategoryId);
     const cost = costStr.trim() === "" ? NaN : Number(costStr);
     const spaces = spacesStr.trim() === "" ? NaN : Number(spacesStr);
@@ -136,7 +143,7 @@ export function TraderCategoryDrawer({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!name.trim()}
+              disabled={!name.trim() || feeTooLow}
               className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition"
             >
               {editing ? "Save changes" : "Save trader type"}
@@ -231,6 +238,11 @@ export function TraderCategoryDrawer({
                 value={costStr}
                 onChange={(e) => setCostStr(e.target.value)}
               />
+              {feeTooLow && (
+                <p className="text-xs text-red-600 mt-1" role="alert">
+                  {minimumPriceMessage(region, "Online pitch fees")}
+                </p>
+              )}
               {paymentMode === "in_person" && (
                 <p className="text-xs text-ink-400 mt-1">
                   Collected offline - shown to traders for reference.

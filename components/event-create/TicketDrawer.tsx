@@ -13,6 +13,7 @@ import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
 import type { SiteKey } from "@/lib/apiTypes";
 import { usePaymentProviders } from "@/lib/paymentProviders";
+import { isBelowMinimumAmount, minimumPriceMessage } from "@/lib/ticketPrice";
 import { useEventRegion } from "@/lib/useEventSteps";
 
 import { EditorDrawer } from "./EditorDrawer";
@@ -236,9 +237,15 @@ export function TicketDrawer({
     !!saleEnd &&
     `${saleEnd} ${saleEndTime || "23:59"}` < `${saleStart} ${saleStartTime || "00:00"}`;
 
+  // Free or at least 1.00 - see lib/ticketPrice. Not checked while the
+  // field is locked: the organiser can't change the price then, and a
+  // locked ticket keeps whatever price it already had.
+  const priceTooLow =
+    canTakePayments && isBelowMinimumAmount(parseFloat(price));
+
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed || saleWindowInvalid) return;
+    if (!trimmed || saleWindowInvalid || priceTooLow) return;
     const id = editing?.id ?? (makeLocalId("tkt") as TicketId);
 
     // Belt-and-braces: if the user managed to save with secret on but
@@ -330,7 +337,11 @@ export function TicketDrawer({
                 type="button"
                 onClick={handleSave}
                 disabled={
-                  !name.trim() || saleWindowInvalid || isSaving || isDeleting
+                  !name.trim() ||
+                  saleWindowInvalid ||
+                  priceTooLow ||
+                  isSaving ||
+                  isDeleting
                 }
                 className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
               >
@@ -449,6 +460,14 @@ export function TicketDrawer({
                 canTakePayments ? undefined : "ticket-price-locked-note"
               }
             />
+            {priceTooLow && (
+              <p
+                className="mt-1.5 text-[11px] leading-snug text-red-600"
+                role="alert"
+              >
+                {minimumPriceMessage(region)}
+              </p>
+            )}
           </div>
         </div>
 

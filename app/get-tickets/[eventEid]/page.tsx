@@ -81,6 +81,10 @@ import {
   type ProviderChargeResult,
   type SaveOrderResult,
 } from "@/lib/checkout/api";
+import {
+  belowMinimumOrderMessage,
+  isBelowMinimumAmount,
+} from "@/lib/ticketPrice";
 
 /**
  * Public ticket checkout - the Next.js remake of the classic
@@ -711,6 +715,25 @@ export default function GetTicketsPage({
       }
 
       const t = await fetchTotals(cartToken);
+
+      // A total of 0.01 - 0.99 is neither free nor payable (see
+      // lib/ticketPrice), and nothing on the next step can raise it -
+      // codes and removals only lower a total. Say so here, with the
+      // basket handed back, rather than after the buyer has filled in
+      // their details. Box office takes no payment, so any total goes.
+      if (!isBoxOffice && isBelowMinimumAmount(t.totals.total)) {
+        await clearCartData(cartToken).catch(() => {});
+        setCart({});
+        // Region resolved here, not taken from render's `region`:
+        // capturing that makes the React Compiler lint treat this
+        // handler as render-time code and flag Date.now() below.
+        setTicketsError(
+          belowMinimumOrderMessage(t.totals.total, resolveRegion(event?.site)),
+        );
+        ticketsQuery.refetch();
+        return;
+      }
+
       setTotals(t.totals);
       setDeadline(Date.now() + CHECKOUT_MINUTES * 60 * 1000);
       setStep("details");
@@ -925,8 +948,18 @@ export default function GetTicketsPage({
     window.scrollTo(0, 0);
   };
 
+  // A code applied on this step can drop the total into 0.01 - 0.99,
+  // which no provider will charge (lib/ticketPrice). Shown the moment
+  // the totals say so - not after the buyer has filled the form in -
+  // and Continue refuses before a pending order is written for it.
+  // The backend refuses it too. Box office takes no payment.
+  const belowMinimumError =
+    !isBoxOffice && totals && isBelowMinimumAmount(totals.total)
+      ? belowMinimumOrderMessage(totals.total, region)
+      : null;
+
   const handleContinue = async () => {
-    if (!cartToken) return;
+    if (!cartToken || belowMinimumError) return;
     const errors = validateDetails();
     setFieldErrors(errors);
     if (Object.keys(errors).length) {
@@ -1473,7 +1506,7 @@ export default function GetTicketsPage({
           fieldErrors={fieldErrors}
           onContinue={handleContinue}
           submitting={submitting}
-          error={detailsError}
+          error={belowMinimumError ?? detailsError}
           boxOffice={isBoxOffice}
         />
       )}

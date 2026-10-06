@@ -9,6 +9,7 @@ import { pushStepUrl } from "@/lib/stepNav";
 import { useEventCreate } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
+import { isBelowMinimumAmount, minimumPriceMessage } from "@/lib/ticketPrice";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
 import { EditorTextarea } from "../EditorTextarea";
@@ -274,6 +275,15 @@ export function CarClubsPanel() {
                     });
                   }}
                 />
+                {/* Free or at least 1.00 - see lib/ticketPrice. The
+                    save skips a cost in between (mapCarClubs), so say
+                    here that it hasn't been kept. */}
+                {isBelowMinimumAmount(state.carClubsTicketCost) && (
+                  <p className="mt-1.5 text-xs text-red-600" role="alert">
+                    {minimumPriceMessage(region)} This cost won&apos;t be
+                    saved until it&apos;s changed.
+                  </p>
+                )}
               </div>
             )}
           </div>
