@@ -36,6 +36,36 @@ export function setCheckoutSite(site: string | null | undefined): void {
   checkoutSite = String(site ?? "").trim().toLowerCase() === "us" ? "us" : "uk";
 }
 
+/**
+ * A signed claim naming the signed-in buyer, minted by the app.
+ *
+ * Only the order save does anything with it, but it is held here for the
+ * same reason as the site: one place to set, no signature to thread through,
+ * and nothing to forget at a call site. Empty for an ordinary web buyer,
+ * who has a WordPress session instead.
+ */
+let checkoutUserToken = "";
+
+/** Call before the first action, with the `dl_u` the app put in the URL. */
+export function setCheckoutUserToken(token: string | null | undefined): void {
+  checkoutUserToken = String(token ?? "").trim();
+}
+
+/**
+ * Where to send the buyer once the order is placed — the app's
+ * `drivelife://` link, when the checkout is running in its container.
+ *
+ * Held here because Mollie needs it at payment-creation time, not at the
+ * end: it navigates the buyer away, so a return URL that does not already
+ * carry this has nowhere to send them but the web thank-you page.
+ */
+let checkoutCompleteUrl = "";
+
+/** Call before the first action, with the page's own `complete` param. */
+export function setCheckoutCompleteUrl(url: string | null | undefined): void {
+  checkoutCompleteUrl = String(url ?? "").trim();
+}
+
 async function checkoutAction<T>(
   action: string,
   payload: Record<string, unknown> = {},
@@ -46,7 +76,13 @@ async function checkoutAction<T>(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       // `site` first so a caller naming one explicitly still wins.
-      body: JSON.stringify({ action, site: checkoutSite, ...payload }),
+      body: JSON.stringify({
+        action,
+        site: checkoutSite,
+        ...(checkoutUserToken ? { userToken: checkoutUserToken } : {}),
+        ...(checkoutCompleteUrl ? { completeUrl: checkoutCompleteUrl } : {}),
+        ...payload,
+      }),
     });
   } catch {
     throw new CheckoutError(

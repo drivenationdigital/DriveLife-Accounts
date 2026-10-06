@@ -1559,11 +1559,21 @@ export async function POST(request: NextRequest) {
         // cannot be framed), which has none of the iframe's storage - so
         // the cart token rides on the return URL and the server-side
         // stash (mollie.php) supplies the rest.
+        // Where the page was told to send the buyer once the order is
+        // placed - the app's `drivelife://` link, in the container. Mollie
+        // navigates away, so anything not written into the return URL is
+        // simply gone by the time the buyer is back: without this the app's
+        // checkout finished on the web thank-you page and never came home.
+        const completeAfter = s("completeUrl").trim();
+
         const returnUrl =
           appReturn ||
           `${origin}/get-tickets/${encodeURIComponent(rawEid)}` +
             `?${MOLLIE_RETURN_PARAM}=1` +
-            (body.embedded ? `&cart=${encodeURIComponent(s("cartToken"))}` : "");
+            (body.embedded ? `&cart=${encodeURIComponent(s("cartToken"))}` : "") +
+            (completeAfter
+              ? `&complete=${encodeURIComponent(completeAfter)}`
+              : "");
 
         const createFields: Record<string, string> = {
           action: "create",
@@ -1574,6 +1584,10 @@ export async function POST(request: NextRequest) {
           // here. Empty means "use Mollie's hosted page".
           card_token: s("cardToken"),
           site: eventSite,
+          // Verified here and kept on the cart, because Mollie's order is
+          // written by the webhook - long after this browser, and its token,
+          // have gone.
+          user_token: s("userToken"),
         };
         // The order form, for the webhook to complete the order with
         // if the buyer never returns. Same flattening as saveOrder.
@@ -1642,6 +1656,11 @@ export async function POST(request: NextRequest) {
           stripe_payment_intent_id: s("paymentIntentId"),
           payment_provider: s("provider") || "stripe",
           payment_status: s("paymentStatus"),
+          // Who the buyer is, when the checkout is running in the app's web
+          // container and has no WordPress session. A signed claim, verified
+          // by the PHP before it reaches the order - see dl_checkout_handoff_*
+          // in php-api/helpers.php. Empty for an ordinary web buyer.
+          user_token: s("userToken"),
           event_id: s("eventEid"),
           page: "checkout",
           cart_key: "cart",

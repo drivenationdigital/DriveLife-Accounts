@@ -52,6 +52,8 @@ import {
   checkMolliePayment,
   CheckoutError,
   setCheckoutSite,
+  setCheckoutUserToken,
+  setCheckoutCompleteUrl,
   checkSecretCode,
   clearCartData,
   createCart,
@@ -266,6 +268,14 @@ export default function GetTicketsPage({
   // one returns a DIFFERENT event rather than failing. Links without it are
   // refused server-side when the id is ambiguous.
   setCheckoutSite(search?.get("site"));
+
+  // The app's handoff token, so an order bought in its web container is
+  // attributed to the signed-in account rather than matched by email alone.
+  setCheckoutUserToken(search?.get("dl_u"));
+
+  // Mollie needs this when the payment is CREATED, not when it finishes —
+  // it sends the buyer away, and the return URL is fixed at that moment.
+  setCheckoutCompleteUrl(search?.get("complete"));
   // Set once from the URL Mollie sent the buyer back to. Read here, not
   // inside the effects, so the cart bootstrap and the resume agree
   // about which kind of page load this is.
