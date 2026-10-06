@@ -1410,7 +1410,7 @@ export async function POST(request: NextRequest) {
         try {
           const resp = (await phpPost(
             `${CREATE_URL}?event_id=${encodeURIComponent(s("eventEid"))}`,
-            { cart_token: s("cartToken"), site: s("site") || "uk" },
+            { cart_token: s("cartToken"), site: eventSite },
           )) as Record<string, unknown>;
           if (resp.error) return err(str(resp.error));
           return ok({
@@ -1442,7 +1442,7 @@ export async function POST(request: NextRequest) {
           action: "create",
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
-          site: s("site") || "uk",
+          site: eventSite,
           return_url: s("returnUrl"),
           cancel_url: s("cancelUrl"),
         })) as Record<string, unknown>;
@@ -1475,7 +1475,7 @@ export async function POST(request: NextRequest) {
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
           paypal_order_id: s("paypalOrderId"),
-          site: s("site") || "uk",
+          site: eventSite,
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
           return err(
@@ -1501,7 +1501,7 @@ export async function POST(request: NextRequest) {
           event_id: s("eventEid"),
           source_id: s("sourceId"),
           verification_token: s("verificationToken"),
-          site: s("site") || "uk",
+          site: eventSite,
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
           return err(
@@ -1573,7 +1573,7 @@ export async function POST(request: NextRequest) {
           // From Mollie Components when the buyer typed their card
           // here. Empty means "use Mollie's hosted page".
           card_token: s("cardToken"),
-          site: s("site") || "uk",
+          site: eventSite,
         };
         // The order form, for the webhook to complete the order with
         // if the buyer never returns. Same flattening as saveOrder.
@@ -1607,7 +1607,7 @@ export async function POST(request: NextRequest) {
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
           payment_id: s("paymentId"),
-          site: s("site") || "uk",
+          site: eventSite,
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
           // mollie_status rides along so a poller can tell "still
