@@ -28,18 +28,39 @@ function currentOrigin(): string {
   return typeof window !== "undefined" ? window.location.origin : "";
 }
 
+/**
+ * An event id with its region in front: 'us<eid>' for the US, bare for the UK.
+ *
+ * Load-bearing, not cosmetic. Post ids are only unique within a blog and the
+ * encrypted id carries no blog, so a US event's link without this resolves
+ * against the UK blog and sells a DIFFERENT event - with no error anywhere,
+ * because nothing can tell the two ids apart.
+ *
+ * In the id rather than beside it as `?site=`, so the region survives a
+ * vanity-host rewrite, an iframe src and a pasted link alike - there is no
+ * second parameter to be dropped. Bare means UK, which is what every link
+ * ever issued already is, so none of them change.
+ */
+function siteEid(eid: string, site?: string | null): string {
+  const prefix =
+    String(site ?? "").trim().toLowerCase() === "us" ? "us" : "";
+  return `${prefix}${eid}`;
+}
+
 /** The buyer-facing checkout page for an event. */
-export function checkoutDirectUrl(eid: string): string {
+export function checkoutDirectUrl(eid: string, site?: string | null): string {
+  const id = encodeURIComponent(siteEid(eid, site));
+
   if (onProductionDomain()) {
-    return `${CHECKOUT_VANITY_ORIGIN}/${encodeURIComponent(eid)}`;
+    return `${CHECKOUT_VANITY_ORIGIN}/${id}`;
   }
-  return `${currentOrigin()}/get-tickets/${encodeURIComponent(eid)}`;
+  return `${currentOrigin()}/get-tickets/${id}`;
 }
 
 /** The frameable checkout, for an <iframe> on the organiser's own site. */
-export function checkoutEmbedSrc(eid: string): string {
+export function checkoutEmbedSrc(eid: string, site?: string | null): string {
   const origin = onProductionDomain() ? ACCOUNT_ORIGIN : currentOrigin();
-  return `${origin}/embed/checkout/${encodeURIComponent(eid)}`;
+  return `${origin}/embed/checkout/${encodeURIComponent(siteEid(eid, site))}`;
 }
 
 /** The host-side script that sizes CarEvents iframes to their content. */

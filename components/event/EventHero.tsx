@@ -253,7 +253,14 @@ export function EventHero() {
                   <DropdownItem
                     onClick={() =>
                       window.open(
-                        `/get-tickets/${encodeURIComponent(event.encryptedId)}?boxoffice=1`,
+                        // The region rides in front of the id (see
+                        // checkoutLinks.ts). Without it a US event's box
+                        // office opens whichever UK event shares that post
+                        // id — and places a real order against it.
+                        `/get-tickets/${encodeURIComponent(
+                          (event.region.key === "us" ? "us" : "") +
+                            event.encryptedId,
+                        )}?boxoffice=1`,
                         "_blank",
                         "noopener,noreferrer",
                       )

@@ -25,27 +25,108 @@ import { MOLLIE_RETURN_PARAM } from "@/lib/checkout/constants";
  * from the request path.
  */
 
-const WP_BASE = (
-  process.env.CHECKOUT_WP_BASE ?? "https://staging.carevents.com/uk"
-).replace(/\/$/, "");
+/**
+ * Which WordPress blog this call belongs to, as a base URL.
+ *
+ * Events live on two blogs - UK on 3, US on 1 - and a post id only means
+ * anything within its own blog. WordPress multisite resolves the blog from
+ * the request PATH, so the base URL *is* the choice of blog, and it has to
+ * follow the event rather than the deployment.
+ *
+ * This used to be one constant pinned to the UK blog, which meant a US
+ * event's encrypted id was decrypted against blog 3 and quietly matched a
+ * DIFFERENT UK event: HTTP 200, real tickets, wrong event. Nothing errored,
+ * because nothing could tell the two apart - make_crypt is blog-agnostic.
+ *
+ * US is the network root; the UK blog is the one carrying a path prefix.
+ * CHECKOUT_WP_BASE_US overrides that derivation where the hosts differ.
+ */
+function wpBase(site: unknown): string {
+  const uk = (
+    process.env.CHECKOUT_WP_BASE ?? "https://staging.carevents.com/uk"
+  ).replace(/\/$/, "");
 
-// embed.php and create.php are shared with the classic CE checkout and
-// stay where they are. Everything written for THIS checkout lives in
-// get-tickets/next/ so it can be reorganised without touching files
-// that every ticket sale on the site depends on.
-const EMBED_URL = `${WP_BASE}/get-tickets/embed.php`;
-const CREATE_URL = `${WP_BASE}/get-tickets/create.php`;
+  if (String(site ?? "").trim().toLowerCase() !== "us") return uk;
 
-const NEXT_BASE = `${WP_BASE}/get-tickets/next`;
-const INFO_URL = `${NEXT_BASE}/next-checkout-info.php`;
-const PAYPAL_URL = `${NEXT_BASE}/paypal.php`;
-const SQUARE_URL = `${NEXT_BASE}/square.php`;
-const MOLLIE_URL = `${NEXT_BASE}/mollie.php`;
+  return (
+    process.env.CHECKOUT_WP_BASE_US ?? uk.replace(/\/uk$/i, "")
+  ).replace(/\/$/, "");
+}
 
-// Not moved: this one is already live and isn't part of this change.
-const PHOTO_URL = `${WP_BASE}/get-tickets/next-photo-upload.php`;
+/** 'uk'/'gb' → uk, 'us'/'usa' → us, anything else → uk. */
+function normaliseSite(value: unknown): "uk" | "us" {
+  const key = String(value ?? "").trim().toLowerCase();
+  return key === "us" || key === "usa" ? "us" : "uk";
+}
 
-const AJAX_URL = `${WP_BASE}/wp-admin/admin-ajax.php`;
+/** True when this decrypts to a post id on its own, i.e. it is a bare eid. */
+function isBareEid(value: string): boolean {
+  return value !== "" && /^\d+$/.test(ccDecrypt(value) ?? "");
+}
+
+/**
+ * Splits a region-prefixed event id: 'us<eid>' → { site: 'us', eid }.
+ *
+ * The region travels INSIDE the id rather than beside it, so it survives
+ * everywhere the id goes - a vanity rewrite, an iframe src, a pasted link, a
+ * deep link - with no second parameter that can be dropped along the way.
+ *
+ * A bare id means the UK. That is the whole point: every link ever issued is
+ * bare, they were all UK, and they keep working untouched. Only US links
+ * carry a prefix.
+ *
+ * The prefix is DETECTED, never assumed. A bare eid is tried first and wins,
+ * so an id that happens to begin with the letters "us" is not mangled - it
+ * decrypts cleanly on its own, and 'us' + eid does not. Stripping two
+ * characters on sight would corrupt one id in every few thousand.
+ */
+function splitSiteEid(
+  raw: unknown,
+  fallbackSite: unknown,
+): { site: "uk" | "us"; eid: string } {
+  const value = String(raw ?? "").trim();
+
+  // Bare first: a valid id is never re-read as a prefixed one.
+  if (isBareEid(value)) {
+    return { site: normaliseSite(fallbackSite), eid: value };
+  }
+
+  const head = value.slice(0, 2).toLowerCase();
+  const rest = value.slice(2);
+
+  if ((head === "uk" || head === "us") && isBareEid(rest)) {
+    return { site: head === "us" ? "us" : "uk", eid: rest };
+  }
+
+  // Not decipherable either way - hand it on unchanged and let the PHP say
+  // so, rather than inventing a region for an id that has no meaning.
+  return { site: normaliseSite(fallbackSite), eid: value };
+}
+
+/**
+ * Every upstream URL for one site.
+ *
+ * embed.php and create.php are shared with the classic CE checkout and stay
+ * where they are. Everything written for THIS checkout lives in
+ * get-tickets/next/ so it can be reorganised without touching files that
+ * every ticket sale on the site depends on.
+ */
+function wpUrls(site: unknown) {
+  const base = wpBase(site);
+  const next = `${base}/get-tickets/next`;
+
+  return {
+    EMBED_URL: `${base}/get-tickets/embed.php`,
+    CREATE_URL: `${base}/get-tickets/create.php`,
+    INFO_URL: `${next}/next-checkout-info.php`,
+    PAYPAL_URL: `${next}/paypal.php`,
+    SQUARE_URL: `${next}/square.php`,
+    MOLLIE_URL: `${next}/mollie.php`,
+    // Not moved: this one is already live and isn't part of this change.
+    PHOTO_URL: `${base}/get-tickets/next-photo-upload.php`,
+    AJAX_URL: `${base}/wp-admin/admin-ajax.php`,
+  };
+}
 
 class UpstreamError extends Error {
   /** Markup-stripped upstream body, kept even when the message is generic. */
@@ -271,7 +352,31 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const s = (key: string): string => str(body[key]);
+  const rawEid = str(body.eventEid);
+
+  // The region comes from the id where it carries one, and from `site`
+  // otherwise - which is how the mobile app sends it. Resolved before
+  // anything is fetched, because the FIRST call is the one that returns a
+  // different event when the blog is wrong.
+  const { site: eventSite, eid: plainEid } = splitSiteEid(rawEid, body.site);
+
+  // Every action reads the plain id; the PHP has never seen a prefix and
+  // does not need to. `rawEid` is kept for links pointing back at the web
+  // checkout, which must keep the region in them.
+  const s = (key: string): string =>
+    key === "eventEid" ? plainEid : str(body[key]);
+
+  const {
+    EMBED_URL,
+    CREATE_URL,
+    INFO_URL,
+    PAYPAL_URL,
+    SQUARE_URL,
+    MOLLIE_URL,
+    PHOTO_URL,
+    AJAX_URL,
+  } = wpUrls(eventSite);
+
   let boxOffice: Record<string, string> | null = null;
 
   try {
@@ -279,6 +384,12 @@ export async function POST(request: NextRequest) {
       case "info": {
         const resp = (await phpPost(INFO_URL, {
           event_id: s("eventEid"),
+          // Forwarded so the PHP can tell a routed call from an unrouted
+          // one. Without it, it cannot know whether the blog it is running
+          // on was chosen deliberately or just happened to be the default -
+          // which is the difference between serving the right event and
+          // serving whichever event shares that id. See its ambiguity guard.
+          site: eventSite,
         })) as Record<string, unknown>;
         return NextResponse.json(resp);
       }
@@ -518,18 +629,39 @@ export async function POST(request: NextRequest) {
       // the cart and later captures it. The browser only ever holds
       // the PayPal order id, never an amount - see the PHP file.
       case "paypalCreate": {
+        // returnUrl/cancelUrl are the mobile app's. It has no JS popup to be
+        // called back in, so PayPal needs somewhere to send the buyer after
+        // they approve. This page sends neither and is unaffected - paypal.php
+        // only sets them when both arrive.
         const resp = (await phpPost(PAYPAL_URL, {
           action: "create",
           cart_token: s("cartToken"),
           event_id: s("eventEid"),
           site: s("site") || "uk",
+          return_url: s("returnUrl"),
+          cancel_url: s("cancelUrl"),
         })) as Record<string, unknown>;
         if (resp.status !== "success") {
-          return err(
-            str(resp.message) || "Could not start the PayPal payment.",
-          );
+          // Logged whole. paypal.php's own message is written for buyers and
+          // falls back to something generic for exactly the replies that
+          // matter most (an OAuth refusal carries neither `message` nor
+          // `details[0].description`), so the reply itself goes to pm2.
+          console.error(`[checkout] paypalCreate failed\n${JSON.stringify(resp)}`);
+
+          // `debug` is only present for a sandbox app - see paypal.php.
+          return err(str(resp.message) || "Could not start the PayPal payment.", {
+            ...(resp.debug ? { debug: resp.debug } : {}),
+          });
         }
-        return ok({ orderId: str(resp.order_id), total: num(resp.total) });
+        // approveUrl is PayPal's own link for a client with no popup to
+        // approve in (the mobile app). This page ignores it and uses the JS
+        // SDK, which handles approval itself.
+        return ok({
+          orderId: str(resp.order_id),
+          approveUrl: str(resp.approve_url),
+          environment: str(resp.environment),
+          total: num(resp.total),
+        });
       }
 
       case "paypalCapture": {
@@ -587,6 +719,11 @@ export async function POST(request: NextRequest) {
       // the request body - Mollie sends the buyer wherever it is told,
       // so it must not be something a caller can choose.
       case "mollieCreate": {
+        // The mobile app brings its own: it has no web page to land on, and
+        // Mollie documents a custom scheme as the way back into an app.
+        // mollie.php allows that scheme by name.
+        const appReturn = s("returnUrl").trim();
+
         // `||`, not `??`: an env var that is SET BUT EMPTY is the
         // common misconfiguration, and nullish-coalescing would let it
         // win over the fallback - producing a relative URL that Mollie
@@ -595,10 +732,14 @@ export async function POST(request: NextRequest) {
           process.env.CHECKOUT_PUBLIC_ORIGIN?.trim() || request.nextUrl.origin
         ).replace(/\/$/, "");
 
-        // Fail here, naming what we computed, rather than letting the
+        // Only the website needs it. Checking it for an app payment, which
+        // never reads it, would turn a misconfigured web origin into a
+        // mobile outage for no reason.
+        //
+        // Failing here, naming what we computed, rather than letting the
         // PHP side report a generic "no valid return URL" that says
         // nothing about which end got it wrong.
-        if (!/^https?:\/\//i.test(origin)) {
+        if (!appReturn && !/^https?:\/\//i.test(origin)) {
           console.error(
             `[checkout] mollieCreate: unusable origin ${JSON.stringify(origin)} ` +
               `(CHECKOUT_PUBLIC_ORIGIN=${JSON.stringify(process.env.CHECKOUT_PUBLIC_ORIGIN)}, ` +
@@ -614,9 +755,10 @@ export async function POST(request: NextRequest) {
         // the cart token rides on the return URL and the server-side
         // stash (mollie.php) supplies the rest.
         const returnUrl =
-          `${origin}/get-tickets/${encodeURIComponent(s("eventEid"))}` +
-          `?${MOLLIE_RETURN_PARAM}=1` +
-          (body.embedded ? `&cart=${encodeURIComponent(s("cartToken"))}` : "");
+          appReturn ||
+          `${origin}/get-tickets/${encodeURIComponent(rawEid)}` +
+            `?${MOLLIE_RETURN_PARAM}=1` +
+            (body.embedded ? `&cart=${encodeURIComponent(s("cartToken"))}` : "");
 
         const createFields: Record<string, string> = {
           action: "create",

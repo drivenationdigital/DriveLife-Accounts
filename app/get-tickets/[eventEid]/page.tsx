@@ -51,6 +51,7 @@ import {
   applyCoupon,
   checkMolliePayment,
   CheckoutError,
+  setCheckoutSite,
   checkSecretCode,
   clearCartData,
   createCart,
@@ -143,6 +144,32 @@ const EMPTY_BILLING: BillingState = {
   billing_phone: "",
 };
 
+/**
+ * Billing prefilled from the DriveLife app's signed-in user.
+ *
+ * The app opens this checkout in an in-app browser, which carries none of
+ * its session - so what the app already knows about the buyer rides on the
+ * URL rather than making them type their own name again.
+ *
+ * Prefill ONLY. These values are editable, they are never trusted as proof
+ * of who the buyer is, and the order is attributed server-side. A doctored
+ * link can therefore do nothing but put the wrong name in a text field.
+ *
+ * Pure, and read during the first render rather than in an effect: seeding
+ * state from an effect renders once with empty fields and once with full
+ * ones, which flickers and fights the buyer if they type in between.
+ */
+function seedBilling(search: URLSearchParams | null): BillingState {
+  const pick = (key: string) => (search?.get(key) ?? "").trim().slice(0, 200);
+
+  return {
+    billing_first_name: pick("dl_first"),
+    billing_last_name: pick("dl_last"),
+    billing_email: pick("dl_email"),
+    billing_phone: pick("dl_phone"),
+  };
+}
+
 const EMPTY_ATTENDEE: AttendeeState = {
   attendee_display: false,
   attendee_name: "",
@@ -229,6 +256,12 @@ export default function GetTicketsPage({
   const completeUrl = search?.get("complete") ?? "";
   const showCarApplication = search?.get("show_car_application") ?? "";
   const boxOfficeParam = search?.get("boxoffice") === "1";
+
+  // Which blog this event lives on. Applied during render, before the first
+  // query fires: a post id is only unique within a blog, so asking the wrong
+  // one returns a DIFFERENT event rather than failing. Links without it are
+  // refused server-side when the id is ambiguous.
+  setCheckoutSite(search?.get("site"));
   // Set once from the URL Mollie sent the buyer back to. Read here, not
   // inside the effects, so the cart bootstrap and the resume agree
   // about which kind of page load this is.
@@ -385,7 +418,9 @@ export default function GetTicketsPage({
     processing: boolean;
   } | null>(null);
 
-  const [billing, setBilling] = useState<BillingState>(EMPTY_BILLING);
+  const [billing, setBilling] = useState<BillingState>(() =>
+    seedBilling(search),
+  );
 
   // Apply what a resume link carried, once the cart token is settled.
   useEffect(() => {

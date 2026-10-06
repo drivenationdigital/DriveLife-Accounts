@@ -23,7 +23,14 @@ import {
  * Without a saved event there is no id to link to, so the card says so
  * instead of showing a broken URL.
  */
-export function CheckoutLinksCard({ eid }: { eid: string | null | undefined }) {
+export function CheckoutLinksCard({
+  eid,
+  site,
+}: {
+  eid: string | null | undefined;
+  /** The event's blog, so the link resolves against the right one. */
+  site?: string | null;
+}) {
   const [theme, setTheme] = useState<ApplyTheme>("light");
   const [copiedKey, setCopiedKey] = useState<"url" | "embed" | null>(null);
 
@@ -65,9 +72,9 @@ export function CheckoutLinksCard({ eid }: { eid: string | null | undefined }) {
     );
   }
 
-  const directUrl = withApplyTheme(checkoutDirectUrl(eid), theme);
+  const directUrl = withApplyTheme(checkoutDirectUrl(eid, site), theme);
   const snippet = embedSnippet(
-    withApplyTheme(checkoutEmbedSrc(eid), theme),
+    withApplyTheme(checkoutEmbedSrc(eid, site), theme),
     "Buy tickets",
     900,
   );

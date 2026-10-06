@@ -690,7 +690,7 @@ export function TicketsPanel() {
 
           {/* Direct checkout link + embed code, like the application
               forms' card. Needs a saved event for the id. */}
-          <CheckoutLinksCard eid={state.encryptedId} />
+          <CheckoutLinksCard eid={state.encryptedId} site={site} />
         </>
       )}
 

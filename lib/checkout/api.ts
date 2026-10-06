@@ -21,6 +21,21 @@ export class CheckoutError extends Error {
   }
 }
 
+/**
+ * Which blog this checkout is talking to: 'uk' or 'us'.
+ *
+ * Sent on every call. The server derives the WordPress blog from it, and a
+ * post id is only unique within a blog - so the wrong value does not produce
+ * an error, it produces a DIFFERENT event's tickets. Held here rather than
+ * threaded through every signature, where one call could quietly miss it.
+ */
+let checkoutSite: "uk" | "us" = "uk";
+
+/** Points every later call at the event's own blog. Call before the first. */
+export function setCheckoutSite(site: string | null | undefined): void {
+  checkoutSite = String(site ?? "").trim().toLowerCase() === "us" ? "us" : "uk";
+}
+
 async function checkoutAction<T>(
   action: string,
   payload: Record<string, unknown> = {},
@@ -30,7 +45,8 @@ async function checkoutAction<T>(
     res = await fetch("/api/checkout", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action, ...payload }),
+      // `site` first so a caller naming one explicitly still wins.
+      body: JSON.stringify({ action, site: checkoutSite, ...payload }),
     });
   } catch {
     throw new CheckoutError(
