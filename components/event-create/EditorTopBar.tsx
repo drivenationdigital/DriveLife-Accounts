@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
+import { appReturnUrl } from "@/lib/appReturn";
 import { useEventRegion } from "@/lib/useEventSteps";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 import { useEditorSave } from "@/lib/useEditorSave";
@@ -88,6 +89,12 @@ export function EditorTopBar() {
     : "/";
   const backLabel = state.encryptedId ? "Event Overview" : "Dashboard";
 
+  // Opened from the mobile app. "Back" then means back to the app, not to a
+  // dashboard page the user cannot otherwise reach from in there — and it has
+  // to be a real navigation rather than a Next <Link>, because the target is
+  // a custom scheme the router knows nothing about.
+  const appReturn = appReturnUrl();
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-200">
       <div className="px-4 sm:px-6 h-14 sm:h-16 flex items-center gap-3">
@@ -103,16 +110,27 @@ export function EditorTopBar() {
 
             Uses Next's Link so navigation stays client-side and the auth
             token cookie is preserved naturally (no full reload). */}
-        <Link
-          href={backHref}
-          className="flex items-center gap-2 text-ink-500 hover:text-ink-900 transition"
-          aria-label={`Back to ${backLabel.toLowerCase()}`}
-        >
-          <i className="fa-solid fa-arrow-left text-sm" aria-hidden />
-          <span className="hidden sm:inline text-sm font-medium">
-            {backLabel}
-          </span>
-        </Link>
+        {appReturn ? (
+          <a
+            href={appReturn}
+            className="flex items-center gap-2 text-ink-500 hover:text-ink-900 transition"
+            aria-label="Back to the app"
+          >
+            <i className="fa-solid fa-arrow-left text-sm" aria-hidden />
+            <span className="hidden sm:inline text-sm font-medium">Done</span>
+          </a>
+        ) : (
+          <Link
+            href={backHref}
+            className="flex items-center gap-2 text-ink-500 hover:text-ink-900 transition"
+            aria-label={`Back to ${backLabel.toLowerCase()}`}
+          >
+            <i className="fa-solid fa-arrow-left text-sm" aria-hidden />
+            <span className="hidden sm:inline text-sm font-medium">
+              {backLabel}
+            </span>
+          </Link>
+        )}
 
         {/* Vertical divider - only visible on tablets where both the back
             link and the title are showing. Hidden on lg+ since the title

@@ -187,6 +187,48 @@ export function middleware(request: NextRequest) {
     );
   }
 
+  // ── Session handoff from the mobile app ────────────────────────────
+  //
+  // The app runs on a different JWT system to this dashboard - different
+  // secret, different claims - so it cannot simply pass its own token along.
+  // It trades it for a short-lived dashboard token (app/v1/dashboard-session)
+  // and arrives here with it on the URL.
+  //
+  // Taken BEFORE the auth gate below, or the request would be bounced to
+  // /login while carrying a perfectly good session.
+  //
+  // Redirected immediately to the same URL without it, which is the whole
+  // point: a token on a URL is a token in the address bar, the share sheet,
+  // the browser history and the server's access log. After this hop the only
+  // copy is a cookie.
+  const handoff = request.nextUrl.searchParams.get("dl_s");
+
+  if (handoff) {
+    const clean = request.nextUrl.clone();
+    clean.searchParams.delete("dl_s");
+
+    const response = NextResponse.redirect(clean);
+
+    response.cookies.set({
+      name: AUTH_COOKIE_NAME,
+      value: handoff,
+      path: "/",
+      sameSite: "lax",
+      secure: request.nextUrl.protocol === "https:",
+      // Readable by JS on purpose, matching how this cookie is already set
+      // and read (see lib/authCookies.ts) - the dashboard attaches it to
+      // X-WP-Token on every API call, so an HttpOnly cookie would sign the
+      // user in and then let them do nothing.
+      httpOnly: false,
+      // The handoff token expires in fifteen minutes server-side; the cookie
+      // is given the same life so a dead token does not linger as a session
+      // that looks alive.
+      maxAge: 15 * 60,
+    });
+
+    return response;
+  }
+
   const isPublic = PUBLIC_PATHS.some(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
