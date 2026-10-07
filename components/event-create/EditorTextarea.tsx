@@ -4,12 +4,18 @@ import { useCallback, useEffect } from "react";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
+import DOMPurify from "isomorphic-dompurify";
 
 /**
  * WYSIWYG editor used in the Description, Show Cars, Car Clubs, and
  * Trader-category panels. Built on TipTap (a ProseMirror wrapper)
  * with a small toolbar for the formatting we expose to organisers:
- * bold / italic / strike / bullet list / numbered list / link.
+ * bold / italic / underline / strike / bullet list / numbered list /
+ * link.
+ *
+ * Pasted content is reduced to that same set (see cleanPastedHtml):
+ * anything copied from a website, Word or Google Docs arrives as plain
+ * paragraphs, lists and links with no divs, spans, styles or images.
  *
  * Output is HTML - that's what TipTap produces and what the WP
  * backend stores in ACF text fields. The `value` prop is treated as
@@ -40,6 +46,9 @@ export function EditorTextarea({
         // Headings aren't in our toolbar; drop them so a pasted H1
         // doesn't render huge inside our small box.
         heading: false,
+        // StarterKit v3 bundles its own Link; ours below carries the
+        // rel/target settings, so the bundled one is switched off.
+        link: false,
       }),
       Link.configure({
         openOnClick: false,
@@ -60,6 +69,9 @@ export function EditorTextarea({
         style: `min-height: ${minHeight}px`,
         ...(id ? { id } : {}),
       },
+      // Strip everything but basic formatting from pasted HTML before
+      // ProseMirror parses it.
+      transformPastedHTML: cleanPastedHtml,
     },
     onUpdate({ editor }) {
       // TipTap returns "<p></p>" for an empty editor - collapse to ""
@@ -141,6 +153,13 @@ function Toolbar({ editor }: { editor: Editor | null }) {
       onClick: () => editor?.chain().focus().toggleItalic().run(),
     },
     {
+      key: "underline",
+      icon: "fa-solid fa-underline",
+      title: "Underline",
+      isActive: () => !!editor?.isActive("underline"),
+      onClick: () => editor?.chain().focus().toggleUnderline().run(),
+    },
+    {
       key: "strike",
       icon: "fa-solid fa-strikethrough",
       title: "Strikethrough",
@@ -220,3 +239,167 @@ type ToolbarButton =
       onClick: () => void;
     }
   | { key: string; divider: true };
+
+// ============================================================
+// Paste cleaning
+// ============================================================
+
+/** The only tags a paste may contribute - the toolbar's own set. */
+const PASTE_ALLOWED_TAGS = [
+  "p",
+  "br",
+  "strong",
+  "b",
+  "em",
+  "i",
+  "u",
+  "s",
+  "del",
+  "strike",
+  "a",
+  "ul",
+  "ol",
+  "li",
+];
+
+/** Block-level containers that become paragraphs (or unwrap when they
+ *  hold other blocks). Headings are demoted on purpose. */
+const BLOCK_TO_PARAGRAPH =
+  "div, section, article, header, footer, main, aside, nav, figure, figcaption, blockquote, pre, address, details, summary, h1, h2, h3, h4, h5, h6, table, thead, tbody, tfoot, tr, td, th, dl, dt, dd, center";
+
+const BLOCK_TAGS = new Set([
+  "P",
+  "DIV",
+  "SECTION",
+  "ARTICLE",
+  "HEADER",
+  "FOOTER",
+  "MAIN",
+  "ASIDE",
+  "NAV",
+  "FIGURE",
+  "FIGCAPTION",
+  "BLOCKQUOTE",
+  "PRE",
+  "ADDRESS",
+  "DETAILS",
+  "SUMMARY",
+  "H1",
+  "H2",
+  "H3",
+  "H4",
+  "H5",
+  "H6",
+  "TABLE",
+  "THEAD",
+  "TBODY",
+  "TFOOT",
+  "TR",
+  "TD",
+  "TH",
+  "UL",
+  "OL",
+  "LI",
+  "DL",
+  "DT",
+  "DD",
+  "CENTER",
+  "HR",
+]);
+
+/** Replace an element with its children. */
+function unwrap(el: Element) {
+  el.replaceWith(...Array.from(el.childNodes));
+}
+
+/** Replace an element with a `<tag>` holding the same children. */
+function retag(el: Element, tag: string) {
+  const next = el.ownerDocument.createElement(tag);
+  next.append(...Array.from(el.childNodes));
+  el.replaceWith(next);
+}
+
+/**
+ * Reduce pasted HTML to paragraphs, lists, links and bold / italic /
+ * underline / strikethrough.
+ *
+ * Why not just DOMPurify with an allowlist: purifying alone unwraps a
+ * stripped <div> into its text, so three pasted lines of a web page
+ * collapse into one paragraph, and Google Docs' bold/italic live in
+ * inline styles on <span>s (and its "normal" <b> wrapper would make
+ * everything bold). The DOM pass first keeps the line structure and
+ * turns those styles into the semantic tags the editor understands;
+ * DOMPurify then enforces the allowlist on what is left.
+ *
+ * Only ever called in the browser (a paste), so DOMParser is available.
+ */
+function cleanPastedHtml(html: string): string {
+  if (!html || typeof DOMParser === "undefined") return html;
+
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const body = doc.body;
+
+  // Google Docs wraps the whole paste in <b style="font-weight:normal">.
+  body.querySelectorAll("b, strong").forEach((el) => {
+    if (/font-weight\s*:\s*(normal|[1-4]00)\b/i.test(el.getAttribute("style") ?? "")) {
+      unwrap(el);
+    }
+  });
+
+  // Inline-style formatting → semantic tags, innermost first so a span
+  // carrying two styles nests correctly.
+  Array.from(body.querySelectorAll("span, font"))
+    .reverse()
+    .forEach((el) => {
+      const style = el.getAttribute("style") ?? "";
+      const bold = /font-weight\s*:\s*(bold|bolder|[5-9]00)\b/i.test(style);
+      const italic = /font-style\s*:\s*italic/i.test(style);
+      const underline = /text-decoration(-line)?\s*:\s*[^;]*underline/i.test(style);
+      const strike = /text-decoration(-line)?\s*:\s*[^;]*line-through/i.test(style);
+      // Each wrap puts the previous wrapper (and the span) inside the
+      // new one, so two styles nest as <u><em>…</em></u>.
+      const wrapIn = (tag: string) => {
+        const wrapper = doc.createElement(tag);
+        el.replaceWith(wrapper);
+        wrapper.appendChild(el);
+      };
+      if (bold) wrapIn("strong");
+      if (italic) wrapIn("em");
+      if (underline) wrapIn("u");
+      if (strike) wrapIn("s");
+      // The span itself has nothing left to say.
+      unwrap(el);
+    });
+
+  // Block containers: a paragraph when they only hold inline content,
+  // otherwise unwrapped so their own block children stand on their own.
+  // Deepest first (querySelectorAll is document order), so a container
+  // is judged on its children AFTER those have been converted.
+  Array.from(body.querySelectorAll(BLOCK_TO_PARAGRAPH))
+    .reverse()
+    .forEach((el) => {
+      const hasBlockChild = Array.from(el.children).some((c) =>
+        BLOCK_TAGS.has(c.tagName),
+      );
+      if (hasBlockChild) {
+        unwrap(el);
+      } else {
+        retag(el, "p");
+      }
+    });
+
+  // A paragraph directly inside a list item renders as a line break in
+  // the item; unwrap it so items stay single-line like typed ones.
+  body.querySelectorAll("li > p:only-child").forEach(unwrap);
+
+  const cleaned = DOMPurify.sanitize(body.innerHTML, {
+    ALLOWED_TAGS: PASTE_ALLOWED_TAGS,
+    ALLOWED_ATTR: ["href"],
+    ALLOW_DATA_ATTR: false,
+    KEEP_CONTENT: true,
+  });
+
+  // Empty paragraphs left behind by stripped images, spacer divs and
+  // Word's blank lines.
+  return cleaned.replace(/<p>(?:\s|&nbsp;|<br\s*\/?>)*<\/p>/gi, "");
+}

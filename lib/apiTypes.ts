@@ -1041,6 +1041,10 @@ export interface ApiEventEditResponse {
     is_multi_day: boolean;
     is_multi_timeslot: boolean;
     exclude_time: boolean;
+    /** Independent start/end visibility (backend 2026-10-07). Optional so
+     *  an older backend - which only knows `exclude_time` - still maps. */
+    hide_start_time?: boolean;
+    hide_end_time?: boolean;
     recurring: ApiEventRecurring | null;
   };
   description: {

@@ -9,7 +9,11 @@ import {
   ApplicationsSkeleton,
   ApplicationsError,
 } from "@/components/tabs/ApplicationsSkeleton";
-import { useTraderApplications } from "@/lib/traderApplications";
+import {
+  useApproveTraderApplication,
+  useTraderApplications,
+} from "@/lib/traderApplications";
+import { ApproveAllButton } from "@/components/applications/ApproveAllButton";
 import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
 import { applyFormUrl } from "@/lib/applyFormUrl";
 import type { Trader } from "@/context/types";
@@ -75,6 +79,8 @@ export function TradersTab() {
     refetch,
     isFetching,
   } = useTraderApplications(eid, event.region);
+  // "Approve all" on the pending group runs this one approval per row.
+  const approver = useApproveTraderApplication();
 
   // First load: shimmer the card grid rather than showing an empty
   // KPI strip that snaps into content a moment later.
@@ -135,7 +141,19 @@ export function TradersTab() {
         />
       </div>
 
-      <TraderGroup title="Pending Trader Applications" traders={pending} />
+      <TraderGroup
+        title="Pending Trader Applications"
+        traders={pending}
+        action={
+          <ApproveAllButton
+            ids={pending.map((t) => Number(t.id))}
+            noun="trader application"
+            approve={(applicationId) =>
+              approver.mutateAsync({ applicationId })
+            }
+          />
+        }
+      />
 
       <TraderGroup
         title="Approved Traders"
