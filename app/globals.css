@@ -5335,3 +5335,11 @@
     animation: none;
   }
 }
+
+/* Show car application: the other categories the same submission
+   applied for (table Category cell + detail modal). */
+.showcar-also {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}

@@ -31,7 +31,8 @@ export interface ShowCarPublicCategory {
   ticket_cost: number;
   /** null when the category has unlimited capacity (no stock set on
    *  the ticket). Otherwise the remaining count after subtracting
-   *  pending + approved + paid applications. */
+   *  pending + approved applications (confirmed ones already consumed
+   *  their space). */
   spaces_remaining: number | null;
   is_full: boolean;
   /** "YYYY-MM-DD" - null if the organiser hasn't bounded the window
@@ -61,7 +62,12 @@ export interface ShowCarPublicResponse {
 
 export interface ShowCarApplicationBody {
   eventEid: string;
+  /** First chosen category - kept for a backend that predates
+   *  multi-category submissions. `ticketEids` is authoritative. */
   ticketEid: string;
+  /** Every category the applicant ticked. The server writes one
+   *  application row per category, linked by a submission id. */
+  ticketEids: string[];
   firstName: string;
   lastName: string;
   email: string;
@@ -96,6 +102,8 @@ export interface ShowCarApplicationBody {
 export interface ShowCarApplicationResponse {
   success: true;
   application_id: number;
+  /** One id per category applied for (multi-category backend). */
+  application_ids?: number[];
 }
 
 // ============================================================

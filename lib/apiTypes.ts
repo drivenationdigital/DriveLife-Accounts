@@ -478,6 +478,16 @@ export interface ApiShowCarRecord {
    *  string when the ticket was deleted after the application was
    *  submitted (LEFT JOIN). */
   category: string;
+  /** One apply-form submission can cover several categories (one row
+   *  each, sharing a submission id). `also_applied_for` lists the OTHER
+   *  rows of the same submission. Optional until every backend sends
+   *  them. */
+  submission_id?: string | null;
+  also_applied_for?: {
+    id: number;
+    category: string;
+    status: ApplicationStatusApi;
+  }[];
   car: {
     make: string | null;
     model: string | null;

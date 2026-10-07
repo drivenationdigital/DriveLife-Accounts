@@ -77,6 +77,7 @@ type FormState = Omit<ShowCarApplicationBody, "eventEid">;
 
 const INITIAL_FORM: FormState = {
   ticketEid: "",
+  ticketEids: [],
   firstName: "",
   lastName: "",
   email: "",
@@ -211,15 +212,31 @@ export default function ShowCarApplyPage({
     );
   }
 
-  // ----- Selected category context -------------------------------
-  const selected = data.categories.find(
-    (c) => c.encrypted_id === form.ticketEid,
+  // ----- Selected categories -------------------------------------
+  // Tick boxes: a car can enter several categories at once. The server
+  // writes one application per category (each approved, paid for and
+  // counted on its own) and links them by a submission id.
+  const selectedCategories = data.categories.filter((c) =>
+    form.ticketEids.includes(c.encrypted_id),
   );
+  // A category can fill up or close while the form is open; the server
+  // would refuse the whole submission, so block it up front.
+  const selectionBlocked = selectedCategories.some(
+    (c) => c.is_full || !isCategoryOpenToday(c),
+  );
+  const toggleCategory = (eid: string, checked: boolean) => {
+    setForm((f) => {
+      const rest = f.ticketEids.filter((x) => x !== eid);
+      const ticketEids = checked ? [...rest, eid] : rest;
+      // `ticketEid` mirrors the first choice for older backends.
+      return { ...f, ticketEids, ticketEid: ticketEids[0] ?? "" };
+    });
+  };
 
   // ----- Submit --------------------------------------------------
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!form.ticketEid) return;
+    if (form.ticketEids.length === 0 || selectionBlocked) return;
 
     // The photo is required. The file input is visually hidden, so the
     // browser can't point at it like the other required fields - say
@@ -258,7 +275,12 @@ export default function ShowCarApplyPage({
     setPhotoUploading(false);
 
     try {
-      await submit.mutateAsync({ ...form, eventEid, photoUrl });
+      await submit.mutateAsync({
+        ...form,
+        ticketEid: form.ticketEids[0] ?? "",
+        eventEid,
+        photoUrl,
+      });
     } catch {
       // error surfaces below the submit button via submit.error.
     }
@@ -345,28 +367,64 @@ export default function ShowCarApplyPage({
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-5">
-        <Section step={1} title="Category">
-          <Field label="Show car category" required>
-            <select
-              required
-              className="input"
-              value={form.ticketEid}
-              onChange={update("ticketEid")}
-            >
-              <option value="">Select a category</option>
-              {data.categories.map((c) => (
-                <option
-                  key={c.encrypted_id}
-                  value={c.encrypted_id}
-                  disabled={c.is_full || !isCategoryOpenToday(c)}
-                >
-                  {c.name} - {categoryAvailabilityLabel(c, region)}
-                </option>
-              ))}
-            </select>
-          </Field>
-          {selected && (
-            <SelectedCategoryDetails category={selected} region={region} />
+        <Section step={1} title="Categories">
+          {/* Not a <Field> (which is a <label>): a label wrapping several
+              checkboxes toggles the first one on any click. */}
+          <fieldset className="border-0 p-0 m-0 min-w-0">
+            <legend className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500 inline-flex items-center gap-1">
+              Show car categories
+              <span className="text-gold-600 text-sm leading-none">*</span>
+            </legend>
+            <p className="text-xs text-ink-500 mt-1">
+              Tick every category you&apos;d like to enter this car into.
+            </p>
+            <div className="mt-3 space-y-2">
+              {data.categories.map((c) => {
+                const unavailable = c.is_full || !isCategoryOpenToday(c);
+                const checked = form.ticketEids.includes(c.encrypted_id);
+                return (
+                  <label
+                    key={c.encrypted_id}
+                    className={`flex items-start gap-3 p-3 rounded-lg border transition ${
+                      checked
+                        ? "border-gold-400 bg-gold-50"
+                        : "border-ink-200 bg-white"
+                    } ${unavailable ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-gold-300"}`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 accent-gold-500 shrink-0"
+                      checked={checked}
+                      disabled={unavailable}
+                      onChange={(e) =>
+                        toggleCategory(c.encrypted_id, e.target.checked)
+                      }
+                    />
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-sm font-semibold text-ink-900">
+                        {c.name}
+                      </span>
+                      <span className="block text-xs text-ink-500">
+                        {categoryAvailabilityLabel(c, region)}
+                      </span>
+                      {checked && (
+                        <SelectedCategoryDetails category={c} region={region} />
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </fieldset>
+          {selectedCategories.length > 1 && (
+            <p className="text-xs text-ink-500">
+              You&apos;re applying for {selectedCategories.length} categories.
+              Each one is reviewed separately
+              {selectedCategories.some((c) => c.require_ticket)
+                ? ", and paid categories are charged on approval"
+                : ""}
+              .
+            </p>
           )}
         </Section>
 
@@ -621,10 +679,8 @@ export default function ShowCarApplyPage({
           disabled={
             submit.isPending ||
             photoUploading ||
-            !form.ticketEid ||
-            !selected ||
-            selected.is_full ||
-            !isCategoryOpenToday(selected)
+            form.ticketEids.length === 0 ||
+            selectionBlocked
           }
           className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
         >

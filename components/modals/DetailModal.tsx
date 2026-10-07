@@ -100,6 +100,19 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
             <div className="detail-label">Category applied</div>
             <div className="detail-value">{car.category || "-"}</div>
           </div>
+          {car.otherCategories.length > 0 && (
+            <div className="detail-field">
+              <div className="detail-label">Also applied for</div>
+              <div className="detail-value">
+                {car.otherCategories.map((c) => (
+                  <div key={c.id}>
+                    {c.category}{" "}
+                    <span className="showcar-also">({statusLabel(c.status)})</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="detail-field">
             <div className="detail-label">Year</div>
             <div className={`detail-value mono${car.year ? "" : " muted"}`}>

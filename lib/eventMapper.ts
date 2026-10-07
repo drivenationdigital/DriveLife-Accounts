@@ -458,6 +458,11 @@ export function mapShowCar(r: ApiShowCarRecord, region: Region): ShowCar {
     // fallback for the edge case where the ticket was deleted after
     // the application was submitted.
     category: r.category || "",
+    otherCategories: (r.also_applied_for ?? []).map((s) => ({
+      id: String(s.id),
+      category: s.category || "",
+      status: SHOW_CAR_STATUS_MAP[s.status] ?? "pending",
+    })),
     status: SHOW_CAR_STATUS_MAP[r.status],
     appliedLabel: formatAppliedLabel(r.created_at, region),
     updatedLabel: formatAppliedLabel(r.updated_at ?? r.created_at, region),
