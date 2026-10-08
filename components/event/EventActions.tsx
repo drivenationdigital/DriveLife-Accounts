@@ -1,5 +1,6 @@
 "use client";
 
+import { appAction } from "@/lib/appReturn";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -72,6 +73,18 @@ export function EventActions({
   const busy = clone.isPending || cancel.isPending || del.isPending;
 
   const handleView = () => {
+    // Inside the app, the public event page already exists natively — with
+    // the gallery, the navigation sheet and the community tab. Opening a
+    // browser on top of the app to show a worse copy of a screen the user
+    // could already reach is the kind of seam that makes an embedded page
+    // feel bolted on. Hand it back and let the app show its own.
+    const viewInApp = appAction("dl-view=1");
+
+    if (viewInApp) {
+      window.location.href = viewInApp;
+      return;
+    }
+
     if (permalink) {
       window.open(permalink, "_blank", "noopener,noreferrer");
     }

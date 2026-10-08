@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
+import { APP_RETURN_COOKIE } from "@/lib/appReturn";
 
 /**
  * Routes that should render without a valid token. Everything else redirects
@@ -207,7 +208,36 @@ export function middleware(request: NextRequest) {
     const clean = request.nextUrl.clone();
     clean.searchParams.delete("dl_s");
 
+    // Where the app wants the user sent when they are finished. Moved out of
+    // the URL into a cookie for the same reason as the token: it has to
+    // survive every navigation inside the dashboard, and the editor rewrites
+    // its own query as the user moves between steps.
+    //
+    // This doubles as the "we are inside the app" flag — only the app sends a
+    // handoff — which is what lets the layout drop the dashboard's own header
+    // and sidebar. One signal, read server-side by the layout and client-side
+    // by the links that have to point home.
+    const complete = request.nextUrl.searchParams.get("complete") ?? "";
+    clean.searchParams.delete("complete");
+
     const response = NextResponse.redirect(clean);
+
+    // Only ever the app's own scheme. This value ends up in an href on a page
+    // the user is signed into, so an open list would turn the dashboard into
+    // a redirector.
+    if (/^drivelife:\/\//i.test(complete)) {
+      response.cookies.set({
+        name: APP_RETURN_COOKIE,
+        value: complete,
+        path: "/",
+        sameSite: "lax",
+        secure: request.nextUrl.protocol === "https:",
+        // Read by client components, so not HttpOnly — same reasoning as the
+        // auth cookie beside it.
+        httpOnly: false,
+        maxAge: 60 * 60 * 8,
+      });
+    }
 
     response.cookies.set({
       name: AUTH_COOKIE_NAME,

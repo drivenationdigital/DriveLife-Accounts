@@ -25,7 +25,6 @@ import {
   type EventCreateStepKey,
 } from "@/lib/eventCreateSteps";
 import { mapEventEditResponse } from "@/lib/eventEditMapper";
-import { captureAppReturn } from "@/lib/appReturn";
 import { parseRef } from "@/lib/siteRef";
 import { useEventForEdit } from "@/lib/queries";
 import { useEventSteps } from "@/lib/useEventSteps";
@@ -131,10 +130,6 @@ export default function EventCreatePage() {
 function PageInner() {
   const searchParams = useSearchParams();
 
-  // The app opened this in a web container and wants the user back when they
-  // are done. Captured here, once, because the editor rewrites its own query
-  // as the user moves between steps.
-  captureAppReturn(searchParams);
   // `?eid=` is a ref - "uk{eid}" - so the region travels as part of the
   // id rather than as a separate param that can go missing. Null when
   // there's no eid at all: a brand-new event from the create wizard.

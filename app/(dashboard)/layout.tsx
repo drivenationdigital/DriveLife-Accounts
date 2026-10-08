@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+
+import { APP_RETURN_COOKIE } from "@/lib/appReturn";
 import { EventProvider } from "@/context/EventContext";
 import { UIProvider } from "@/context/UIContext";
 import { TopBar } from "@/components/layout/TopBar";
@@ -11,18 +14,27 @@ import { WelcomeModal } from "@/components/modals/WelcomeModal";
  * reaching here has a token - but components that need the user can still
  * read `useAuth()` from the root AuthProvider.
  */
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Inside the app's web container the page already has a header — the app's
+  // own, with its logo and back button. Rendering ours underneath it gives
+  // the user two headers and two back buttons that disagree, which is the
+  // single most obvious way an embedded page announces that it is a website.
+  //
+  // The sidebar goes for the same reason: it navigates to dashboard pages
+  // that make no sense inside a screen the app opened for one event.
+  const inApp = Boolean((await cookies()).get(APP_RETURN_COOKIE)?.value);
+
   return (
     <EventProvider>
       <UIProvider>
-        <TopBar />
-        <SidebarOverlay />
+        {!inApp && <TopBar />}
+        {!inApp && <SidebarOverlay />}
         <div className="app">
-          <Sidebar />
+          {!inApp && <Sidebar />}
           <main className="main">{children}</main>
         </div>
         <CreateModal />
