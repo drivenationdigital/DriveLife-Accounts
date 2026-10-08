@@ -9,7 +9,11 @@ import {
   ApplicationsError,
 } from "@/components/tabs/ApplicationsSkeleton";
 import { DownloadIcon } from "@/components/ui/Icons";
-import { useClubApplications } from "@/lib/clubApplications";
+import {
+  useApproveClubApplication,
+  useClubApplications,
+} from "@/lib/clubApplications";
+import { ApproveAllButton } from "@/components/applications/ApproveAllButton";
 import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
@@ -53,6 +57,8 @@ export function ClubsTab() {
   };
   const clubs = data?.clubs ?? [];
   const sales = data?.sales;
+  // "Approve all" on the pending group runs this one approval per row.
+  const approver = useApproveClubApplication();
 
   // First load: shimmer the real layout. Without this the tab renders
   // a zeroed KPI strip and no section cards, which reads as "there's
@@ -128,6 +134,15 @@ export function ClubsTab() {
           subtitle={`${pending.length} awaiting review`}
           clubs={pending}
           spacesMode="requested"
+          action={
+            <ApproveAllButton
+              ids={pending.map((c) => Number(c.id))}
+              noun="club application"
+              approve={(applicationId) =>
+                approver.mutateAsync({ applicationId })
+              }
+            />
+          }
         />
       )}
 
@@ -166,6 +181,7 @@ function ClubSection({
   spacesMode,
   onExport,
   exporting,
+  action,
 }: {
   title: string;
   subtitle: string;
@@ -173,6 +189,8 @@ function ClubSection({
   spacesMode: "requested" | "sold";
   onExport?: () => void;
   exporting?: boolean;
+  /** Extra header control, e.g. "Approve all" on the pending group. */
+  action?: React.ReactNode;
 }) {
   return (
     <div className="section">
@@ -181,6 +199,7 @@ function ClubSection({
           <div className="section-title">{title}</div>
           <div className="section-subtitle">{subtitle}</div>
         </div>
+        {action}
         {onExport && (
           <button
             type="button"

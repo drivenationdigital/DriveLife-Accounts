@@ -233,11 +233,17 @@ export function DatesPanel() {
 
   // ---- Mutually-exclusive toggle handlers --------------------------
   //
-  // hideTimes hides the time UI entirely; uniqueTimesPerDay opens
-  // per-day rows. Both at once doesn't make sense - turning one on
-  // forces the other off so the UI never enters an ambiguous state.
-  const onHideTimesChange = (value: boolean) => {
-    dispatch({ type: "SET_FIELD", key: "hideTimes", value });
+  // "Hide start time" / "Hide end time" each hide their own input (and
+  // the time on the public page); uniqueTimesPerDay opens per-day rows.
+  // Hiding a time while editing per-day times doesn't make sense -
+  // turning a hide toggle on forces per-day off, and turning per-day on
+  // shows both times again, so the UI never enters an ambiguous state.
+  const anyTimeHidden = state.hideStartTime || state.hideEndTime;
+  const onHideTimeChange = (
+    key: "hideStartTime" | "hideEndTime",
+    value: boolean,
+  ) => {
+    dispatch({ type: "SET_FIELD", key, value });
     if (value && state.uniqueTimesPerDay) {
       dispatch({
         type: "SET_FIELD",
@@ -248,10 +254,31 @@ export function DatesPanel() {
   };
   const onUniqueTimesChange = (value: boolean) => {
     dispatch({ type: "SET_FIELD", key: "uniqueTimesPerDay", value });
-    if (value && state.hideTimes) {
-      dispatch({ type: "SET_FIELD", key: "hideTimes", value: false });
+    if (value && state.hideStartTime) {
+      dispatch({ type: "SET_FIELD", key: "hideStartTime", value: false });
+    }
+    if (value && state.hideEndTime) {
+      dispatch({ type: "SET_FIELD", key: "hideEndTime", value: false });
     }
   };
+
+  // The two hide toggles, shared by the single and recurring forms.
+  const hideTimeToggles = (
+    <>
+      <ToggleRow
+        title="Hide start time"
+        description="The event page and cards won't show when it starts"
+        checked={state.hideStartTime}
+        onChange={(v) => onHideTimeChange("hideStartTime", v)}
+      />
+      <ToggleRow
+        title="Hide end time"
+        description="The event page and cards won't show when it ends"
+        checked={state.hideEndTime}
+        onChange={(v) => onHideTimeChange("hideEndTime", v)}
+      />
+    </>
+  );
 
   // Update one per-day row by date.
   const onPerDayChange = (
@@ -326,7 +353,7 @@ export function DatesPanel() {
                 label="Starts"
                 date={state.startDate}
                 time={state.startTime}
-                hideTime={state.hideTimes || state.uniqueTimesPerDay}
+                hideTime={state.hideStartTime || state.uniqueTimesPerDay}
                 onDateClick={() =>
                   setPickerTarget({ key: "startDate", title: "Start date" })
                 }
@@ -338,7 +365,7 @@ export function DatesPanel() {
                 label="Ends"
                 date={state.endDate}
                 time={state.endTime}
-                hideTime={state.hideTimes || state.uniqueTimesPerDay}
+                hideTime={state.hideEndTime || state.uniqueTimesPerDay}
                 onDateClick={() =>
                   setPickerTarget({ key: "endDate", title: "End date" })
                 }
@@ -349,21 +376,14 @@ export function DatesPanel() {
             </div>
 
             <div className="mt-5 pt-5 border-t border-ink-200 space-y-3">
-              {/* Hide times - visible unless per-day mode is on
-                  (mutually exclusive). */}
-              {!state.uniqueTimesPerDay && (
-                <ToggleRow
-                  title="Hide times on event page"
-                  description="Only the date range will be shown"
-                  checked={state.hideTimes}
-                  onChange={onHideTimesChange}
-                />
-              )}
+              {/* Hide start / end time - visible unless per-day mode
+                  is on (mutually exclusive). */}
+              {!state.uniqueTimesPerDay && hideTimeToggles}
               {/* Unique times per day - visible only on multi-day
-                  events AND when hideTimes is off (mutually exclusive).
-                  For single-day events the toggle would be meaningless
-                  so we hide it entirely. */}
-              {isMultiDay && !state.hideTimes && (
+                  events AND when both times are shown (mutually
+                  exclusive). For single-day events the toggle would be
+                  meaningless so we hide it entirely. */}
+              {isMultiDay && !anyTimeHidden && (
                 <ToggleRow
                   title="Unique times per day"
                   description="Set different start/end times for each day"
@@ -561,22 +581,26 @@ export function DatesPanel() {
                     />
                   </button>
                 </div>
-                <TimeField
-                  label="Start time"
-                  required
-                  value={state.startTime}
-                  onChange={(value) =>
-                    dispatch({ type: "SET_FIELD", key: "startTime", value })
-                  }
-                />
-                <TimeField
-                  label="End time"
-                  required
-                  value={state.endTime}
-                  onChange={(value) =>
-                    dispatch({ type: "SET_FIELD", key: "endTime", value })
-                  }
-                />
+                {!state.hideStartTime && (
+                  <TimeField
+                    label="Start time"
+                    required
+                    value={state.startTime}
+                    onChange={(value) =>
+                      dispatch({ type: "SET_FIELD", key: "startTime", value })
+                    }
+                  />
+                )}
+                {!state.hideEndTime && (
+                  <TimeField
+                    label="End time"
+                    required
+                    value={state.endTime}
+                    onChange={(value) =>
+                      dispatch({ type: "SET_FIELD", key: "endTime", value })
+                    }
+                  />
+                )}
               </div>
             ) : (
               <CustomDateList
@@ -605,6 +629,12 @@ export function DatesPanel() {
                 }
               />
             )}
+
+            {/* Same visibility toggles as the single-event form - the
+                flags are saved for a series too. */}
+            <div className="pt-4 border-t border-ink-200 space-y-3">
+              {hideTimeToggles}
+            </div>
           </div>
 
           {/* Info callout - mockup uses gold-200/gold-50 to match the
@@ -782,13 +812,45 @@ function TimeField({
         {label}
         {required && <span className="text-gold-600 ml-1">*</span>}
       </label>
-      <input
-        type="time"
-        className="input"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+      <TimeInput value={value} onChange={onChange} />
     </div>
+  );
+}
+
+/**
+ * Native time input that opens its picker from a click anywhere in the
+ * box, not just on the clock icon. `showPicker()` needs a user gesture
+ * and throws in a cross-origin frame or an older browser - in both
+ * cases the native behaviour is left as it was.
+ */
+function TimeInput({
+  value,
+  onChange,
+  ariaLabel,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  ariaLabel?: string;
+}) {
+  return (
+    <input
+      type="time"
+      className="input cursor-pointer"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onClick={(e) => {
+        const input = e.currentTarget as HTMLInputElement & {
+          showPicker?: () => void;
+        };
+        try {
+          input.showPicker?.();
+        } catch {
+          // Not allowed here (embedded cross-origin, no gesture) - the
+          // clock icon still works.
+        }
+      }}
+      aria-label={ariaLabel}
+    />
   );
 }
 
@@ -805,8 +867,9 @@ function DateTimePair({
   label: string;
   date: string | null;
   time: string;
-  /** When true, the time input is hidden - used when `hideTimes` or
-   *  `uniqueTimesPerDay` modes are on for the parent event. */
+  /** When true, the time input is hidden - used when that time is
+   *  hidden (`hideStartTime` / `hideEndTime`) or `uniqueTimesPerDay`
+   *  is on for the parent event. */
   hideTime?: boolean;
   onDateClick: () => void;
   onTimeChange: (value: string) => void;
@@ -827,14 +890,7 @@ function DateTimePair({
         <span className="df-display">{display}</span>
         <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
       </button>
-      {!hideTime && (
-        <input
-          type="time"
-          className="input"
-          value={time}
-          onChange={(e) => onTimeChange(e.target.value)}
-        />
-      )}
+      {!hideTime && <TimeInput value={time} onChange={onTimeChange} />}
     </div>
   );
 }
@@ -902,24 +958,20 @@ function PerDayTimeRow({
         <label className="block sm:hidden text-xs uppercase tracking-wider font-semibold text-ink-500 mb-1">
           Start time
         </label>
-        <input
-          type="time"
-          className="input"
+        <TimeInput
           value={startTime}
-          onChange={(e) => onStartChange(e.target.value)}
-          aria-label={`Start time for ${formatEditorDate(date, region)}`}
+          onChange={onStartChange}
+          ariaLabel={`Start time for ${formatEditorDate(date, region)}`}
         />
       </div>
       <div>
         <label className="block sm:hidden text-xs uppercase tracking-wider font-semibold text-ink-500 mb-1">
           End time
         </label>
-        <input
-          type="time"
-          className="input"
+        <TimeInput
           value={endTime}
-          onChange={(e) => onEndChange(e.target.value)}
-          aria-label={`End time for ${formatEditorDate(date, region)}`}
+          onChange={onEndChange}
+          ariaLabel={`End time for ${formatEditorDate(date, region)}`}
         />
       </div>
     </div>
@@ -1007,26 +1059,18 @@ function CustomDateList({
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
                   Start time
                 </label>
-                <input
-                  type="time"
-                  className="input"
+                <TimeInput
                   value={row.startTime}
-                  onChange={(e) =>
-                    onUpdate({ ...row, startTime: e.target.value })
-                  }
+                  onChange={(v) => onUpdate({ ...row, startTime: v })}
                 />
               </div>
               <div>
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
                   End time
                 </label>
-                <input
-                  type="time"
-                  className="input"
+                <TimeInput
                   value={row.endTime}
-                  onChange={(e) =>
-                    onUpdate({ ...row, endTime: e.target.value })
-                  }
+                  onChange={(v) => onUpdate({ ...row, endTime: v })}
                 />
               </div>
               {/* Remove button - sits at the same baseline as the

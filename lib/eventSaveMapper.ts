@@ -79,7 +79,10 @@ export interface ApiEventUpdateRecurring {
 
 export interface ApiEventUpdateDates {
   timezone?: string;
+  /** Legacy "both times hidden" - kept in step with the two flags below. */
   exclude_time?: boolean;
+  hide_start_time?: boolean;
+  hide_end_time?: boolean;
   is_multi_timeslot?: boolean;
   date_rows?: ApiEventDateRow[];
   /** Only sent for a recurring event, alongside `recurring` below. */
@@ -242,23 +245,25 @@ function mapSingleDates(
   const end = state.endDate || start;
   let dateRows: ApiEventDateRow[];
 
+  const hideBoth = hideBothTimes(state);
+
   if (start === end) {
-    dateRows = [
-      row(start, start, state.startTime, state.endTime, state.hideTimes),
-    ];
+    dateRows = [row(start, start, state.startTime, state.endTime, hideBoth)];
   } else if (state.uniqueTimesPerDay && state.perDayTimes.length > 0) {
     dateRows = state.perDayTimes.map((d) =>
-      row(d.date, d.date, d.startTime, d.endTime, state.hideTimes),
+      row(d.date, d.date, d.startTime, d.endTime, hideBoth),
     );
   } else {
     dateRows = eachDayInclusive(start, end).map((date) =>
-      row(date, date, state.startTime, state.endTime, state.hideTimes),
+      row(date, date, state.startTime, state.endTime, hideBoth),
     );
   }
 
   return {
     timezone: state.timezone,
-    exclude_time: state.hideTimes,
+    exclude_time: hideBoth,
+    hide_start_time: state.hideStartTime,
+    hide_end_time: state.hideEndTime,
     is_multi_timeslot: state.uniqueTimesPerDay,
     date_rows: dateRows,
   };
@@ -295,7 +300,9 @@ function mapRecurringDates(
 
   return {
     timezone: state.timezone,
-    exclude_time: state.hideTimes,
+    exclude_time: hideBothTimes(state),
+    hide_start_time: state.hideStartTime,
+    hide_end_time: state.hideEndTime,
     // Per-day timeslots are a single-event feature; for a series the
     // only rows carrying times of their own are the custom ones.
     // `state.uniqueTimesPerDay` is stale here - the recurring form
@@ -334,7 +341,7 @@ function patternDateRows(state: EventCreateState): ApiEventDateRow[] | null {
   const last = state.recurringRepeatUntilCancelled
     ? first
     : state.recurringUntilDate || first;
-  return [row(first, last, state.startTime, state.endTime, state.hideTimes)];
+  return [row(first, last, state.startTime, state.endTime, hideBothTimes(state))];
 }
 
 /**
@@ -347,7 +354,7 @@ function patternDateRows(state: EventCreateState): ApiEventDateRow[] | null {
 function customDateRows(state: EventCreateState): ApiEventDateRow[] | null {
   const rows = state.recurringCustomDates
     .filter((r): r is typeof r & { date: string } => Boolean(r.date))
-    .map((r) => row(r.date, r.date, r.startTime, r.endTime, state.hideTimes));
+    .map((r) => row(r.date, r.date, r.startTime, r.endTime, hideBothTimes(state)));
   return rows.length > 0 ? rows : null;
 }
 
@@ -514,6 +521,15 @@ function mapPublish(state: EventCreateState): ApiEventUpdatePublish {
 // ============================================================
 // Small helpers
 // ============================================================
+
+/**
+ * The legacy per-row / top-level `exclude_time` means "no times at all",
+ * so it is true only when BOTH of the editor's toggles are on. The two
+ * flags travel separately alongside it.
+ */
+function hideBothTimes(state: EventCreateState): boolean {
+  return state.hideStartTime && state.hideEndTime;
+}
 
 function row(
   startDate: string,

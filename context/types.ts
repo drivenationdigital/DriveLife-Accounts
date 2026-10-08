@@ -188,6 +188,10 @@ export interface ShowCar {
    *  the base `.showcar-category` styling still applies. Re-add
    *  per-category colours via slugified class names if desired. */
   category: string;
+  /** The other categories this same submission applied for (each is
+   *  its own application row with its own status). Empty for a
+   *  single-category application. */
+  otherCategories: { id: string; category: string; status: ShowCarStatus }[];
   /** Cloudflare imagedelivery URL when the applicant uploaded a
    *  photo. When null/undefined the UI falls back to the gradient
    *  placeholder driven by `photoClass`. */

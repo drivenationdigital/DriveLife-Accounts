@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
+import { formatRef } from "@/lib/siteRef";
 import {
   occurrencesInScope,
   type OccurrenceScope,
@@ -75,8 +76,13 @@ export function OccurrenceTable({
 
   const openOccurrence = (eid: string) => {
     // A child lives on the same blog as its parent, so it inherits the
-    // region rather than needing one of its own.
-    router.push(eventDetailPath(eid, event.site));
+    // region rather than needing one of its own. The parent's ref and
+    // this tab travel along so the child's "Back" link (Breadcrumb)
+    // returns here rather than to the full events list.
+    const parent = encodeURIComponent(formatRef(event.encryptedId, event.site));
+    router.push(
+      `${eventDetailPath(eid, event.site)}?parent=${parent}&ptab=${scope}`,
+    );
   };
 
   return (

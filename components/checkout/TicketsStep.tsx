@@ -308,8 +308,159 @@ export function TicketsStep({
       (t) => (quantities[t.pid] ?? 0) > 0 && couponAppliesTo(coupon, t.id),
     );
 
+  // Tickets revealed by a secret code get their own container ABOVE the
+  // main list, and the main list keeps every ordinary ticket - a buyer
+  // with a code can still see (and buy) everything else. A section
+  // header whose tickets are all secret would sit empty in the main
+  // list, so those are dropped from it.
+  const secretTickets = useMemo(
+    () => tickets.filter((t) => !t.isSection && t.secretMatched),
+    [tickets],
+  );
+  const regularTickets = useMemo(() => {
+    const rows = tickets.filter((t) => t.isSection || !t.secretMatched);
+    return rows.filter((t, i) => {
+      if (!t.isSection) return true;
+      for (let j = i + 1; j < rows.length; j++) {
+        if (rows[j].isSection) break;
+        return true;
+      }
+      return false;
+    });
+  }, [tickets]);
+  const hasRegular = regularTickets.some((t) => !t.isSection);
+
+  // One ticket row. Shared by the secret container and the main list,
+  // which is why it is a function rather than inline JSX.
+  const renderTicket = (t: CheckoutTicket, i: number) => {
+    if (t.isSection) {
+      return (
+        <li
+          key={`section-${i}`}
+          className="px-6 py-2.5 border-t border-ink-200 bg-black text-[11px] uppercase tracking-[0.14em] font-bold text-white"
+        >
+          {t.name}
+        </li>
+      );
+    }
+
+    const qty = quantities[t.pid] ?? 0;
+    const displayPrice = t.price * vatMultiplier;
+    // Per-ticket strikethrough for percentage codes only - a
+    // fixed discount is shown on the code chip instead.
+    const hasDiscount =
+      coupon && !isFixedCoupon && couponAppliesTo(coupon, t.id);
+    const finalPrice = hasDiscount
+      ? discountedPrice(displayPrice, coupon)
+      : displayPrice;
+    // The classic checkout clamps every stepper by the event's
+    // per-order cap as well as the ticket's own limit.
+    const remainingCap =
+      cartLimit > 0 ? cartLimit - (totalSelected - qty) : Infinity;
+    const max = Math.min(t.maxQuantity, remainingCap);
+
+    return (
+      <li
+        key={t.pid}
+        className="px-6 py-4 border-t border-ink-200 flex items-start justify-between gap-4"
+      >
+        <div className="min-w-0">
+          <h3 className="text-[15px] font-bold text-ink-900 leading-snug">
+            {cname ? `${t.name} – ${cname}` : t.name}
+            {t.secretMatched && (
+              // Open padlock: this ticket was revealed by the
+              // secret code the buyer entered.
+              <svg
+                className="inline-block ml-1.5 align-[-2px] text-gold-500"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                role="img"
+                aria-label="Unlocked with secret code"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+              </svg>
+            )}
+          </h3>
+          <div className="text-[15px] font-bold text-ink-900 tabular-nums mt-0.5 flex items-baseline gap-2">
+            <span
+              className={hasDiscount ? "text-gold-600" : undefined}
+            >
+              {finalPrice <= 0
+                ? "Free"
+                : formatRegionCurrency(finalPrice, region)}
+            </span>
+            {hasDiscount && (
+              <span className="text-xs font-medium text-ink-400 line-through">
+                {formatRegionCurrency(displayPrice, region)}
+              </span>
+            )}
+          </div>
+          <TicketDescription text={t.description} />
+        </div>
+
+        <div className="shrink-0 text-right">
+          {t.earlyLiveDate ? (
+            <p className="text-xs text-ink-500">
+              Goes live
+              <br />
+              <span className="font-semibold text-ink-700">
+                {formatSaleStart(t.earlyLiveDate, region)}
+              </span>
+            </p>
+          ) : t.soldOut ? (
+            <span className="inline-block text-[11px] font-bold uppercase tracking-wide bg-ink-100 text-ink-500 rounded-full px-2.5 py-1">
+              Sold out
+            </span>
+          ) : (
+            <QuantityStepper
+              value={qty}
+              max={max}
+              onChange={(next) => onQuantityChange(t.pid, next)}
+            />
+          )}
+        </div>
+      </li>
+    );
+  };
+
   return (
     <>
+      {secretTickets.length > 0 && (
+        <section className="bg-white rounded-2xl shadow-sm ring-2 ring-gold-300 overflow-hidden">
+          <div className="flex items-center gap-3 px-6 pt-5 pb-4 bg-gold-50">
+            <svg
+              className="text-gold-500 shrink-0"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2.2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" />
+              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+            </svg>
+            <div>
+              <h2 className="text-base font-bold text-ink-900 tracking-tight">
+                Secret tickets
+              </h2>
+              <p className="text-xs text-ink-500">Unlocked with your code</p>
+            </div>
+          </div>
+          <ul>{secretTickets.map(renderTicket)}</ul>
+        </section>
+      )}
+
       <section className="bg-white rounded-2xl shadow-sm ring-1 ring-ink-100 overflow-hidden">
         <div className="flex items-center gap-3 px-6 pt-5 pb-4">
           <h2 className="text-base font-bold text-ink-900 tracking-tight">
@@ -317,109 +468,15 @@ export function TicketsStep({
           </h2>
         </div>
 
-        {buyable.length === 0 ? (
+        {!hasRegular ? (
           <p className="p-6 text-sm text-ink-600">
-            There are no tickets currently available.
+            {secretTickets.length > 0
+              ? "There are no other tickets currently available."
+              : "There are no tickets currently available."}
           </p>
         ) : (
           <ul>
-            {tickets.map((t, i) => {
-              if (t.isSection) {
-                return (
-                  <li
-                    key={`section-${i}`}
-                    className="px-6 py-2.5 border-t border-ink-200 bg-black text-[11px] uppercase tracking-[0.14em] font-bold text-white"
-                  >
-                    {t.name}
-                  </li>
-                );
-              }
-
-              const qty = quantities[t.pid] ?? 0;
-              const displayPrice = t.price * vatMultiplier;
-              // Per-ticket strikethrough for percentage codes only - a
-              // fixed discount is shown on the code chip instead.
-              const hasDiscount =
-                coupon && !isFixedCoupon && couponAppliesTo(coupon, t.id);
-              const finalPrice = hasDiscount
-                ? discountedPrice(displayPrice, coupon)
-                : displayPrice;
-              // The classic checkout clamps every stepper by the event's
-              // per-order cap as well as the ticket's own limit.
-              const remainingCap =
-                cartLimit > 0 ? cartLimit - (totalSelected - qty) : Infinity;
-              const max = Math.min(t.maxQuantity, remainingCap);
-
-              return (
-                <li
-                  key={t.pid}
-                  className="px-6 py-4 border-t border-ink-200 flex items-start justify-between gap-4"
-                >
-                  <div className="min-w-0">
-                    <h3 className="text-[15px] font-bold text-ink-900 leading-snug">
-                      {cname ? `${t.name} – ${cname}` : t.name}
-                      {t.secretMatched && (
-                        // Open padlock: this ticket was revealed by the
-                        // secret code the buyer entered.
-                        <svg
-                          className="inline-block ml-1.5 align-[-2px] text-gold-500"
-                          width="15"
-                          height="15"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          role="img"
-                          aria-label="Unlocked with secret code"
-                        >
-                          <rect x="3" y="11" width="18" height="11" rx="2" />
-                          <path d="M7 11V7a5 5 0 0 1 9.9-1" />
-                        </svg>
-                      )}
-                    </h3>
-                    <div className="text-[15px] font-bold text-ink-900 tabular-nums mt-0.5 flex items-baseline gap-2">
-                      <span
-                        className={hasDiscount ? "text-gold-600" : undefined}
-                      >
-                        {finalPrice <= 0
-                          ? "Free"
-                          : formatRegionCurrency(finalPrice, region)}
-                      </span>
-                      {hasDiscount && (
-                        <span className="text-xs font-medium text-ink-400 line-through">
-                          {formatRegionCurrency(displayPrice, region)}
-                        </span>
-                      )}
-                    </div>
-                    <TicketDescription text={t.description} />
-                  </div>
-
-                  <div className="shrink-0 text-right">
-                    {t.earlyLiveDate ? (
-                      <p className="text-xs text-ink-500">
-                        Goes live
-                        <br />
-                        <span className="font-semibold text-ink-700">
-                          {formatSaleStart(t.earlyLiveDate, region)}
-                        </span>
-                      </p>
-                    ) : t.soldOut ? (
-                      <span className="inline-block text-[11px] font-bold uppercase tracking-wide bg-ink-100 text-ink-500 rounded-full px-2.5 py-1">
-                        Sold out
-                      </span>
-                    ) : (
-                      <QuantityStepper
-                        value={qty}
-                        max={max}
-                        onChange={(next) => onQuantityChange(t.pid, next)}
-                      />
-                    )}
-                  </div>
-                </li>
-              );
-            })}
+            {regularTickets.map(renderTicket)}
           </ul>
         )}
 

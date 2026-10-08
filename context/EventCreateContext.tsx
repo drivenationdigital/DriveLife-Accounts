@@ -498,7 +498,10 @@ export type EventCreateState = {
   endDate: string | null;
   startTime: string; // 24h "HH:MM"
   endTime: string;
-  hideTimes: boolean; // hides times on event page
+  /** "Hide start time" / "Hide end time" on the public event page and
+   *  cards. Independent since 2026-10-07 (one toggle used to hide both). */
+  hideStartTime: boolean;
+  hideEndTime: boolean;
   uniqueTimesPerDay: boolean; // multi-day events with daily times
   /**
    * When `uniqueTimesPerDay` is on, each calendar day in the range
@@ -714,7 +717,8 @@ const INITIAL_STATE: EventCreateState = {
   endDate: null,
   startTime: "09:00",
   endTime: "17:00",
-  hideTimes: false,
+  hideStartTime: false,
+  hideEndTime: false,
   uniqueTimesPerDay: false,
   perDayTimes: [],
   recurringFrequency: "weekly",
@@ -813,7 +817,8 @@ type ScalarStateKey =
   | "endDate"
   | "startTime"
   | "endTime"
-  | "hideTimes"
+  | "hideStartTime"
+  | "hideEndTime"
   | "uniqueTimesPerDay"
   | "recurringFrequency"
   | "recurringWeek"

@@ -93,15 +93,21 @@ export function PublishPanel() {
   // ---- Summary derivations ----
   // We compute the small labels in the summary card up front so the
   // JSX stays readable. All purely view-side; no side effects.
-  const summaryDate =
-    state.startDate && state.startTime
-      ? `${formatRegionShortDate(state.startDate, region, true)}, ${formatRegionTime(
-          state.startTime,
-          region,
-        )}`
-      : state.startDate
-        ? formatRegionShortDate(state.startDate, region, true)
-        : "Not set";
+  //
+  // The date line follows the Dates step's visibility toggles: a hidden
+  // start time is left off (it used to print the 09:00 default here even
+  // when the organiser had hidden the times), and a visible end time with
+  // a hidden start reads "until". A recurring series shows its first date.
+  const summaryStartDate =
+    state.dateType === "recurring" ? state.recurringFirstDate : state.startDate;
+  const summaryTime = !state.hideStartTime && state.startTime
+    ? formatRegionTime(state.startTime, region)
+    : state.hideStartTime && !state.hideEndTime && state.endTime
+      ? `until ${formatRegionTime(state.endTime, region)}`
+      : "";
+  const summaryDate = summaryStartDate
+    ? `${formatRegionShortDate(summaryStartDate, region, true)}${summaryTime ? `, ${summaryTime}` : ""}`
+    : "Not set";
 
   // Count actual tickets (sections are dividers, not sellable rows).
   const ticketCount = state.ticketList.filter((i) => i.kind === "ticket").length;

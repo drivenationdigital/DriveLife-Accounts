@@ -9,7 +9,11 @@ import {
   ApplicationsSkeleton,
   ApplicationsError,
 } from "@/components/tabs/ApplicationsSkeleton";
-import { useShowCarApplications } from "@/lib/showCarApplications";
+import {
+  useApproveShowCarApplication,
+  useShowCarApplications,
+} from "@/lib/showCarApplications";
+import { ApproveAllButton } from "@/components/applications/ApproveAllButton";
 import { ApplicationLinkBar } from "@/components/tabs/ApplicationLinkBar";
 import { useExportApplications } from "@/lib/exportApplications";
 import { useAction } from "@/context/ActionContext";
@@ -77,6 +81,8 @@ export function ShowCarsTab() {
       run: () => exportApps.mutateAsync({ eid, type: "show_car" }),
     });
   };
+  // "Approve all" on the pending group runs this one approval per row.
+  const approver = useApproveShowCarApplication();
   // Applications live on a dedicated query - see useShowCarApplications.
   // Fall back to [] on error so the rest of the tab (KPIs, category
   // table, "no applications" empty state) still renders cleanly.
@@ -243,6 +249,15 @@ export function ShowCarsTab() {
                 <div className="section-title">{g.title}</div>
                 <div className="section-subtitle">{g.subtitle}</div>
               </div>
+              {g.key === "pending" && (
+                <ApproveAllButton
+                  ids={g.cars.map((c) => Number(c.id))}
+                  noun="show car application"
+                  approve={(applicationId) =>
+                    approver.mutateAsync({ applicationId })
+                  }
+                />
+              )}
               {g.exportable && (
                 <button
                   type="button"

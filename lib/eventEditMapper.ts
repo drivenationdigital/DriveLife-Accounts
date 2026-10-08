@@ -74,7 +74,8 @@ export type HydratedEventState = Pick<
   | "endDate"
   | "startTime"
   | "endTime"
-  | "hideTimes"
+  | "hideStartTime"
+  | "hideEndTime"
   | "uniqueTimesPerDay"
   | "perDayTimes"
   | "recurringFrequency"
@@ -692,7 +693,8 @@ function mapDates(
   | "endDate"
   | "startTime"
   | "endTime"
-  | "hideTimes"
+  | "hideStartTime"
+  | "hideEndTime"
   | "uniqueTimesPerDay"
   | "perDayTimes"
   | "recurringFrequency"
@@ -784,7 +786,10 @@ function mapDates(
     endDate,
     startTime,
     endTime,
-    hideTimes: api.exclude_time,
+    // Split flags from a current backend; an older one only has the
+    // all-or-nothing `exclude_time`, which means both.
+    hideStartTime: api.hide_start_time ?? api.exclude_time,
+    hideEndTime: api.hide_end_time ?? api.exclude_time,
     uniqueTimesPerDay: api.is_multi_timeslot,
     perDayTimes,
     recurringFrequency,
