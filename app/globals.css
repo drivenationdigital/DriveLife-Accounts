@@ -5343,3 +5343,16 @@
   color: var(--muted);
   margin-top: 2px;
 }
+
+/* ── Inside the mobile app's web container ──────────────────────────────
+   The app wraps these pages in its own screen, with its own DriveLife
+   header and its own back button. Anything here that duplicates that is
+   not just redundant, it disagrees: two back buttons going to different
+   places is the clearest possible signal that this is a website in a box.
+
+   Set server-side by the dashboard layout (see APP_RETURN_COOKIE), so the
+   first paint is already correct — a JS hide would show the breadcrumb and
+   then take it away. */
+[data-app-container] .breadcrumb {
+  display: none;
+}

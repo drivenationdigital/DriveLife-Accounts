@@ -33,7 +33,7 @@ export default async function DashboardLayout({
       <UIProvider>
         {!inApp && <TopBar />}
         {!inApp && <SidebarOverlay />}
-        <div className="app">
+        <div className="app" data-app-container={inApp ? "" : undefined}>
           {!inApp && <Sidebar />}
           <main className="main">{children}</main>
         </div>
