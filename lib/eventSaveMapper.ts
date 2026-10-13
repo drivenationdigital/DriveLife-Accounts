@@ -122,6 +122,10 @@ export interface ApiEventUpdateSection {
   info?: string;
   paid?: boolean;
   ticket_cost?: number;
+  /** Show cars only: apply-form requirements (vehicle photo, postal
+   *  address). Stored as plain post meta server-side. */
+  photo_required?: boolean;
+  request_address?: boolean;
 }
 
 export interface ApiEventUpdateMedia {
@@ -157,10 +161,9 @@ export interface ApiEventUpdateRequest {
   tickets?: ApiEventUpdateTickets;
   show_cars?: ApiEventUpdateSection;
   car_clubs?: ApiEventUpdateSection;
-  /** Traders - only the enable flag is sent here. Categories save
-   *  individually via /event-trader, so there are no per-section
-   *  fields to persist. */
-  traders?: { enabled: boolean };
+  /** Traders - the enable flag plus the "Request postal address"
+   *  apply-form toggle. Categories save individually via /event-trader. */
+  traders?: { enabled: boolean; request_address?: boolean };
   marketing?: ApiEventUpdateMarketing;
   media?: ApiEventUpdateMedia;
   publish?: ApiEventUpdatePublish;
@@ -190,7 +193,10 @@ export function mapStateToUpdateRequest(
     tickets: mapTickets(state),
     car_clubs: mapCarClubs(state),
     show_cars: mapShowCars(state),
-    traders: { enabled: state.tradersEnabled },
+    traders: {
+      enabled: state.tradersEnabled,
+      request_address: state.tradersRequestAddress,
+    },
     marketing: mapMarketing(state),
     media: mapMedia(state),
     publish: mapPublish(state),
@@ -450,6 +456,8 @@ function mapShowCars(state: EventCreateState): ApiEventUpdateSection {
     // "clear" rather than JSON dropping the key entirely (which
     // leaves the previous value in place).
     info: state.showCarsInfo ?? "",
+    photo_required: state.showCarsPhotoRequired,
+    request_address: state.showCarsRequestAddress,
     // Secret codes moved per-category - see ShowCarCategoryDrawer.
     // The event-level secret_code field is gone; each show car
     // ticket carries its own code in the cc table now.

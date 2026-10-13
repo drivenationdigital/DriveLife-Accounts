@@ -174,6 +174,14 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
           </div>
         </div>
       </div>
+      {car.postalAddress && (
+        <div className="detail-section">
+          <div className="detail-section-title">Postal Address</div>
+          <div className="detail-description" style={{ whiteSpace: "pre-line" }}>
+            {car.postalAddress}
+          </div>
+        </div>
+      )}
       {car.description && (
         <div className="detail-section">
           <div className="detail-section-title">Additional Information</div>
@@ -643,6 +651,14 @@ function TraderDetail({ trader }: { trader: Trader }) {
           </div>
         </div>
       </div>
+      {trader.postalAddress && (
+        <div className="detail-section">
+          <div className="detail-section-title">Postal Address</div>
+          <div className="detail-description" style={{ whiteSpace: "pre-line" }}>
+            {trader.postalAddress}
+          </div>
+        </div>
+      )}
     </>
   );
 }

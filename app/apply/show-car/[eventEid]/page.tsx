@@ -92,6 +92,7 @@ const INITIAL_FORM: FormState = {
   instagram: "",
   notes: "",
   photoUrl: "",
+  postalAddress: "",
   marketingOrganiser: true,
   marketingCarevents: true,
 };
@@ -233,15 +234,21 @@ export default function ShowCarApplyPage({
     });
   };
 
+  // Organiser-set requirements (editor, Show cars step). An older
+  // backend sends neither: photo required, no address box.
+  const photoRequired = data.photo_required ?? true;
+  const requestAddress = data.request_address ?? false;
+
   // ----- Submit --------------------------------------------------
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (form.ticketEids.length === 0 || selectionBlocked) return;
 
-    // The photo is required. The file input is visually hidden, so the
-    // browser can't point at it like the other required fields - say
-    // so inline and bring the field into view instead.
-    if (!photoFile) {
+    // The photo is required unless the organiser relaxed it. The file
+    // input is visually hidden, so the browser can't point at it like
+    // the other required fields - say so inline and bring the field
+    // into view instead.
+    if (!photoFile && photoRequired) {
       setPhotoError("Please add a photo of your car.");
       photoFieldRef.current?.scrollIntoView({
         behavior: "smooth",
@@ -258,21 +265,23 @@ export default function ShowCarApplyPage({
     // small cost of doing this client-side without a "draft"
     // model.)
     let photoUrl = "";
-    setPhotoUploading(true);
-    setPhotoError(null);
-    try {
-      photoUrl = await uploadShowCarPhoto({
-        eventEid,
-        file: photoFile,
-      });
-    } catch (err) {
-      setPhotoError(
-        err instanceof Error ? err.message : "Couldn't upload that photo.",
-      );
+    if (photoFile) {
+      setPhotoUploading(true);
+      setPhotoError(null);
+      try {
+        photoUrl = await uploadShowCarPhoto({
+          eventEid,
+          file: photoFile,
+        });
+      } catch (err) {
+        setPhotoError(
+          err instanceof Error ? err.message : "Couldn't upload that photo.",
+        );
+        setPhotoUploading(false);
+        return; // bail before posting the application
+      }
       setPhotoUploading(false);
-      return; // bail before posting the application
     }
-    setPhotoUploading(false);
 
     try {
       await submit.mutateAsync({
@@ -280,6 +289,9 @@ export default function ShowCarApplyPage({
         ticketEid: form.ticketEids[0] ?? "",
         eventEid,
         photoUrl,
+        // Never send a stale address if the organiser turned the box off
+        // while the form was open.
+        postalAddress: requestAddress ? form.postalAddress : "",
       });
     } catch {
       // error surfaces below the submit button via submit.error.
@@ -469,6 +481,22 @@ export default function ShowCarApplyPage({
               />
             </Field>
           </div>
+          {requestAddress && (
+            <Field label="Postal address (optional)">
+              <textarea
+                className="input"
+                rows={3}
+                autoComplete="street-address"
+                value={form.postalAddress}
+                onChange={update("postalAddress")}
+                placeholder="House number and street, town, postcode"
+              />
+              <p className="mt-1.5 text-xs text-ink-500">
+                The organiser may post passes or prizes to this address before
+                or after the event.
+              </p>
+            </Field>
+          )}
         </Section>
 
         <Section step={3} title="Your car">
@@ -605,7 +633,10 @@ export default function ShowCarApplyPage({
             />
           </Field>
 
-          <Field label="Photo" required>
+          <Field
+            label={photoRequired ? "Photo" : "Photo (optional)"}
+            required={photoRequired}
+          >
             <div ref={photoFieldRef}>
             {!photoPreview ? (
               <label className="block cursor-pointer border-2 border-dashed border-ink-300 rounded-lg p-6 text-center hover:border-gold-400 transition">

@@ -13,6 +13,11 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiDelete, apiPost } from "./apiClient";
+import {
+  friendlyCloudflareUploadError,
+  shrinkImage,
+  withUploadSlot,
+} from "./prepareImageUpload";
 import type { SiteKey } from "./apiTypes";
 
 export type BusinessMediaGroup = "logo" | "cover" | "gallery";
@@ -48,58 +53,76 @@ export interface UploadBusinessImageArgs {
 export async function uploadBusinessImage(
   args: UploadBusinessImageArgs,
 ): Promise<ConfirmedBusinessImage> {
-  const { bid, site, file, mediaGroup, signal } = args;
+  const { bid, site, file: original, mediaGroup, signal } = args;
 
-  const mint = await apiPost<MintResponse, { media_group: BusinessMediaGroup }>(
-    `/business-image-upload-url?bid=${encodeURIComponent(bid)}`,
-    { media_group: mediaGroup },
-    { site },
-  );
+  // Shrink + queue before minting (the direct-upload URL is single-use
+  // and short-lived). See prepareImageUpload.ts.
+  return withUploadSlot(async () => {
+    const file = await shrinkImage(original);
+    if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
+    const mint = await apiPost<
+      MintResponse,
+      { media_group: BusinessMediaGroup }
+    >(
+      `/business-image-upload-url?bid=${encodeURIComponent(bid)}`,
+      { media_group: mediaGroup },
+      { site },
+    );
 
-  // One-time, pre-authorised URL - no auth headers (Cloudflare rejects
-  // them on a direct-creator POST).
-  const form = new FormData();
-  form.append("file", file);
-  const cfRes = await fetch(mint.upload_url, { method: "POST", body: form, signal });
+    if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  if (!cfRes.ok) {
-    let message = `Cloudflare upload failed (HTTP ${cfRes.status})`;
-    try {
-      const cfBody = await cfRes.json();
-      if (cfBody?.errors?.[0]?.message) message = String(cfBody.errors[0].message);
-      else if (cfBody?.error) message = String(cfBody.error);
-    } catch {
-      // non-JSON body; keep the generic message
+    // One-time, pre-authorised URL - no auth headers (Cloudflare rejects
+    // them on a direct-creator POST).
+    const form = new FormData();
+    form.append("file", file);
+    const cfRes = await fetch(mint.upload_url, {
+      method: "POST",
+      body: form,
+      signal,
+    });
+
+    if (!cfRes.ok) {
+      let message = `Cloudflare upload failed (HTTP ${cfRes.status})`;
+      try {
+        const cfBody = await cfRes.json();
+        if (cfBody?.errors?.[0]?.message)
+          message = String(cfBody.errors[0].message);
+        else if (cfBody?.error) message = String(cfBody.error);
+      } catch {
+        // non-JSON body; keep the generic message
+      }
+      throw new Error(friendlyCloudflareUploadError(message));
     }
-    throw new Error(message);
-  }
 
-  const dims = await readImageDimensions(file).catch(() => ({ width: 0, height: 0 }));
+    const dims = await readImageDimensions(file).catch(() => ({
+      width: 0,
+      height: 0,
+    }));
 
-  const confirm = await apiPost<
-    ConfirmResponse,
-    {
-      media_id: string;
-      media_group: BusinessMediaGroup;
-      width: number;
-      height: number;
-      mime_type: string;
-    }
-  >(
-    `/business-image-confirm?bid=${encodeURIComponent(bid)}`,
-    {
-      media_id: mint.media_id,
-      media_group: mediaGroup,
-      width: dims.width,
-      height: dims.height,
-      mime_type: file.type || "image/jpeg",
-    },
-    { site },
-  );
+    const confirm = await apiPost<
+      ConfirmResponse,
+      {
+        media_id: string;
+        media_group: BusinessMediaGroup;
+        width: number;
+        height: number;
+        mime_type: string;
+      }
+    >(
+      `/business-image-confirm?bid=${encodeURIComponent(bid)}`,
+      {
+        media_id: mint.media_id,
+        media_group: mediaGroup,
+        width: dims.width,
+        height: dims.height,
+        mime_type: file.type || "image/jpeg",
+      },
+      { site },
+    );
 
-  return confirm.image;
+    return confirm.image;
+  });
 }
 
 async function readImageDimensions(
@@ -148,9 +171,12 @@ export function useRemoveBusinessImage() {
   >({
     mutationFn: ({ bid, site, mediaId }) => {
       const params = new URLSearchParams({ bid, media_id: mediaId });
-      return apiDelete<{ success: true }>(`/business-image?${params.toString()}`, {
-        site,
-      });
+      return apiDelete<{ success: true }>(
+        `/business-image?${params.toString()}`,
+        {
+          site,
+        },
+      );
     },
     onSuccess: (_data, { bid }) => {
       qc.invalidateQueries({ queryKey: ["my-businesses"] });

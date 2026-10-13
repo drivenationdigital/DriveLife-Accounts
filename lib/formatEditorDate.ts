@@ -19,3 +19,17 @@ export function formatEditorDate(
 ): string {
   return formatRegionDate(iso, region, DATE_STYLES.full);
 }
+
+/**
+ * The same date with a short month - "19 Apr 2026" / "Apr 19, 2026".
+ * For date fields that sit two to a row (application windows): the
+ * full month name ("30 September 2026") wrapped onto a second line in
+ * the narrow column while "1 October 2026" did not, so the pair rendered
+ * at different heights.
+ */
+export function formatEditorShortDate(
+  iso: string | null | undefined,
+  region: Region,
+): string {
+  return formatRegionDate(iso, region, DATE_STYLES.shortWithYear);
+}

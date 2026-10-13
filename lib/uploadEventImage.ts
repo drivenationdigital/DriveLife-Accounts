@@ -26,6 +26,11 @@
  */
 
 import { apiPost } from "./apiClient";
+import {
+  friendlyCloudflareUploadError,
+  shrinkImage,
+  withUploadSlot,
+} from "./prepareImageUpload";
 import type { SiteKey } from "./apiTypes";
 
 /**
@@ -79,63 +84,75 @@ export interface UploadEventImageArgs {
 export async function uploadEventImage(
   args: UploadEventImageArgs,
 ): Promise<ConfirmedImage> {
-  const { eid, site, file, mediaGroup, signal } = args;
+  const { eid, site, file: original, mediaGroup, signal } = args;
 
-  // Step 1 - mint.
-  const mint = await apiPost<MintResponse, MintBody>(
-    `/event-image-upload-url?eid=${encodeURIComponent(eid)}`,
-    { media_group: mediaGroup },
-    { site },
-  );
+  // Shrink the photo and wait for an upload slot BEFORE minting: a
+  // direct-upload URL is single-use and short-lived, so mint it right
+  // before the bytes go. See prepareImageUpload.ts for why both exist.
+  return withUploadSlot(async () => {
+    const file = await shrinkImage(original);
+    if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
+    // Step 1 - mint.
+    const mint = await apiPost<MintResponse, MintBody>(
+      `/event-image-upload-url?eid=${encodeURIComponent(eid)}`,
+      { media_group: mediaGroup },
+      { site },
+    );
 
-  // Step 2 - direct multipart POST to Cloudflare. The upload_url is
-  // one-time-use and pre-authorised; do NOT add Authorization or
-  // X-WP-Token headers, Cloudflare rejects them.
-  const form = new FormData();
-  form.append("file", file);
+    if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
 
-  const cfRes = await fetch(mint.upload_url, {
-    method: "POST",
-    body: form,
-    signal,
-  });
+    // Step 2 - direct multipart POST to Cloudflare. The upload_url is
+    // one-time-use and pre-authorised; do NOT add Authorization or
+    // X-WP-Token headers, Cloudflare rejects them.
+    const form = new FormData();
+    form.append("file", file);
 
-  if (!cfRes.ok) {
-    // Cloudflare returns its own JSON on failure with a useful
-    // `errors[].message`. We surface that rather than the bland
-    // status code so the panel can show something actionable.
-    let message = `Cloudflare upload failed (HTTP ${cfRes.status})`;
-    try {
-      const cfBody = await cfRes.json();
-      if (cfBody?.errors?.[0]?.message) message = String(cfBody.errors[0].message);
-      else if (cfBody?.error) message = String(cfBody.error);
-    } catch {
-      // Cloudflare returned non-JSON; stick with the generic message.
+    const cfRes = await fetch(mint.upload_url, {
+      method: "POST",
+      body: form,
+      signal,
+    });
+
+    if (!cfRes.ok) {
+      // Cloudflare returns its own JSON on failure with a useful
+      // `errors[].message`. We surface that rather than the bland
+      // status code so the panel can show something actionable.
+      let message = `Cloudflare upload failed (HTTP ${cfRes.status})`;
+      try {
+        const cfBody = await cfRes.json();
+        if (cfBody?.errors?.[0]?.message)
+          message = String(cfBody.errors[0].message);
+        else if (cfBody?.error) message = String(cfBody.error);
+      } catch {
+        // Cloudflare returned non-JSON; stick with the generic message.
+      }
+      throw new Error(friendlyCloudflareUploadError(message));
     }
-    throw new Error(message);
-  }
 
-  // Step 3 - confirm + insert. We read dimensions client-side so the
-  // DB row carries them straight away; if dimensions fail (CORS or
-  // an exotic format), we send zeros and the server stores nulls.
-  const dims = await readImageDimensions(file).catch(() => ({ width: 0, height: 0 }));
+    // Step 3 - confirm + insert. We read dimensions client-side so the
+    // DB row carries them straight away; if dimensions fail (CORS or
+    // an exotic format), we send zeros and the server stores nulls.
+    const dims = await readImageDimensions(file).catch(() => ({
+      width: 0,
+      height: 0,
+    }));
 
-  // The region goes up here too - this call writes the blog_id.
-  const confirm = await apiPost<ConfirmResponse, ConfirmBody>(
-    `/event-image-confirm?eid=${encodeURIComponent(eid)}`,
-    {
-      media_id: mint.media_id,
-      media_group: mediaGroup,
-      width: dims.width,
-      height: dims.height,
-      mime_type: file.type || "image/jpeg",
-    },
-    { site },
-  );
+    // The region goes up here too - this call writes the blog_id.
+    const confirm = await apiPost<ConfirmResponse, ConfirmBody>(
+      `/event-image-confirm?eid=${encodeURIComponent(eid)}`,
+      {
+        media_id: mint.media_id,
+        media_group: mediaGroup,
+        width: dims.width,
+        height: dims.height,
+        mime_type: file.type || "image/jpeg",
+      },
+      { site },
+    );
 
-  return confirm.image;
+    return confirm.image;
+  });
 }
 
 /** Read intrinsic pixel dimensions from a File. Uses createImageBitmap

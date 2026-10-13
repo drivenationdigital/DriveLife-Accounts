@@ -327,7 +327,14 @@ function mapShowCars(
   showCarsMax: number;
   showCarsInfo: string;
   showCarCategories: ShowCarCategory[];
+  showCarsPhotoRequired: boolean;
+  showCarsRequestAddress: boolean;
 } {
+  // Apply-form requirements travel with the section whether or not
+  // it's enabled (so a disable/re-enable keeps them). An older backend
+  // sends neither: photo required, no address box.
+  const showCarsPhotoRequired = api?.photo_required ?? true;
+  const showCarsRequestAddress = api?.request_address ?? false;
   // Missing or disabled → return defaults. The "missing" case covers
   // older /event-edit responses that pre-date the show_cars field;
   // FE and BE don't have to ship in lockstep this way.
@@ -341,6 +348,8 @@ function mapShowCars(
       // starts with "General Show Cars"), so keep them: the panel lists
       // them the moment show cars are switched on.
       showCarCategories: (api?.categories ?? []).map(mapShowCarCategory),
+      showCarsPhotoRequired,
+      showCarsRequestAddress,
     };
   }
   const c = api.config;
@@ -358,6 +367,8 @@ function mapShowCars(
     // endpoint returns and the panel's id-swap-on-create logic stays
     // consistent.
     showCarCategories: (api.categories ?? []).map(mapShowCarCategory),
+    showCarsPhotoRequired,
+    showCarsRequestAddress,
   };
 }
 
@@ -391,13 +402,16 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
 function mapTraders(api: ApiEventEditResponse["traders"] | undefined | null): {
   tradersEnabled: boolean;
   traderCategories: TraderCategory[];
+  tradersRequestAddress: boolean;
 } {
+  const tradersRequestAddress = api?.request_address ?? false;
   if (!api || !api.enabled) {
-    return { tradersEnabled: false, traderCategories: [] };
+    return { tradersEnabled: false, traderCategories: [], tradersRequestAddress };
   }
   return {
     tradersEnabled: true,
     traderCategories: (api.categories ?? []).map(mapTraderCategory),
+    tradersRequestAddress,
   };
 }
 

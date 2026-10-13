@@ -34,6 +34,9 @@ export interface ApiTraderRecord {
   email: string;
   contact_phone: string;
   notes: string;
+  /** Postal address, when the organiser asked for one on the apply
+   *  form. Optional until every backend sends it. */
+  postal_address?: string;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -63,6 +66,7 @@ export function mapTrader(r: ApiTraderRecord, region: Region): Trader {
     contactPhone: r.contact_phone,
     instagram: r.instagram,
     tiktok: r.tiktok,
+    postalAddress: r.postal_address ?? "",
     appliedLabel: formatRelativeDate(
       r.created_at,
       region,

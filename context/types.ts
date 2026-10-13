@@ -196,6 +196,9 @@ export interface ShowCar {
    *  photo. When null/undefined the UI falls back to the gradient
    *  placeholder driven by `photoClass`. */
   photoUrl?: string | null;
+  /** Postal address, when the organiser asked for one on the apply
+   *  form. Empty otherwise. */
+  postalAddress?: string;
   status: ShowCarStatus;
   appliedLabel: string;
   updatedLabel: string;
@@ -228,6 +231,9 @@ export interface Trader {
   contactPhone: string;
   instagram: string;
   tiktok: string;
+  /** Postal address, when the organiser asked for one on the apply
+   *  form. Empty otherwise. */
+  postalAddress?: string;
   appliedLabel: string;
   status: ApplicationStatus;
 }

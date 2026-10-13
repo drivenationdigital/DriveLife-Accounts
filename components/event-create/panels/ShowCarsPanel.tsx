@@ -316,6 +316,60 @@ export function ShowCarsPanel() {
             </button>
           </div>
 
+          {/* Apply-form requirements - what the public application form
+              asks of every applicant, across all categories. */}
+          <div className="bg-white border border-ink-200 rounded-xl divide-y divide-ink-200 mb-6">
+            <label className="flex items-center justify-between gap-3 p-5 cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold text-ink-900">
+                  Vehicle photo required
+                </p>
+                <p className="text-xs text-ink-500 mt-0.5">
+                  Applicants must upload a photo of their car when applying
+                </p>
+              </div>
+              <span className="switch">
+                <input
+                  type="checkbox"
+                  checked={state.showCarsPhotoRequired}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_FIELD",
+                      key: "showCarsPhotoRequired",
+                      value: e.target.checked,
+                    })
+                  }
+                />
+                <span className="slider" />
+              </span>
+            </label>
+            <label className="flex items-center justify-between gap-3 p-5 cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold text-ink-900">
+                  Request postal address
+                </p>
+                <p className="text-xs text-ink-500 mt-0.5">
+                  Request the address to post out any passes or prizes before
+                  or after the event
+                </p>
+              </div>
+              <span className="switch">
+                <input
+                  type="checkbox"
+                  checked={state.showCarsRequestAddress}
+                  onChange={(e) =>
+                    dispatch({
+                      type: "SET_FIELD",
+                      key: "showCarsRequestAddress",
+                      value: e.target.checked,
+                    })
+                  }
+                />
+                <span className="slider" />
+              </span>
+            </label>
+          </div>
+
           {/* Show car info textarea */}
           <div className="mb-6">
             <label className="block text-sm font-semibold text-ink-900 mb-2">

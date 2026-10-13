@@ -453,6 +453,7 @@ export function mapShowCar(r: ApiShowCarRecord, region: Region): ShowCar {
     photoUrl: r.car.photo_url
       ? r.car.photo_url.replace(/\/blurred$/, "/public")
       : null,
+    postalAddress: r.postal_address ?? "",
     // Category comes straight from the server now - it's the ticket
     // name the organiser set, not a heuristic guess. Empty string
     // fallback for the edge case where the ticket was deleted after

@@ -7,7 +7,7 @@ import { useSearchParams, usePathname } from "next/navigation";
 import { pushStepUrl } from "@/lib/stepNav";
 
 import { useEventCreate } from "@/context/EventCreateContext";
-import { formatEditorDate } from "@/lib/formatEditorDate";
+import { formatEditorShortDate } from "@/lib/formatEditorDate";
 import { slugify } from "@/lib/slugify";
 import { isBelowMinimumAmount, minimumPriceMessage } from "@/lib/ticketPrice";
 
@@ -59,12 +59,14 @@ export function CarClubsPanel() {
   const renderDateField = (target: DateTarget, value: string | null) => (
     <button
       type="button"
-      className={`date-field mb-2 ${value ? "" : "is-empty"}`}
+      // flex-1: the open/close fields sit side by side, so each fills
+      // its cell and the pair always ends up the same height.
+      className={`date-field flex-1 mb-2 ${value ? "" : "is-empty"}`}
       onClick={() => setPickerTarget(target)}
     >
       <i className="fa-regular fa-calendar df-icon" aria-hidden />
       <span className="df-display">
-        {value ? formatEditorDate(value, region) : "Select date"}
+        {value ? formatEditorShortDate(value, region) : "Select date"}
       </span>
       <i className="fa-solid fa-chevron-down df-chev" aria-hidden />
     </button>
@@ -127,7 +129,7 @@ export function CarClubsPanel() {
               Application window
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
+              <div className="flex flex-col">
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
                   Applications open
                 </label>
@@ -145,7 +147,7 @@ export function CarClubsPanel() {
                   }
                 />
               </div>
-              <div>
+              <div className="flex flex-col">
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
                   Applications close
                 </label>

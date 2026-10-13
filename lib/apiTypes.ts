@@ -516,6 +516,9 @@ export interface ApiShowCarRecord {
     phone: string | null;
   };
   notes: string | null;
+  /** Postal address, when the organiser asked for one on the apply
+   *  form. Optional until every backend sends it. */
+  postal_address?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -603,6 +606,10 @@ export interface ApiShowCarsSection {
   /** Per-category list - only present on the editor's /event-edit
    *  endpoint, omitted on the dashboard endpoint. */
   categories?: ApiShowCarCategory[];
+  /** Apply-form requirements (editor /event-edit only). Absent on an
+   *  older backend: the photo is then required, the address not asked. */
+  photo_required?: boolean;
+  request_address?: boolean;
 }
 
 export interface ApiCarClubsSection {
@@ -633,7 +640,11 @@ export interface DisabledSection {
  *  older deploys. */
 export type ApiShowCars =
   | ApiShowCarsSection
-  | (DisabledSection & { categories?: ApiShowCarCategory[] });
+  | (DisabledSection & {
+      categories?: ApiShowCarCategory[];
+      photo_required?: boolean;
+      request_address?: boolean;
+    });
 
 /** Car clubs section in the /event-edit response. Single hidden
  *  ticket per event (vs. show cars' per-category tickets); ticket_id
@@ -714,10 +725,11 @@ export interface ApiEventMarketingBlock {
   organiser: ApiEventMarketingOrganiser;
 }
 
-/** Traders config block (editor /event-edit). */
+/** Traders config block (editor /event-edit). `request_address` is the
+ *  "Request postal address" apply-form toggle (absent = off). */
 export type ApiTradersConfigBlock =
-  | { enabled: true; categories: ApiTraderCategory[] }
-  | { enabled: false };
+  | { enabled: true; categories: ApiTraderCategory[]; request_address?: boolean }
+  | { enabled: false; request_address?: boolean };
 
 // Dashboard /event traders section. The dashboard now returns a real
 // enabled flag + counts (config/recent intentionally omitted for now).

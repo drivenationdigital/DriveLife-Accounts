@@ -40,6 +40,9 @@ export interface TraderPublicResponse {
    *  title. Optional until every API deploy echoes it. */
   event_logo?: string | null;
   traders_enabled: boolean;
+  /** Show an optional postal address box so the organiser can post
+   *  out passes or prizes. Absent = no. */
+  request_address?: boolean;
   categories?: TraderPublicCategory[];
 }
 
@@ -58,6 +61,9 @@ export interface TraderApplicationBody {
   email: string;
   contactPhone: string;
   notes: string;
+  /** Postal address - only collected when the event's `request_address`
+   *  flag is on, and optional even then. Empty otherwise. */
+  postalAddress: string;
   /** "Keep me updated about future events from this event organiser" -
    *  stored as marketing_opt_in on the application row and, where the
    *  organiser has Brevo/Mailchimp connected, pushed to their list. */

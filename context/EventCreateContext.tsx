@@ -635,6 +635,11 @@ export type EventCreateState = {
   showCarsMax: number; // NaN ⇒ unset
   showCarCategories: ShowCarCategory[];
   showCarsInfo: string;
+  // Apply-form requirements: must applicants upload a photo of the car
+  // (on by default), and should the form ask for a postal address so
+  // the organiser can post out passes or prizes.
+  showCarsPhotoRequired: boolean;
+  showCarsRequestAddress: boolean;
 
   // ---- Car Clubs ----
   // Single application window (no per-category windows, unlike show
@@ -656,6 +661,8 @@ export type EventCreateState = {
   // own. Info text per category lives on TraderCategory.
   tradersEnabled: boolean;
   traderCategories: TraderCategory[];
+  // Apply-form "Request postal address" toggle (same idea as show cars).
+  tradersRequestAddress: boolean;
 
   // ---- Marketing ----
   // "Promote this event with us" (the CarEvents.com team is emailed when
@@ -764,6 +771,8 @@ const INITIAL_STATE: EventCreateState = {
   showCarsMax: NaN,
   showCarCategories: [],
   showCarsInfo: "",
+  showCarsPhotoRequired: true,
+  showCarsRequestAddress: false,
 
   carClubsEnabled: true,
   carClubsApplicationsOpen: null,
@@ -778,6 +787,7 @@ const INITIAL_STATE: EventCreateState = {
 
   tradersEnabled: true,
   traderCategories: [],
+  tradersRequestAddress: false,
 
   promoRequested: false,
   promoRequestedAt: null,
@@ -852,6 +862,8 @@ type ScalarStateKey =
   | "showCarsLimitEnabled"
   | "showCarsMax"
   | "showCarsInfo"
+  | "showCarsPhotoRequired"
+  | "showCarsRequestAddress"
   | "carClubsEnabled"
   | "carClubsApplicationsOpen"
   | "carClubsApplicationsClose"
@@ -863,6 +875,7 @@ type ScalarStateKey =
   | "carClubsTicketCost"
   | "carClubsInfo"
   | "tradersEnabled"
+  | "tradersRequestAddress"
   | "promoRequested"
   | "promoRequestedAt"
   | "marketingListId"

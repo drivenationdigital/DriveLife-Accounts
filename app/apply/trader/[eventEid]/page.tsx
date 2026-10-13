@@ -61,6 +61,7 @@ const INITIAL_FORM: FormState = {
   email: "",
   contactPhone: "",
   notes: "",
+  postalAddress: "",
   marketingOrganiser: true,
   marketingCarevents: true,
 };
@@ -378,6 +379,24 @@ export default function TraderApplyPage({
               />
             </Field>
           </div>
+          {/* Organiser-set (editor, Traders step "Request postal
+              address"); an older backend never sends the flag. */}
+          {(data.request_address ?? false) && (
+            <Field label="Postal address (optional)">
+              <textarea
+                className="input"
+                rows={3}
+                autoComplete="street-address"
+                value={form.postalAddress}
+                onChange={update("postalAddress")}
+                placeholder="House number and street, town, postcode"
+              />
+              <p className="mt-1.5 text-xs text-ink-500">
+                The organiser may post passes or prizes to this address before
+                or after the event.
+              </p>
+            </Field>
+          )}
           <Field label="Notes (optional)">
             <textarea
               className="input"

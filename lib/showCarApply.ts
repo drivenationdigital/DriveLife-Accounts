@@ -57,6 +57,12 @@ export interface ShowCarPublicResponse {
    *  Optional until the public endpoints echo one back. */
   site?: EventSite;
   show_cars_enabled: boolean;
+  /** Must the applicant upload a photo? Absent (older backend) means
+   *  yes - the photo has been mandatory since 2026-09-30. */
+  photo_required?: boolean;
+  /** Show an optional postal address box so the organiser can post
+   *  out passes or prizes. Absent = no. */
+  request_address?: boolean;
   categories: ShowCarPublicCategory[];
 }
 
@@ -86,9 +92,13 @@ export interface ShowCarApplicationBody {
   /** Instagram handle without the leading "@". Optional. */
   instagram: string;
   notes: string;
-  /** Cloudflare imagedelivery URL from `uploadShowCarPhoto`. Required -
-   *  the PHP endpoint refuses an application without one. */
+  /** Cloudflare imagedelivery URL from `uploadShowCarPhoto`. Required
+   *  unless the organiser turned "Vehicle photo required" off - the PHP
+   *  endpoint refuses an application without one otherwise. */
   photoUrl: string;
+  /** Postal address - only collected when the event's `request_address`
+   *  flag is on, and optional even then. Empty otherwise. */
+  postalAddress: string;
   /** "Keep me updated about future events from this event organiser" -
    *  stored as marketing_opt_in on the application row and, where the
    *  organiser has Brevo/Mailchimp connected, pushed to their list. */
