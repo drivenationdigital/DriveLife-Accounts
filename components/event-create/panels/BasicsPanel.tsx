@@ -11,6 +11,8 @@ import { EVENT_CATEGORIES } from "@/lib/eventCategories";
 import { useEventCategories } from "@/lib/queries";
 
 import { PanelHeader } from "../PanelHeader";
+import { HostedByDropdown } from "../HostedByDropdown";
+import { resolveRegion } from "@/lib/regions";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 import { LocationAutocomplete } from "../LocationAutocomplete";
 import { MapPreview } from "../MapPreview";
@@ -95,23 +97,11 @@ export function BasicsPanel() {
         subtitle="The essentials - what your event is called, what type of event it is, and where it takes place."
       />
 
-      {/* Host callout - read-only context, identifies which org the
-          event is being created under. Only shown when there IS a real
-          host (a club, venue or organisation - the ACF host fields on
-          the event). Self-hosted events map to "Me" (create flow and
-          edit hydration both), which carries no information, so the
-          box stays hidden for them. */}
-      {state.hostName && state.hostName !== "Me" && (
-          <div className="flex items-center gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl mb-8">
-            <div className="w-10 h-10 rounded-full bg-white border border-gold-200 flex items-center justify-center">
-              <i className="fa-solid fa-bolt text-gold-600" aria-hidden />
-            </div>
-            <div>
-              <p className="text-xs text-ink-500">Hosted by</p>
-              <p className="font-semibold text-ink-900">{state.hostName}</p>
-            </div>
-          </div>
-        )}
+      {/* Host select - which club, venue or track & circuit the event is
+          hosted under (the ACF host fields on the event), or "Me". The
+          event already lives on one region, so the picker is locked to
+          it; the API applies the host only when the selection changed. */}
+      <HostedByDropdown lockedSite={resolveRegion(state.site).key} compact />
 
       {/* Title field. */}
       <div className="mb-8">

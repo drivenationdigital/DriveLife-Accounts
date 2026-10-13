@@ -20,6 +20,7 @@ import {
   FolderIcon,
   SettingsIcon,
   UserIcon,
+  FlagIcon,
 } from "@/components/ui/Icons";
 
 interface NavItemProps {
@@ -106,6 +107,8 @@ export function Sidebar() {
     pathname === "/clubs" || pathname.startsWith("/clubs/");
   const isVenues =
     pathname === "/venues" || pathname.startsWith("/venues/");
+  const isTracks =
+    pathname === "/tracks" || pathname.startsWith("/tracks/");
   const isBusinesses =
     pathname === "/businesses" || pathname.startsWith("/businesses/");
   const isOrganiserResources =
@@ -167,28 +170,35 @@ export function Sidebar() {
         <div className="nav-label">Organising</div>
         <NavItem
           icon={<CalendarIcon />}
-          label="My Events"
+          label="Events"
           href="/events"
           active={isEvents}
           onClick={() => handleClick("")}
         />
         <NavItem
           icon={<CarIcon />}
-          label="My Clubs"
+          label="Groups &amp; Clubs"
           href="/clubs"
           active={isClubs}
           onClick={() => handleClick("")}
         />
         <NavItem
           icon={<BuildingIcon />}
-          label="My Venues"
+          label="Venues"
           href="/venues"
           active={isVenues}
           onClick={() => handleClick("")}
         />
         <NavItem
+          icon={<FlagIcon />}
+          label="Tracks &amp; Raceways"
+          href="/tracks"
+          active={isTracks}
+          onClick={() => handleClick("")}
+        />
+        <NavItem
           icon={<StoreIcon />}
-          label="My Businesses"
+          label="Businesses"
           href="/businesses"
           active={isBusinesses}
           onClick={() => handleClick("")}

@@ -57,6 +57,10 @@ export interface ApiEventUpdateBasics {
   category_ids?: number[];
   location?: string;
   location_coords?: { lat: number; lng: number } | null;
+  /** "Hosted by" - only sent when the user changed the selection, so an
+   *  untouched form never strips a host (see dl_accounts_apply_event_host). */
+  host_type?: "me" | "club" | "venue" | "track";
+  host_id?: number | null;
 }
 
 /**
@@ -215,13 +219,20 @@ export function mapStateToUpdateRequest(
 // ============================================================
 
 function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
-  return {
+  const basics: ApiEventUpdateBasics = {
     title: state.title,
     category_ids: state.categoryIds,
     location: state.location,
     // Editor's LatLng is { lat, lng } - same shape the endpoint wants.
     location_coords: state.locationCoords,
   };
+  // Host travels only after an explicit change. Both keys go together:
+  // the API applies the host only when it sees both.
+  if (state.hostChanged) {
+    basics.host_type = state.hostType;
+    basics.host_id = state.hostType === "me" ? null : state.hostId;
+  }
+  return basics;
 }
 
 /** Route to the single-event or recurring shape. */

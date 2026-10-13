@@ -122,6 +122,11 @@ export function venueEditPath(vid: string, site?: string | null): string {
   return `/venue/${ref(vid, site)}/edit`;
 }
 
+/** The track edit wizard. */
+export function trackEditPath(tid: string, site?: string | null): string {
+  return `/track/${ref(tid, site)}/edit`;
+}
+
 /** The business edit wizard. */
 export function businessEditPath(bid: string, site?: string | null): string {
   return `/business/${ref(bid, site)}/edit`;

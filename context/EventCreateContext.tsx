@@ -476,8 +476,13 @@ export type EventCreateState = {
   //   me    → the user's own event
   //   club  → hosted by a club they own/admin  (hostId = club id)
   //   venue → hosted by a venue they own        (hostId = venue id)
-  hostType: "me" | "club" | "venue";
+  //   track → hosted at a track/circuit they own (hostId = track id)
+  hostType: "me" | "club" | "venue" | "track";
   hostId: number | null;
+  // True once the user picks a different host in the editor. The save
+  // mapper only sends host_type/host_id when this is set, so hydrating
+  // an event and saving another section never touches its host.
+  hostChanged: boolean;
 
   // ---- Basics ----
   // Display name of the host (the dropdown label, e.g. the club/venue
@@ -713,6 +718,7 @@ const INITIAL_STATE: EventCreateState = {
   livePostStatus: null,
   hostType: "me",
   hostId: null,
+  hostChanged: false,
   hostName: "Me",
   title: "",
   categoryIds: [],
@@ -818,6 +824,7 @@ type ScalarStateKey =
   | "livePostStatus"
   | "hostType"
   | "hostId"
+  | "hostChanged"
   | "hostName"
   | "title"
   | "location"

@@ -5,6 +5,7 @@ import {
   CalendarIcon,
   CarIcon,
   BuildingIcon,
+  FlagIcon,
   StoreIcon,
   XIcon,
   ChevRightIcon,
@@ -12,7 +13,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
 
-type CreateType = "event" | "club" | "venue" | "business";
+type CreateType = "event" | "club" | "venue" | "track" | "business";
 
 const options: Array<{
   type: CreateType;
@@ -37,6 +38,12 @@ const options: Array<{
     title: "Create Venue",
     desc: "Add a new venue for events and meets",
     icon: <BuildingIcon />,
+  },
+  {
+    type: "track",
+    title: "Add Track or Circuit",
+    desc: "List a race circuit, drag strip or kart track that hosts events",
+    icon: <FlagIcon />,
   },
   {
     type: "business",
@@ -88,6 +95,9 @@ export function CreateModal() {
         break;
       case "venue":
         router.push("/venue/create");
+        break;
+      case "track":
+        router.push("/track/create");
         break;
       case "business":
         router.push("/business/create");

@@ -237,6 +237,14 @@ export const BuildingIcon = (p: IconProps) => (
   </svg>
 );
 
+export const FlagIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M4 22V4" />
+    <path d="M4 4h12l-2 4 2 4H4" />
+    <path d="M16 12h4l-2 4H4" />
+  </svg>
+);
+
 export const StoreIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M3 9l1.5-5h15L21 9" />

@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 
 /**
  * Create Something - hub page offering the things a user can create
- * (Event, Car Club, Venue). Linked from the Settings "Create
+ * (Event, Car Club, Venue, Track, Business). Linked from the Settings "Create
  * Something" nav card.
  */
 
@@ -36,6 +36,12 @@ const OPTIONS: CreateOption[] = [
     icon: <BuildingIcon />,
   },
   {
+    title: "Track / Circuit",
+    description: "Add a race circuit, drag strip or kart track that hosts events.",
+    href: "/track/create",
+    icon: <FlagIcon />,
+  },
+  {
     title: "Business",
     description: "List a trader, service or specialist for customers and organisers to find.",
     href: "/business/create",
@@ -57,7 +63,7 @@ export default function CreateHubPage() {
         </p>
       </div>
 
-      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {OPTIONS.map((opt) => (
           <Link
             key={opt.href}
@@ -150,6 +156,25 @@ function StoreIcon() {
       <path d="M3 9a3 3 0 006 0 3 3 0 006 0 3 3 0 006 0" />
       <path d="M5 11v10h14V11" />
       <path d="M10 21v-6h4v6" />
+    </svg>
+  );
+}
+
+function FlagIcon() {
+  return (
+    <svg
+      width="30"
+      height="30"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4 22V4" />
+      <path d="M4 4h12l-2 4 2 4H4" />
+      <path d="M16 12h4l-2 4H4" />
     </svg>
   );
 }

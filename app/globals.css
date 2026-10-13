@@ -4278,7 +4278,14 @@
 .dash-tile-icon { color: var(--gold-deep, #bd7420); }
 .dash-tile-icon svg { width: 36px; height: 36px; }
 .dash-tile-label { font-size: 15px; font-weight: 600; color: var(--ink, #1f1d18); }
-@media (max-width: 720px) { .dash-tiles { grid-template-columns: repeat(2, 1fr); } }
+/* Phones: keep three tiles per row - tighter gap, padding and type so
+   three fit at 360px without the labels wrapping. */
+@media (max-width: 720px) {
+  .dash-tiles { grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .dash-tile { gap: 8px; padding: 18px 6px; border-radius: 10px; }
+  .dash-tile-icon svg { width: 28px; height: 28px; }
+  .dash-tile-label { font-size: 12px; line-height: 1.2; }
+}
 
 .my-clubs { padding: 8px 0 40px; }
 /* flex-end (not center) so the button sits on the baseline of the
@@ -5356,3 +5363,6 @@
 [data-app-container] .breadcrumb {
   display: none;
 }
+
+/* ── Tracks & Circuits cards (reuse the venue card block) ─────────── */
+.track-card-types { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--gold-deep, #bd7420); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

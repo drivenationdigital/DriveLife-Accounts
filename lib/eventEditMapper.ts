@@ -114,6 +114,9 @@ export type HydratedEventState = Pick<
   | "scheduledDate"
   | "scheduledTime"
   | "visibility"
+  | "hostType"
+  | "hostId"
+  | "hostChanged"
   | "hostName"
   | "promoRequested"
   | "promoRequestedAt"
@@ -146,10 +149,18 @@ export function mapEventEditResponse(
     // events, and a title fallback made that check depend on the
     // (editable) title.
     hostName:
+      response.host.name ??
+      response.host.track ??
       response.host.venue ??
       response.host.club ??
       response.host.organisation ??
       "Me",
+    // Structured host for the "Hosted by" select. Older deploys only
+    // send the name keys; they read as "me" and the select then shows
+    // the current host as a fixed option rather than guessing.
+    hostType: response.host.type ?? "me",
+    hostId: response.host.id ?? null,
+    hostChanged: false,
 
     // ---- Dates --------------------------------------------------------
     ...mapDates(response.dates),

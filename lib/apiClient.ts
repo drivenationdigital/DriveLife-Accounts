@@ -193,7 +193,7 @@ export type ApiSite = "uk" | "us";
  * That's why the rule lives here rather than at each call site - a
  * per-call convention is exactly what failed. Deliberately NOT
  * including the list-style routes (`/organiser-events`, `/my-clubs`,
- * `/my-venues`): there `site` narrows the results, and omitting it to
+ * `/my-venues`, `/my-tracks`): there `site` narrows the results, and omitting it to
  * merge both regions is the account view's correct default.
  */
 export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
@@ -221,6 +221,13 @@ export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
   "/venue-edit",
   "/venue-update",
   "/venue-delete",
+  "/track-create",
+  "/track-edit",
+  "/track-update",
+  "/track-delete",
+  "/track-image-upload-url",
+  "/track-image-confirm",
+  "/track-image",
   "/business-create",
   "/business-edit",
   "/business-update",

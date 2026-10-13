@@ -1,7 +1,7 @@
 /**
  * Event host options - the "Hosted by" dropdown source.
  *
- *   GET /host-options → Me + clubs I admin + venues I own
+ *   GET /host-options → Me + clubs I admin + venues I own + tracks I own
  *
  * Clubs and venues are per-blog, so the answer differs by region: a
  * club the user admins in the UK doesn't exist on the US site, and its
@@ -14,11 +14,11 @@ import { apiGet } from "./apiClient";
 import type { SiteKey } from "./apiTypes";
 import { isRegionKey, type RegionKey } from "./regions";
 
-export type HostType = "me" | "club" | "venue";
+export type HostType = "me" | "club" | "venue" | "track";
 
 export interface HostOption {
   type: HostType;
-  /** null for "me"; the club/venue id otherwise. */
+  /** null for "me"; the club/venue/track id otherwise. */
   id: number | null;
   name: string;
   role: string;

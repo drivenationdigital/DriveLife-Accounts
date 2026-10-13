@@ -1046,7 +1046,13 @@ export interface ApiEventEditResponse {
   host: {
     club?: string;
     venue?: string;
+    track?: string;
     organisation?: string;
+    /** Structured form for the editor's "Hosted by" select (newer
+     *  deploys). `type` is me|club|venue|track; `id` the post id. */
+    type?: "me" | "club" | "venue" | "track";
+    id?: number | null;
+    name?: string;
   };
   basics: {
     title: string;

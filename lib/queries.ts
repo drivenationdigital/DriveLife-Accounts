@@ -235,7 +235,7 @@ export type CreateEventParams = {
   title: string;
   /** ACF select: 1=public, 2=private, 3=club. Listings only show "1". */
   event_type: "1" | "2" | "3";
-  host_type?: "me" | "club" | "venue"; 
+  host_type?: "me" | "club" | "venue" | "track"; 
   host_id?: number | null;
 };
 
