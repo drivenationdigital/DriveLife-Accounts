@@ -24,7 +24,8 @@ import {
   CircleSlashIcon,
   TrashIcon,
 } from "@/components/ui/Icons";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useUI } from "@/context/UIContext";
 import {
   useCloneEvent,
   useCancelEvent,
@@ -41,6 +42,8 @@ export function EventHero() {
   // the shared action flow, so these behave exactly like the same
   // actions elsewhere in the app.
   const runAction = useAction();
+  const pathname = usePathname();
+  const { setActiveTab } = useUI();
 
   const clone = useCloneEvent();
   const cancel = useCancelEvent();
@@ -216,9 +219,24 @@ export function EventHero() {
           </div>
 
           <div className="event-actions">
+            {/* A series is extended from its own view: the Upcoming tab's
+                occurrence table owns the "Add dates" dialog, and the
+                ?addDates=1 param opens it on arrival. */}
+            {event.isRecurringParent && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setActiveTab("upcoming");
+                  router.replace(`${pathname}?addDates=1`);
+                }}
+              >
+                <CalendarIcon /> Add Dates
+              </button>
+            )}
             <button
               type="button"
-              className="btn btn-primary"
+              className={`btn ${event.isRecurringParent ? "btn-secondary" : "btn-primary"}`}
               onClick={() => {
                 router.push(eventEditorPath(event.encryptedId, event.site));
               }}

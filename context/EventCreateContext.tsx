@@ -484,6 +484,20 @@ export type EventCreateState = {
   // an event and saving another section never touches its host.
   hostChanged: boolean;
 
+  // ---- Recurring series role ----
+  // "parent": this eid is the series itself (a `recurring_events` post
+  // holding the pattern and the child list). "child": one occurrence of
+  // a series. "none": an ordinary event. Hydrated from /event-edit. The
+  // Dates step and the save mapper key off it: a child must never be
+  // re-submitted as a new series (the API refuses with "already part of
+  // a recurring series", which is what every save of an occurrence hit
+  // once the organiser had clicked "Recurring" to add dates), and a
+  // parent only accepts basics / description / marketing / publish.
+  seriesRole: "none" | "child" | "parent";
+  // Encrypted id of the series parent (child only) - the Dates step's
+  // "open the series" link.
+  seriesParentEid: string | null;
+
   // ---- Basics ----
   // Display name of the host (the dropdown label, e.g. the club/venue
   // name, or the user's name for "me").
@@ -719,6 +733,8 @@ const INITIAL_STATE: EventCreateState = {
   hostType: "me",
   hostId: null,
   hostChanged: false,
+  seriesRole: "none",
+  seriesParentEid: null,
   hostName: "Me",
   title: "",
   categoryIds: [],
@@ -825,6 +841,8 @@ type ScalarStateKey =
   | "hostType"
   | "hostId"
   | "hostChanged"
+  | "seriesRole"
+  | "seriesParentEid"
   | "hostName"
   | "title"
   | "location"

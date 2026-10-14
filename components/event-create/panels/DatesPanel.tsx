@@ -2,7 +2,8 @@
 
 import { useEventSteps, useEventRegion } from "@/lib/useEventSteps";
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams, usePathname } from "next/navigation";
+import { useSearchParams, usePathname, useRouter } from "next/navigation";
+import { eventDetailPath } from "@/lib/siteRoutes";
 
 import { pushStepUrl } from "@/lib/stepNav";
 
@@ -12,6 +13,7 @@ import {
   WEEKDAYS_LOWER,
 } from "@/context/EventCreateContext";
 import { formatEditorDate } from "@/lib/formatEditorDate";
+import type { Region } from "@/lib/regions";
 import { enumerateDays } from "@/lib/dateRange";
 import { makeLocalId } from "@/lib/makeLocalId";
 import { timezoneOptionLabel, timezonesForRegion } from "@/lib/timezones";
@@ -161,6 +163,24 @@ export function DatesPanel() {
   const isSingle = state.dateType === "single";
   const isRecurring = state.dateType === "recurring";
 
+  // One date of a series, or the series itself: neither can switch
+  // between single and recurring here. An occurrence re-submitted as
+  // recurring would ask the API to build a second series out of it
+  // (refused as "already part of a recurring series"), and a parent's
+  // pattern isn't editable after creation - more dates are added from
+  // the series page instead.
+  const seriesRole = state.seriesRole;
+  const canSwitchType = seriesRole === "none";
+  const router = useRouter();
+  const openSeries = (addDates: boolean) => {
+    const target =
+      seriesRole === "child" ? state.seriesParentEid : state.encryptedId;
+    if (!target) return;
+    router.push(
+      `${eventDetailPath(target, state.site)}${addDates ? "?addDates=1" : ""}`,
+    );
+  };
+
   // ---- Multi-day + per-day-times sync -------------------------------
   //
   // The "Unique times per day" toggle is only meaningful for events
@@ -303,7 +323,31 @@ export function DatesPanel() {
         subtitle="When will your event take place? Single day, multi-day, or a recurring series."
       />
 
+      {seriesRole !== "none" && (
+        <SeriesNotice
+          role={seriesRole}
+          canOpen={Boolean(
+            seriesRole === "child" ? state.seriesParentEid : state.encryptedId,
+          )}
+          pattern={
+            seriesRole === "parent"
+              ? describePattern(
+                  state.recurringFrequency,
+                  state.recurringWeek,
+                  state.recurringMonth,
+                  state.recurringFirstDate,
+                  state.recurringUntilDate,
+                  state.recurringRepeatUntilCancelled,
+                  region,
+                )
+              : null
+          }
+          onOpen={openSeries}
+        />
+      )}
+
       {/* ---- Event type segmented control ---- */}
+      {canSwitchType && (
       <div className="mb-8">
         <label className="block text-sm font-semibold text-ink-900 mb-3">
           Event type
@@ -343,6 +387,7 @@ export function DatesPanel() {
           </button>
         </div>
       </div>
+      )}
 
       {/* ---- Single event sub-form ---- */}
       {isSingle && (
@@ -420,7 +465,7 @@ export function DatesPanel() {
       )}
 
       {/* ---- Recurring event sub-form ---- */}
-      {isRecurring && (
+      {isRecurring && seriesRole !== "parent" && (
         <div>
           <div className="bg-white border border-ink-200 rounded-2xl p-5 sm:p-6 mb-4 space-y-4">
             {/* Frequency selector - dropdown, not segmented control,
@@ -1099,4 +1144,96 @@ function CustomDateList({
       </button>
     </div>
   );
+}
+
+/**
+ * Shown on the Dates step instead of the single / recurring switch when
+ * the event belongs to a series (2026-10-13).
+ */
+function SeriesNotice({
+  role,
+  canOpen,
+  pattern,
+  onOpen,
+}: {
+  role: "child" | "parent";
+  canOpen: boolean;
+  pattern: string | null;
+  onOpen: (addDates: boolean) => void;
+}) {
+  const isParent = role === "parent";
+  return (
+    <div className="flex items-start gap-3 p-4 bg-gold-50 border border-gold-200 rounded-xl mb-8">
+      <div className="w-10 h-10 rounded-full bg-gold-500 flex items-center justify-center flex-shrink-0 text-white">
+        <i className="fa-solid fa-repeat" aria-hidden />
+      </div>
+      <div className="min-w-0">
+        <p className="font-semibold text-ink-900 mb-1">
+          {isParent
+            ? "This is the recurring series"
+            : "This is one date of a recurring series"}
+        </p>
+        <p className="text-sm text-ink-700">
+          {isParent
+            ? "It holds the repeat pattern and the list of dates. Each date is its own event with its own details, tickets and images - open a date from the series page to edit it."
+            : "The date and times below apply to this occurrence only. Changing them does not move the other dates in the series."}
+        </p>
+        {pattern && (
+          <p className="text-sm text-ink-700 mt-2">
+            <span className="font-semibold">Pattern:</span> {pattern}
+          </p>
+        )}
+        <p className="text-sm text-ink-700 mt-2">
+          To add more dates to the series, use <span className="font-semibold">Add dates</span> on the series page.
+        </p>
+        {canOpen && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition"
+              onClick={() => onOpen(true)}
+            >
+              <i className="fa-solid fa-calendar-plus" aria-hidden /> Add dates
+            </button>
+            <button
+              type="button"
+              className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-50 rounded-lg transition"
+              onClick={() => onOpen(false)}
+            >
+              Open the series
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Human summary of a series' stored pattern, for the parent's notice. */
+function describePattern(
+  frequency: "weekly" | "monthly" | "custom",
+  week: string,
+  month: string,
+  firstDate: string | null,
+  untilDate: string | null,
+  untilCancelled: boolean,
+  region: Region,
+): string {
+  const title = (s: string) =>
+    s.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  let rule: string;
+  if (frequency === "custom") {
+    rule = "Hand-picked dates";
+  } else if (frequency === "monthly") {
+    rule = month ? `${title(month)} of every month` : "Monthly";
+  } else {
+    rule = week ? `Every ${title(week)}` : "Weekly";
+  }
+  const from = firstDate ? ` from ${formatEditorDate(firstDate, region)}` : "";
+  const until = untilCancelled
+    ? ", until cancelled"
+    : untilDate
+      ? ` until ${formatEditorDate(untilDate, region)}`
+      : "";
+  return `${rule}${from}${until}`;
 }

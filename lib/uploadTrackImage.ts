@@ -152,9 +152,11 @@ export function useUploadTrackImage() {
   const qc = useQueryClient();
   return useMutation<ConfirmedTrackImage, Error, UploadTrackImageArgs>({
     mutationFn: (args) => uploadTrackImage(args),
-    onSuccess: (_data, { tid }) => {
+    // Only the list needs refreshing: the editor takes the stored URL
+    // straight from the result, and refetching the record would hand
+    // the page a new object to re-hydrate from.
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-tracks"] });
-      qc.invalidateQueries({ queryKey: ["track-edit", tid] });
     },
   });
 }
@@ -172,9 +174,11 @@ export function useRemoveTrackImage() {
         site,
       });
     },
-    onSuccess: (_data, { tid }) => {
+    // Only the list needs refreshing: the editor takes the stored URL
+    // straight from the result, and refetching the record would hand
+    // the page a new object to re-hydrate from.
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["my-tracks"] });
-      qc.invalidateQueries({ queryKey: ["track-edit", tid] });
     },
   });
 }

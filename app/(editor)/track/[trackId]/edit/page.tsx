@@ -2,7 +2,7 @@
 
 import { resolveRegion, type RegionKey } from "@/lib/regions";
 import { parseRef } from "@/lib/siteRef";
-import { Suspense, use, useEffect } from "react";
+import { Suspense, use, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { TrackEditProvider, useTrackEdit } from "@/context/TrackEditContext";
@@ -81,10 +81,17 @@ function EditTrackEditor({
   const site = resolveRegion(refSite ?? urlSite).key;
   const { data, isLoading, error } = useTrackEditQuery(trackId, site);
 
+  // Hydrate once per record. The query is refetched after saves and
+  // image uploads; re-hydrating on every refetch would overwrite fields
+  // the user has typed but not yet saved (Continue doesn't save), which
+  // is exactly what happened to the location after a cover upload.
+  const hydratedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!data) return;
+    if (hydratedFor.current === trackId) return;
     hydrate(data.track);
-  }, [data, hydrate]);
+    hydratedFor.current = trackId;
+  }, [data, trackId, hydrate]);
 
   if (error) return <TrackEditorErrorState error={error} />;
   if (isLoading || !data) return <TrackEditorSkeleton />;

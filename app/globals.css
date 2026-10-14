@@ -4272,7 +4272,8 @@
 
 .dash-tiles-wrap { text-align: center; margin-bottom: 32px; }
 .dash-tiles-heading { font-size: 28px; font-weight: 800; color: var(--ink, #1f1d18); margin: 0 0 24px; }
-.dash-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.dash-tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.dash-tiles .dash-tile-mobile-only { display: none; }
 .dash-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #fff; border: 1px solid var(--border, #ecebe6); border-radius: 12px; padding: 28px 16px; text-decoration: none; box-shadow: 0 1px 3px rgba(31,29,24,.05); transition: box-shadow .15s, transform .15s; }
 .dash-tile:hover { box-shadow: 0 6px 18px rgba(31,29,24,.1); transform: translateY(-2px); }
 .dash-tile-icon { color: var(--gold-deep, #bd7420); }
@@ -4283,6 +4284,7 @@
 @media (max-width: 720px) {
   .dash-tiles { grid-template-columns: repeat(3, 1fr); gap: 10px; }
   .dash-tile { gap: 8px; padding: 18px 6px; border-radius: 10px; }
+  .dash-tiles .dash-tile-mobile-only { display: flex; }
   .dash-tile-icon svg { width: 28px; height: 28px; }
   .dash-tile-label { font-size: 12px; line-height: 1.2; }
 }
@@ -5366,3 +5368,151 @@
 
 /* ── Tracks & Circuits cards (reuse the venue card block) ─────────── */
 .track-card-types { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--gold-deep, #bd7420); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Recurring series: "Add dates" dialog + header actions (2026-10-13) ---- */
+.occ-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.sad-intro {
+  font-size: 14px;
+  color: var(--muted);
+  margin: 0 0 16px;
+  line-height: 1.5;
+}
+.sad-modes {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sad-mode {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.sad-mode:hover {
+  background: var(--bg-2);
+}
+.sad-mode.is-active {
+  border-color: var(--gold, #b89855);
+  background: rgba(184, 152, 85, 0.1);
+}
+.sad-mode small {
+  display: block;
+  font-weight: 400;
+  color: var(--muted);
+  font-size: 12px;
+  margin-top: 2px;
+}
+.sad-field {
+  margin-bottom: 14px;
+}
+.sad-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.sad-input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  min-height: 42px;
+}
+.sad-input:focus {
+  outline: none;
+  border-color: var(--gold, #b89855);
+  box-shadow: 0 0 0 3px rgba(184, 152, 85, 0.18);
+}
+.sad-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.sad-hint {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 6px;
+  line-height: 1.45;
+}
+.sad-add-row {
+  display: flex;
+  gap: 8px;
+}
+.sad-add-row .sad-input {
+  flex: 1;
+}
+.sad-dates {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sad-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--bg-2);
+  font-size: 13px;
+  color: var(--ink);
+}
+.sad-date svg {
+  width: 14px;
+  height: 14px;
+}
+.sad-date button {
+  display: inline-flex;
+  color: var(--muted);
+  margin-left: 2px;
+}
+.sad-date button:hover {
+  color: var(--danger, #c0492f);
+}
+.sad-radio {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--ink);
+  margin-bottom: 6px;
+  cursor: pointer;
+}
+.sad-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 16px 22px 20px;
+  border-top: 1px solid var(--border);
+}
+.sad-error {
+  color: var(--danger, #c0492f);
+  font-size: 13px;
+  margin-top: 4px;
+}
+@media (max-width: 480px) {
+  .sad-row {
+    grid-template-columns: 1fr;
+  }
+  .sad-modes {
+    flex-direction: column;
+  }
+}

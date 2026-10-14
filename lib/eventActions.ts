@@ -98,3 +98,65 @@ export function useDeleteEvent() {
     onSuccess: (_d, { eid }) => invalidateForEvent(qc, eid),
   });
 }
+
+// ---------------------------------------------------------------------
+// Recurring series: add dates (2026-10-13)
+// ---------------------------------------------------------------------
+
+export interface AddSeriesDatesArgs extends EventActionArgs {
+  /** "pattern" continues the series' own weekly / monthly pattern from
+   *  its last date up to `until`; "custom" adds the listed `dates`. */
+  mode: "pattern" | "custom";
+  /** "YYYY-MM-DD" - pattern mode. */
+  until?: string;
+  /** "YYYY-MM-DD" each - custom mode. */
+  dates?: string[];
+  /** "HH:MM" - default to the latest occurrence's times. */
+  start_time?: string;
+  end_time?: string;
+  /** Defaults to the latest occurrence's status, so a live series gets
+   *  live dates and a draft one gets drafts. */
+  status?: "publish" | "draft";
+}
+
+export interface AddedOccurrence {
+  id: number;
+  eid: string;
+  start_date: string;
+}
+
+export interface AddSeriesDatesResponse {
+  success: true;
+  parent_id: number;
+  parent_eid: string;
+  status: "publish" | "draft";
+  added: AddedOccurrence[];
+  /** Dates that had a deleted occurrence, brought back instead of
+   *  duplicated. */
+  restored: AddedOccurrence[];
+  /** Dates the series already had - left alone. */
+  skipped: string[];
+  added_count: number;
+  child_count: number;
+  partial_error: string | null;
+}
+
+/** Extend a recurring series with more dates. `eid` may be the series
+ *  parent's or any occurrence's - the API resolves up to the series. */
+export function useAddSeriesDates() {
+  const qc = useQueryClient();
+  return useMutation<AddSeriesDatesResponse, Error, AddSeriesDatesArgs>({
+    mutationFn: ({ site, ...body }) =>
+      apiPost<AddSeriesDatesResponse, Omit<AddSeriesDatesArgs, "site">>(
+        "/event-series-add-dates",
+        body,
+        { site },
+      ),
+    onSuccess: (data, { eid }) => {
+      invalidateForEvent(qc, eid);
+      if (data.parent_eid && data.parent_eid !== eid) {
+        invalidateForEvent(qc, data.parent_eid);
+      }
+    },
+  });
+}

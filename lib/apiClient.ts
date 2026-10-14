@@ -212,6 +212,7 @@ export const SITE_REQUIRED_ROUTES: ReadonlySet<string> = new Set([
   "/event-clone",
   "/event-cancel",
   "/event-delete",
+  "/event-series-add-dates",
   "/pin-event",
   "/club-create",
   "/club-edit",

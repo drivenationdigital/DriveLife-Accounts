@@ -77,6 +77,9 @@ export interface EventDetail {
   parentEid: string;
   /** How many occurrences the series has. 0 when unknown. */
   recurringCount: number;
+  /** The series' repeat pattern type, so "Add dates" knows whether it
+   *  can continue a weekly/monthly pattern or must take picked dates. */
+  recurringType: "week" | "month" | "custom" | null;
 }
 
 export interface Ticket {
@@ -285,6 +288,10 @@ export interface Occurrence {
    *  toggle, render as plain text rather than a link, and get no
    *  actions - matching the legacy page. */
   isDeleted: boolean;
+  /** Raw "HH:MM" times, for pre-filling "Add dates" from the latest
+   *  occurrence. null when the occurrence has none. */
+  startTime: string | null;
+  endTime: string | null;
   /** False for finished / cancelled / deleted rows. Gates the actions. */
   canManage: boolean;
   /** Public permalink. */

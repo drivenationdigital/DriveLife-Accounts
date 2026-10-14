@@ -117,6 +117,8 @@ export type HydratedEventState = Pick<
   | "hostType"
   | "hostId"
   | "hostChanged"
+  | "seriesRole"
+  | "seriesParentEid"
   | "hostName"
   | "promoRequested"
   | "promoRequestedAt"
@@ -163,6 +165,16 @@ export function mapEventEditResponse(
     hostChanged: false,
 
     // ---- Dates --------------------------------------------------------
+    // ---- Series role --------------------------------------------------
+    // `is_recurring` is true only on the parent (the API deliberately
+    // reports a child as a plain single-date event).
+    seriesRole:
+      response.post_type === "recurring_events" || response.dates.is_recurring
+        ? "parent"
+        : response.dates.is_recurring_child
+          ? "child"
+          : "none",
+    seriesParentEid: response.dates.recurring_parent_id ?? null,
     ...mapDates(response.dates),
 
     // ---- Description / contact ---------------------------------------

@@ -2,7 +2,7 @@
 
 import { resolveRegion, type RegionKey } from "@/lib/regions";
 import { parseRef } from "@/lib/siteRef";
-import { Suspense, use, useEffect } from "react";
+import { Suspense, use, useEffect, useRef } from "react";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { VenueEditProvider, useVenueEdit } from "@/context/VenueEditContext";
@@ -81,10 +81,16 @@ function EditVenueEditor({
   const site = resolveRegion(refSite ?? urlSite).key;
   const { data, isLoading, error } = useVenueEditQuery(venueId, site);
 
+  // Hydrate once per record - a refetch after an image upload or save
+  // must not overwrite fields typed but not yet saved (same guard as the
+  // event and track editors).
+  const hydratedFor = useRef<string | null>(null);
   useEffect(() => {
     if (!data) return;
+    if (hydratedFor.current === venueId) return;
     hydrate(data.venue);
-  }, [data, hydrate]);
+    hydratedFor.current = venueId;
+  }, [data, venueId, hydrate]);
 
   if (error) return <VenueEditorErrorState error={error} />;
   if (isLoading || !data) return <VenueEditorSkeleton />;

@@ -191,6 +191,19 @@ export interface ApiEventUpdateResponse {
 export function mapStateToUpdateRequest(
   state: EventCreateState,
 ): ApiEventUpdateRequest {
+  // A series parent holds the pattern and the child list, nothing else -
+  // dates, tickets, applications and media live on each occurrence. The
+  // API drops the other sections (it used to reject the whole save), so
+  // don't send them.
+  if (state.seriesRole === "parent") {
+    return {
+      basics: mapBasics(state),
+      description: mapDescription(state),
+      marketing: mapMarketing(state),
+      publish: mapPublish(state),
+    };
+  }
+
   const request: ApiEventUpdateRequest = {
     basics: mapBasics(state),
     description: mapDescription(state),
@@ -237,6 +250,11 @@ function mapBasics(state: EventCreateState): ApiEventUpdateBasics {
 
 /** Route to the single-event or recurring shape. */
 function mapDates(state: EventCreateState): ApiEventUpdateDates | undefined {
+  // One occurrence of a series saves as the single-date event it is. The
+  // recurring shape would ask the API to build a second series out of
+  // it, which it refuses - so the Dates step hides that switch for a
+  // child, and this guards the save even if state says otherwise.
+  if (state.seriesRole === "child") return mapSingleDates(state);
   return state.dateType === "recurring"
     ? mapRecurringDates(state)
     : mapSingleDates(state);

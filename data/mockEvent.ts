@@ -24,6 +24,7 @@ export const mockEventData: EventData = {
     recurringDisplay: "",
     parentEid: "",
     recurringCount: 0,
+    recurringType: null,
   },
 
   // A one-off event, so no occurrence table.

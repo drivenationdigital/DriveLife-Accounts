@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEventData } from "@/context/EventContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
 import { formatRef } from "@/lib/siteRef";
@@ -9,7 +9,8 @@ import {
   occurrencesInScope,
   type OccurrenceScope,
 } from "@/lib/occurrenceScope";
-import { ExternalLinkIcon } from "@/components/ui/Icons";
+import { ExternalLinkIcon, PlusIcon } from "@/components/ui/Icons";
+import { AddSeriesDatesModal } from "@/components/event/AddSeriesDatesModal";
 
 /**
  * The occurrence table shown on a recurring series PARENT.
@@ -45,7 +46,38 @@ export function OccurrenceTable({
 }) {
   const { event, occurrences } = useEventData();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const [showDeleted, setShowDeleted] = useState(false);
+  const [addClicked, setAddClicked] = useState(false);
+
+  // `?addDates=1` opens the dialog too - the hero's "Add Dates" button
+  // and the editor's series notice both land here with it. The param is
+  // the signal rather than copied into state, so there's no effect to
+  // sync; closing strips it from the URL so a refresh doesn't reopen.
+  const addViaUrl = searchParams?.get("addDates") === "1";
+  const addOpen = addClicked || addViaUrl;
+  const closeAdd = () => {
+    setAddClicked(false);
+    if (addViaUrl) {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.delete("addDates");
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname);
+    }
+  };
+
+  // The latest live occurrence seeds the dialog: new dates continue from
+  // its date and borrow its times.
+  const latest = useMemo(() => {
+    const live = (occurrences?.items ?? []).filter(
+      (o) => !o.isDeleted && o.startDate,
+    );
+    if (!live.length) return null;
+    return live.reduce((best, o) =>
+      (o.startDate ?? "") > (best.startDate ?? "") ? o : best,
+    );
+  }, [occurrences]);
 
   const items = occurrences?.items;
 
@@ -103,19 +135,41 @@ export function OccurrenceTable({
           </p>
         </div>
 
-        {/* Only offered when this tab actually contains deleted rows -
-            otherwise the toggle would do nothing. */}
-        {hasDeletedInScope && (
-          <label className="occ-toggle">
-            <input
-              type="checkbox"
-              checked={showDeleted}
-              onChange={(e) => setShowDeleted(e.target.checked)}
-            />
-            Show deleted events
-          </label>
-        )}
+        <div className="occ-header-actions">
+          {/* Only offered when this tab actually contains deleted rows -
+              otherwise the toggle would do nothing. */}
+          {hasDeletedInScope && (
+            <label className="occ-toggle">
+              <input
+                type="checkbox"
+                checked={showDeleted}
+                onChange={(e) => setShowDeleted(e.target.checked)}
+              />
+              Show deleted events
+            </label>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => setAddClicked(true)}
+          >
+            <PlusIcon /> Add dates
+          </button>
+        </div>
       </div>
+
+      <AddSeriesDatesModal
+        open={addOpen}
+        onClose={closeAdd}
+        eid={event.encryptedId}
+        site={event.region.key}
+        patternType={event.recurringType}
+        patternLabel={event.recurringDisplay}
+        lastDate={latest?.startDate ?? null}
+        defaultStartTime={latest?.startTime ?? null}
+        defaultEndTime={latest?.endTime ?? null}
+        seriesIsLive={event.status === "published"}
+      />
 
       <div className="occ-body">
         {visible.length === 0 ? (

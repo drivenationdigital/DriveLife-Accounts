@@ -183,6 +183,7 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     recurringDisplay,
     parentEid: core.recurring?.parent_eid ?? "",
     recurringCount: core.recurring?.child_count ?? 0,
+    recurringType: core.recurring?.type ?? null,
   };
 }
 
@@ -213,6 +214,8 @@ function mapOccurrences(
       statusSlug: o.status?.slug ?? "",
       statusLabel: o.status?.label ?? "",
       isDeleted: o.is_deleted,
+      startTime: o.start_time,
+      endTime: o.end_time,
       canManage: o.can_manage,
       link: o.link,
     })),
