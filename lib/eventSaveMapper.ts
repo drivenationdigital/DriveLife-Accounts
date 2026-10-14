@@ -156,6 +156,10 @@ export interface ApiEventUpdatePublish {
   scheduled_date?: string | null; // "YYYY-MM-DD"
   scheduled_time?: string | null; // "HH:MM"
   visibility?: 1 | 2; // 1=public, 2=private
+  /** On one occurrence of a series: "series" also publishes the other
+   *  dates that are still drafts (never pulls any back). Omitted or
+   *  "this" touches only this occurrence. */
+  series_scope?: "series" | "this";
 }
 
 export interface ApiEventUpdateRequest {
@@ -182,6 +186,19 @@ export interface ApiEventUpdateResponse {
    *  while a draft. Optional: older backends don't send it. */
   permalink?: string;
   updated_at: string | null;
+  /** Present when THIS save turned the event into a recurring series:
+   *  the saved post is now occurrence #1 and these are its siblings. */
+  recurring?: {
+    created: boolean;
+    parent_id: number;
+    parent_eid: string;
+    child_ids: number[];
+    child_count: number;
+    /** Occurrence dates, "YYYYMMDD" or "YYYY-MM-DD" depending on backend. */
+    dates: string[];
+    truncated: boolean;
+    open_ended: boolean;
+  };
 }
 
 // ============================================================
@@ -544,6 +561,13 @@ function mapPublish(state: EventCreateState): ApiEventUpdatePublish {
     status,
     visibility: state.visibility === "private" ? 2 : 1,
   };
+
+  // One date of a series: say whether its draft siblings should go live
+  // with it. Sent for every status so the API's default ("this") never
+  // has to be guessed; the API only acts on it for publish.
+  if (state.seriesRole === "child") {
+    publish.series_scope = state.publishWholeSeries ? "series" : "this";
+  }
 
   // Only meaningful for scheduled events; the endpoint validates that
   // the combined datetime is in the future.

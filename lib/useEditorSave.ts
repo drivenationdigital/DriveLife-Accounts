@@ -71,6 +71,23 @@ export function useEditorSave() {
         ? res.post_status
         : "publish";
 
+    // This save turned the event into a recurring series: the post the
+    // editor holds is now occurrence #1, with the first date only. The
+    // state must say so, or the next save (e.g. Publish after a draft
+    // save) would resend the recurring shape and the API would refuse
+    // it as "already part of a recurring series" (2026-10-14).
+    const series = res.recurring?.created ? res.recurring : null;
+    const firstDate = series ? isoDay(series.dates[0]) : null;
+    const seriesPartial: Partial<EventCreateState> = series
+      ? {
+          seriesRole: "child",
+          seriesParentEid: series.parent_eid,
+          dateType: "single",
+          uniqueTimesPerDay: false,
+          ...(firstDate ? { startDate: firstDate, endDate: firstDate } : {}),
+        }
+      : {};
+
     dispatch({
       type: "HYDRATE",
       partial: {
@@ -83,8 +100,16 @@ export function useEditorSave() {
         ...(typeof res.permalink === "string" && res.permalink !== ""
           ? { permalink: res.permalink }
           : {}),
+        ...seriesPartial,
       },
     });
+    if (series) {
+      toast.success(
+        `Recurring series created with ${series.child_count} ${
+          series.child_count === 1 ? "date" : "dates"
+        }${series.truncated ? " (the first batch - add more from the series page)" : ""}.`,
+      );
+    }
 
     toast.success(
       liveStatus === "draft"
@@ -130,6 +155,15 @@ export function useEditorSave() {
     error: (latest?.error as Error | null) ?? null,
     reset: mutation.reset,
   };
+}
+
+/** "YYYYMMDD" (how the series creator reports dates) or "YYYY-MM-DD"
+ *  -> "YYYY-MM-DD"; null when unusable. */
+function isoDay(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const compact = /^(\d{4})(\d{2})(\d{2})$/.exec(raw);
+  if (compact) return `${compact[1]}-${compact[2]}-${compact[3]}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : null;
 }
 
 /** Button label for a given status - shared by the bottombar + panel

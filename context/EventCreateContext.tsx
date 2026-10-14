@@ -497,6 +497,11 @@ export type EventCreateState = {
   // Encrypted id of the series parent (child only) - the Dates step's
   // "open the series" link.
   seriesParentEid: string | null;
+  // Publish panel tick on a series child: also publish the other dates
+  // of the series that are still drafts. On by default - an organiser
+  // who saves a new series as a draft and then hits Publish expects
+  // every date to go live, not just the one open in the editor.
+  publishWholeSeries: boolean;
 
   // ---- Basics ----
   // Display name of the host (the dropdown label, e.g. the club/venue
@@ -735,6 +740,7 @@ const INITIAL_STATE: EventCreateState = {
   hostChanged: false,
   seriesRole: "none",
   seriesParentEid: null,
+  publishWholeSeries: true,
   hostName: "Me",
   title: "",
   categoryIds: [],
@@ -843,6 +849,7 @@ type ScalarStateKey =
   | "hostChanged"
   | "seriesRole"
   | "seriesParentEid"
+  | "publishWholeSeries"
   | "hostName"
   | "title"
   | "location"

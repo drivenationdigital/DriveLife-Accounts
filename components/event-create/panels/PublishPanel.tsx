@@ -198,6 +198,35 @@ export function PublishPanel() {
           />
         </div>
 
+        {/* One date of a recurring series: publishing it can take the
+            rest of the series' draft dates live too (on by default - a
+            series saved as a draft and then published should publish
+            every date). Never pulls a live date back to draft. */}
+        {state.seriesRole === "child" && state.status === "published" && (
+          <label className="flex items-start gap-3 mt-4 p-3 bg-gold-50 border border-gold-200 rounded-lg cursor-pointer">
+            <input
+              type="checkbox"
+              className="mt-1"
+              checked={state.publishWholeSeries}
+              onChange={(e) =>
+                dispatch({
+                  type: "SET_FIELD",
+                  key: "publishWholeSeries",
+                  value: e.target.checked,
+                })
+              }
+            />
+            <span className="text-sm text-ink-700">
+              <span className="font-semibold text-ink-900">
+                Also publish the other dates in this series
+              </span>
+              <br />
+              Any dates still saved as drafts go live with this one. Dates
+              that are already published are not changed.
+            </span>
+          </label>
+        )}
+
         {/* Schedule date+time fields - only when status is scheduled. */}
         {state.status === "scheduled" && (
           <div className="mt-4 pt-4 border-t border-ink-200">
