@@ -261,7 +261,10 @@ function OccurrenceRow({
             Manage
           </button>
         )}
-        {o.link && !o.isDeleted && (
+        {/* Only a date with a real public page gets the link. A draft or
+            scheduled occurrence's link is the WordPress preview URL
+            (?post_type=events&p=...), which must not be shown. */}
+        {o.link && hasPublicPage(o) && (
           <a
             className="occ-action"
             href={o.link}
@@ -274,6 +277,16 @@ function OccurrenceRow({
         )}
       </td>
     </tr>
+  );
+}
+
+/** Live and finished dates have a page on carevents.com; a cancelled
+ *  one does too (it shows the cancelled banner). Draft, scheduled and
+ *  deleted do not. */
+function hasPublicPage(o: import("@/context/types").Occurrence): boolean {
+  if (o.isDeleted) return false;
+  return ["live", "publish", "published", "finished", "cancelled"].includes(
+    o.statusSlug,
   );
 }
 

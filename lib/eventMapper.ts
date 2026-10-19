@@ -184,6 +184,16 @@ function mapEventDetail(core: ApiEventCore, fallbackSite?: string): EventDetail 
     parentEid: core.recurring?.parent_eid ?? "",
     recurringCount: core.recurring?.child_count ?? 0,
     recurringType: core.recurring?.type ?? null,
+    // Published and cancelled posts have a real page (a cancelled event
+    // shows its "Event cancelled" banner). Draft / future permalinks are
+    // the WP preview form and must never be surfaced; a parent has no
+    // page of its own - the hero links to its next live date instead.
+    publicUrl:
+      !isParent &&
+      (core.post_status === "publish" || core.post_status === "cancelled") &&
+      core.link
+        ? core.link
+        : null,
   };
 }
 

@@ -1059,7 +1059,8 @@ function EmbedBox() {
   height="800"
   style="border:0;border-radius:12px"
   loading="lazy"
-></iframe>`;
+></iframe>
+<script src="https://account.carevents.com/embed.js" async></script>`;
 
   const copy = async () => {
     try {
@@ -1090,10 +1091,14 @@ function EmbedBox() {
       </pre>
       <p className="border-t border-ink-100 bg-white px-4 py-2.5 text-xs text-ink-400">
         Replace <code className="text-ink-600">{"{type}"}</code> with{" "}
-        <code className="text-ink-600">club</code>,{" "}
-        <code className="text-ink-600">venue</code>, or{" "}
-        <code className="text-ink-600">show-car</code>, and{" "}
-        <code className="text-ink-600">{"{id}"}</code> with your item’s id.
+        <code className="text-ink-600">show-car</code>,{" "}
+        <code className="text-ink-600">car-club</code>,{" "}
+        <code className="text-ink-600">trader</code> or{" "}
+        <code className="text-ink-600">checkout</code>, and{" "}
+        <code className="text-ink-600">{"{id}"}</code> with the event’s URL
+        slug (for <code className="text-ink-600">checkout</code>, the event id
+        from the Tickets step). Each event’s Show Cars, Car Clubs, Traders and
+        Tickets tabs have a ready-made snippet you can copy instead.
       </p>
     </div>
   );

@@ -222,10 +222,56 @@ function StripeForm({
   const elements = useElements();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  // A payment Stripe has taken whose order save failed. The money has
+  // moved, so the buyer must not be sent back to the card form: they
+  // get "Finish my order", which retries the save and nothing else.
+  const [paidUnsaved, setPaidUnsaved] = useState<{
+    id: string;
+    status: string;
+  } | null>(null);
+
+  const isPaid = (status: string) =>
+    status === "succeeded" || status === "processing";
+
+  /**
+   * Hand a confirmed payment to the page. Before this, a failure here
+   * fell into the same catch as a card failure and read "An unexpected
+   * error occurred. Please try again." - on a payment that had gone
+   * through, which is exactly when trying again is the wrong advice.
+   */
+  const completeOrder = async (id: string, status: string) => {
+    try {
+      await onPaid("stripe", id, status);
+      setPaidUnsaved(null);
+    } catch (e) {
+      if (isPaid(status)) {
+        setPaidUnsaved({ id, status });
+        setMessage(
+          "Your payment went through, but your order could not be completed: " +
+            errorText(e, "the ticketing service did not respond.") +
+            " Please do not pay again - use \"Finish my order\" below, or " +
+            `contact support quoting payment reference ${id}.`,
+        );
+      } else {
+        setMessage(errorText(e, "An unexpected error occurred. Please try again."));
+      }
+    }
+  };
+
+  const retryOrder = async () => {
+    if (!paidUnsaved || busy) return;
+    setBusy(true);
+    setMessage(null);
+    try {
+      await completeOrder(paidUnsaved.id, paidUnsaved.status);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!stripe || !elements || busy) return;
+    if (!stripe || !elements || busy || paidUnsaved) return;
     setBusy(true);
     setMessage(null);
     try {
@@ -238,12 +284,17 @@ function StripeForm({
         // as payment_intent_authentication_failure (not a card_error),
         // and "unexpected error" is the wrong thing to tell them.
         const authFailed = error.code === "payment_intent_authentication_failure";
+        // The intent was confirmed already (a retry after the first
+        // reply was lost): Stripe refuses to take it twice.
+        const alreadyPaid = error.code === "payment_intent_unexpected_state";
         setMessage(
           authFailed
             ? "Your bank didn't confirm this payment. Please try again, or use a different card."
-            : error.type === "card_error" || error.type === "validation_error"
-              ? (error.message ?? "Your payment was not successful.")
-              : "An unexpected error occurred. Please try again.",
+            : alreadyPaid
+              ? "This payment has already been taken. Please do not pay again - refresh this page to see your order, or contact support."
+              : error.type === "card_error" || error.type === "validation_error"
+                ? (error.message ?? "Your payment was not successful.")
+                : "An unexpected error occurred. Please try again.",
         );
         return;
       }
@@ -251,7 +302,7 @@ function StripeForm({
         if (paymentIntent.status === "requires_payment_method") {
           setMessage("Your payment was not successful, please try again.");
         }
-        await onPaid("stripe", paymentIntent.id, paymentIntent.status);
+        await completeOrder(paymentIntent.id, paymentIntent.status);
       }
     } catch {
       setMessage("An unexpected error occurred. Please try again.");
@@ -269,14 +320,26 @@ function StripeForm({
         }}
       />
       {message && <PanelError>{message}</PanelError>}
-      <button
-        type="submit"
-        disabled={!stripe || !elements || busy}
-        className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
-      >
-        {busy && <ButtonSpinner />}
-        {busy ? "Processing…" : `Pay ${formatRegionCurrency(total, region)}`}
-      </button>
+      {paidUnsaved ? (
+        <button
+          type="button"
+          onClick={retryOrder}
+          disabled={busy}
+          className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
+        >
+          {busy && <ButtonSpinner />}
+          {busy ? "Finishing…" : "Finish my order"}
+        </button>
+      ) : (
+        <button
+          type="submit"
+          disabled={!stripe || !elements || busy}
+          className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
+        >
+          {busy && <ButtonSpinner />}
+          {busy ? "Processing…" : `Pay ${formatRegionCurrency(total, region)}`}
+        </button>
+      )}
       <p className="text-xs text-ink-500 text-center">
         Payments are processed securely by Stripe.
       </p>

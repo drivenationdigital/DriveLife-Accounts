@@ -80,6 +80,12 @@ export interface EventDetail {
   /** The series' repeat pattern type, so "Add dates" knows whether it
    *  can continue a weekly/monthly pattern or must take picked dates. */
   recurringType: "week" | "month" | "custom" | null;
+  /** The public carevents.com page, or null when there isn't one to
+   *  show: a draft or scheduled post's permalink is the WordPress
+   *  `?post_type=events&p=` preview form, and a series parent's URL
+   *  just redirects home. Everything that renders a "View" link reads
+   *  this rather than `url`. */
+  publicUrl: string | null;
 }
 
 export interface Ticket {

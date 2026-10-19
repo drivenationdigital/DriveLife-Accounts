@@ -36,7 +36,7 @@ import { eventDetailPath, eventEditorPath } from "@/lib/siteRoutes";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 
 export function EventHero() {
-  const { event } = useEventData();
+  const { event, occurrences } = useEventData();
   const router = useRouter();
   // Confirm + full-screen loader + result notification all come from
   // the shared action flow, so these behave exactly like the same
@@ -49,19 +49,37 @@ export function EventHero() {
   const cancel = useCancelEvent();
   const del = useDeleteEvent();
 
-  const eventUrl = `https://${event.url}`;
-  // A draft has no public page - its permalink 404s on carevents.com -
-  // so the link row and the View button are withheld until it's live.
-  const isDraft = event.status === "draft";
+  // The page "View" opens. Only a post with a real public page has one:
+  // a draft or scheduled post's permalink is the WordPress preview URL
+  // (?post_type=events&p=...), which must not be shown (2026-10-14). A
+  // series parent has no page of its own, so it borrows its next live
+  // date's and shows nothing while the whole series is still draft.
+  const liveOccurrence = event.isRecurringParent
+    ? ((occurrences?.items ?? []).find(
+        (o) =>
+          o.eid === occurrences?.next?.eid &&
+          !o.isDeleted &&
+          o.statusSlug === "live" &&
+          o.link,
+      ) ??
+      (occurrences?.items ?? []).find(
+        (o) => !o.isDeleted && o.statusSlug === "live" && o.link,
+      ))
+    : null;
+  const eventUrl: string | null = event.isRecurringParent
+    ? (liveOccurrence?.link ?? null)
+    : event.publicUrl;
+  const displayUrl = eventUrl ? eventUrl.replace(/^https?:\/\//, "") : "";
+  const hasPublicPage = eventUrl !== null;
 
   const copyUrl = () => {
-    if (typeof navigator !== "undefined" && navigator.clipboard) {
+    if (eventUrl && typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(eventUrl);
     }
   };
 
   const openPublic = () => {
-    window.open(eventUrl, "_blank", "noopener,noreferrer");
+    if (eventUrl) window.open(eventUrl, "_blank", "noopener,noreferrer");
   };
 
   const handleDuplicate = async () => {
@@ -192,7 +210,7 @@ export function EventHero() {
               </span>
             </div>
 
-            {!isDraft && (
+            {hasPublicPage && eventUrl && (
               <div className="event-url">
                 <LinkIcon
                   style={{
@@ -203,7 +221,7 @@ export function EventHero() {
                   }}
                 />
                 <a href={eventUrl} target="_blank" rel="noopener noreferrer">
-                  {event.url}
+                  {displayUrl}
                 </a>
                 <button
                   type="button"
@@ -243,7 +261,7 @@ export function EventHero() {
             >
               <EditIcon /> Edit Event
             </button>
-            {!isDraft && (
+            {hasPublicPage && (
               <button
                 type="button"
                 className="btn btn-secondary"

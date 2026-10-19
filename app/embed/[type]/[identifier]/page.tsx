@@ -11,9 +11,10 @@ import GetTicketsPage from "@/app/get-tickets/[eventEid]/page";
  *   /embed/[type]/[identifier]
  *
  * One route for every embeddable form. `type` is gated to an allowlist
- * (start: just "car-club"); anything else 404s. Each allowed type maps
- * to the form component that renders it, wrapped in EmbedShell (no
- * dashboard chrome + auto-resize).
+ * ("car-club", "show-cars", "trader", "checkout"); anything else 404s.
+ * A few aliases are folded onto their canonical type first (see
+ * EMBED_TYPE_ALIASES). Each allowed type maps to the form component that
+ * renders it, wrapped in EmbedShell (no dashboard chrome + auto-resize).
  *
  * The wrapped apply pages expect their own param name (eventEid), so we
  * remap identifier → the shape each page wants. All forms are anonymous
@@ -34,14 +35,31 @@ function isEmbedType(value: string): value is EmbedType {
   return (EMBED_TYPES as readonly string[]).includes(value);
 }
 
+// Alternative spellings accepted in the URL, folded onto a canonical type
+// BEFORE the allow-list check. The organiser-facing snippet
+// (components/event-create/ApplicationLinksCard.tsx) is built from the
+// ApplyFormKind "show-car" (lib/applyFormUrl.ts), so that is what
+// organisers have already pasted into their own sites - it has to keep
+// working alongside the canonical "show-cars".
+const EMBED_TYPE_ALIASES: Record<string, EmbedType> = {
+  "show-car": "show-cars",
+};
+
+/** The canonical EmbedType for a URL segment, or null when it is not one. */
+function resolveEmbedType(value: string): EmbedType | null {
+  const canonical = EMBED_TYPE_ALIASES[value] ?? value;
+  return isEmbedType(canonical) ? canonical : null;
+}
+
 export default async function EmbedPage({
   params,
 }: {
   params: Promise<{ type: string; identifier: string }>;
 }) {
-  const { type, identifier } = await params;
+  const { type: rawType, identifier } = await params;
 
-  if (!isEmbedType(type)) {
+  const type = resolveEmbedType(rawType);
+  if (!type) {
     notFound();
   }
 
