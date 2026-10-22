@@ -195,7 +195,7 @@ export default function CreateClubPage() {
               <div className="mt-8 text-center">
                 <Link
                   href="/create"
-                  className="text-xs text-ink-500 transition hover:text-ink-900"
+                  className="dashboard-exit text-xs text-ink-500 transition hover:text-ink-900"
                 >
                   Cancel and return
                 </Link>

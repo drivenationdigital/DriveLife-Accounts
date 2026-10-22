@@ -113,7 +113,7 @@ export default function CreateBusinessPage() {
               <div className="mt-8 text-center">
                 <Link
                   href="/businesses"
-                  className="text-xs text-ink-500 transition hover:text-ink-900"
+                  className="dashboard-exit text-xs text-ink-500 transition hover:text-ink-900"
                 >
                   Cancel and return
                 </Link>

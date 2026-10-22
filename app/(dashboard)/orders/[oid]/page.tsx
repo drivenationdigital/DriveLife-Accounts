@@ -191,12 +191,20 @@ export default function OrderPage() {
           the browser happened to have - a refresh, a pasted link or a
           redirect all break it - where the `from` eid is the event we
           know they came from. */}
+      {/* Marked as an exit only when it actually is one. With a `from`
+          eid this goes back to the event, which is a step within the flow
+          and the only way back to it inside the app's container — hiding
+          it there would leave the order page a dead end. Without one it
+          falls through to the dashboard home, which is exactly what the
+          container has no way back from. */}
       <button
         type="button"
         onClick={() => router.push(backHref)}
-        className="order-back"
+        className={
+          backHref === "/" ? "order-back dashboard-exit" : "order-back"
+        }
       >
-        ‹ Back to Dashboard
+        {backHref === "/" ? "‹ Back to Dashboard" : "‹ Back to event"}
       </button>
 
       {isLoading && <OrderSkeleton />}

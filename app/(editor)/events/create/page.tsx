@@ -168,7 +168,7 @@ export default function CreateEventPage() {
           <div className="mt-8 text-center">
             <Link
               href="/"
-              className="text-xs text-ink-500 hover:text-ink-900 transition"
+              className="dashboard-exit text-xs text-ink-500 hover:text-ink-900 transition"
             >
               Cancel and return to dashboard
             </Link>

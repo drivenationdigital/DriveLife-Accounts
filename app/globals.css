@@ -5366,6 +5366,18 @@
   display: none;
 }
 
+/* Anything whose whole purpose is to leave for the dashboard: "Cancel and
+   return", "Back to Dashboard". Inside the container there is no dashboard
+   to return TO — the app opened this page for one job, and its own header
+   is how you leave. A link that navigates the container to a sidebar-less
+   dashboard home strands the user there with no way back.
+
+   A class rather than a selector per page, so a new escape hatch opts in
+   by naming itself one. */
+[data-app-container] .dashboard-exit {
+  display: none;
+}
+
 /* ── Tracks & Circuits cards (reuse the venue card block) ─────────── */
 .track-card-types { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--gold-deep, #bd7420); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

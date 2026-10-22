@@ -1,6 +1,9 @@
 import "./editor.css";
 
+import { cookies } from "next/headers";
+
 import { EventCreateProvider } from "@/context/EventCreateContext";
+import { APP_RETURN_COOKIE } from "@/lib/appReturn";
 
 /**
  * Layout for the (editor) route group.
@@ -24,11 +27,21 @@ import { EventCreateProvider } from "@/context/EventCreateContext";
  * eventually swap the editor's `<i class="fa-...">` markers for inline
  * SVGs, this whole `<link>` block (and the preconnect) goes away.
  */
-export default function EditorLayout({
+export default async function EditorLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Marks the editor as running inside the app's web container, the same
+  // way the dashboard layout does. The editor is its own route group with
+  // its own layout, so it did not inherit that — which meant the CSS that
+  // hides dashboard escape routes reached every page except the editor,
+  // where the "Cancel and return to dashboard" link lives.
+  //
+  // Server-side, so the first paint is already correct. A JS check would
+  // render the link and then take it away.
+  const inApp = Boolean((await cookies()).get(APP_RETURN_COOKIE)?.value);
+
   return (
     <EventCreateProvider>
       {/* Preconnect lets the browser open the TLS connection to cdnjs
@@ -42,7 +55,10 @@ export default function EditorLayout({
         referrerPolicy="no-referrer"
       />
 
-      <div className="event-editor min-h-screen bg-ink-50 text-ink-900 font-sans">
+      <div
+        className="event-editor min-h-screen bg-ink-50 text-ink-900 font-sans"
+        data-app-container={inApp ? "" : undefined}
+      >
         {children}
       </div>
     </EventCreateProvider>
