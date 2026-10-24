@@ -290,6 +290,8 @@ export interface MappableOrder {
   status?: string;
   /** Per-ticket custom-question answers; absent on older backends. */
   custom_answers?: ApiOrderCustomAnswers[];
+  /** Discount codes redeemed on the order; absent on older backends. */
+  discount_codes?: string[];
 }
 
 /** Tolerant [{q, a}] reader - drops anything malformed or blank. */
@@ -348,6 +350,11 @@ export function mapOrder(
         answers: mapCustomAnswers(g?.answers),
       }))
       .filter((g) => g.answers.length > 0),
+    discountCodes: Array.isArray(o.discount_codes)
+      ? o.discount_codes.filter(
+          (c): c is string => typeof c === "string" && c.trim() !== "",
+        )
+      : [],
   };
 }
 

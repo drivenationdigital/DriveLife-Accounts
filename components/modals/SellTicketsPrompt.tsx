@@ -99,8 +99,11 @@ export function SellTicketsPrompt() {
     }
   }, [storageKey]);
 
+  // An organiser whose profile carries the paid-tickets override can
+  // already sell (through the platform account), so nothing to nudge.
   const noProvider = providers.data
-    ? !providers.data.stripe_connected &&
+    ? !providers.data.paid_tickets_override &&
+      !providers.data.stripe_connected &&
       !providers.data.providers.square.connected &&
       !providers.data.providers.mollie.connected &&
       !providers.data.providers.paypal.connected

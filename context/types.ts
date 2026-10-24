@@ -166,6 +166,8 @@ export interface Order {
   encryptedId: string;
   /** Per-ticket answers to custom checkout questions; [] when none. */
   customAnswers: OrderCustomAnswers[];
+  /** Discount codes redeemed on the order; [] when none. */
+  discountCodes: string[];
 }
 
 export interface ShowCar {

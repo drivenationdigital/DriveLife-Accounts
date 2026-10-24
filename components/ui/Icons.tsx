@@ -225,6 +225,17 @@ export const TicketIcon = (p: IconProps) => (
   </svg>
 );
 
+// Discount coupon: a perforated voucher with a percent mark. Used beside
+// the redeemed code under an order's amount.
+export const CouponIcon = (p: IconProps) => (
+  <svg {...base} {...p}>
+    <path d="M2 9a3 3 0 013-3h14a3 3 0 013 3v2a2 2 0 00-2 2 2 2 0 002 2v2a3 3 0 01-3 3H5a3 3 0 01-3-3v-2a2 2 0 002-2 2 2 0 00-2-2V9z" />
+    <line x1="9" y1="15" x2="15" y2="9" />
+    <circle cx="9.5" cy="9.5" r="0.75" fill="currentColor" stroke="none" />
+    <circle cx="14.5" cy="14.5" r="0.75" fill="currentColor" stroke="none" />
+  </svg>
+);
+
 export const BookmarkIcon = (p: IconProps) => (
   <svg {...base} {...p}>
     <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z" />

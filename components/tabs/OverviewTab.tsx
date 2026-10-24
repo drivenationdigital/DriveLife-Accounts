@@ -8,7 +8,12 @@ import { TicketRow } from "@/components/cards/TicketRow";
 import { AppCard } from "@/components/cards/AppCard";
 import { ShowCarTable } from "@/components/tables/ShowCarTable";
 import { ClubTable } from "@/components/tables/ClubTable";
-import { CarIcon, UsersIcon, ChevRightIcon } from "@/components/ui/Icons";
+import {
+  CarIcon,
+  CouponIcon,
+  UsersIcon,
+  ChevRightIcon,
+} from "@/components/ui/Icons";
 import { clickableRow } from "@/components/ui/clickableRow";
 import { orderDetailPath } from "@/lib/siteRoutes";
 import { currentQuery, rememberListPosition } from "@/lib/listState";
@@ -82,31 +87,31 @@ export function OverviewTab() {
           the full width instead of sharing it. */}
       <div className={hasTickets && anyPendingFeature ? "two-col" : ""}>
         {hasTickets && (
-        <div className="section">
-          <div className="section-header">
-            <div>
-              <div className="section-title">Tickets Breakdown</div>
-            </div>
-            {/* <a href="#" className="section-link">
+          <div className="section">
+            <div className="section-header">
+              <div>
+                <div className="section-title">Tickets Breakdown</div>
+              </div>
+              {/* <a href="#" className="section-link">
               Manage tickets →
             </a> */}
-          </div>
-          {/* Header stays fixed; only the rows scroll. ~6 rows then
+            </div>
+            {/* Header stays fixed; only the rows scroll. ~6 rows then
               scroll (≈76px each). Inline so it overrides the shared
               .section-body rule for this card only. */}
-          <div
-            className="section-body flush ticket-breakdown-scroll"
-            style={{
-              maxHeight: 456,
-              overflowY: "auto",
-              overscrollBehavior: "contain",
-            }}
-          >
-            {tickets.map((t) => (
-              <TicketRow key={t.id} ticket={t} />
-            ))}
+            <div
+              className="section-body flush ticket-breakdown-scroll"
+              style={{
+                maxHeight: 456,
+                overflowY: "auto",
+                overscrollBehavior: "contain",
+              }}
+            >
+              {tickets.map((t) => (
+                <TicketRow key={t.id} ticket={t} />
+              ))}
+            </div>
           </div>
-        </div>
         )}
 
         {anyPendingFeature && (
@@ -158,7 +163,11 @@ export function OverviewTab() {
                   </div>
                   <div
                     className="attention-empty-title"
-                    style={{ fontWeight: 700, color: "var(--ink, #1f1d18)", marginBottom: 4 }}
+                    style={{
+                      fontWeight: 700,
+                      color: "var(--ink, #1f1d18)",
+                      marginBottom: 4,
+                    }}
                   >
                     You're all caught up
                   </div>
@@ -275,80 +284,97 @@ export function OverviewTab() {
           nothing to order, so the table could only ever be empty, and
           its "View all orders" link points at a tab that isn't there. */}
       {hasTickets && (
-      <div className="section">
-        <div className="section-header">
-          <div>
-            <div className="section-title">Recent Orders</div>
+        <div className="section">
+          <div className="section-header">
+            <div>
+              <div className="section-title">Recent Orders</div>
+            </div>
+            <a
+              href="#"
+              className="section-link"
+              onClick={(e) => {
+                e.preventDefault();
+                setActiveTab("orders");
+              }}
+            >
+              View all orders →
+            </a>
           </div>
-          <a
-            href="#"
-            className="section-link"
-            onClick={(e) => {
-              e.preventDefault();
-              setActiveTab("orders");
-            }}
-          >
-            View all orders →
-          </a>
+          <div className="section-body flush">
+            <div className="table-scroll">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Order</th>
+                    <th>Customer</th>
+                    <th>Qty</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {recentOrders.map((o) => (
+                    <tr
+                      key={o.id}
+                      {...clickableRow(
+                        () => {
+                          rememberListPosition();
+                          router.push(
+                            orderDetailPath(
+                              o.encryptedId,
+                              event.region.key,
+                              event.encryptedId,
+                              currentQuery(),
+                            ),
+                          );
+                        },
+                        { label: `Open order #${o.id}` },
+                      )}
+                    >
+                      <td>
+                        <span className="mono order-id">#{o.id}</span>
+                      </td>
+                      <td>
+                        <div className="customer-cell">
+                          <div>
+                            <div className="customer-name">
+                              {o.customerName}
+                            </div>
+                            <div className="customer-email">
+                              {o.customerEmail}
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="mono">{o.quantity}</td>
+                      <td className="amount">
+                        {currency(o.amount, event.region)}
+                        {o.discountCodes.length > 0 && (
+                          <span
+                            className="discount-code"
+                            title="Discount code used"
+                          >
+                            <CouponIcon aria-hidden="true" />
+                            {o.discountCodes.join(", ")}
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`pill ${statusPillClass(o.status)}`}>
+                          {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
+                        </span>
+                      </td>
+                      <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
+                        {o.date}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
-        <div className="section-body flush">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Order</th>
-                <th>Customer</th>
-                <th>Qty</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentOrders.map((o) => (
-                <tr
-                  key={o.id}
-                  {...clickableRow(
-                    () => {
-                    rememberListPosition();
-                    router.push(
-                      orderDetailPath(
-                        o.encryptedId,
-                        event.region.key,
-                        event.encryptedId,
-                        currentQuery(),
-                      ),
-                    );
-                  },
-                    { label: `Open order #${o.id}` },
-                  )}
-                >
-                  <td>
-                    <span className="mono order-id">#{o.id}</span>
-                  </td>
-                  <td>
-                    <div className="customer-cell">
-                      <div>
-                        <div className="customer-name">{o.customerName}</div>
-                        <div className="customer-email">{o.customerEmail}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="mono">{o.quantity}</td>
-                  <td className="amount">{currency(o.amount, event.region)}</td>
-                  <td>
-                    <span className={`pill ${statusPillClass(o.status)}`}>
-                      {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
-                    </span>
-                  </td>
-                  <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
-                    {o.date}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
       )}
 
       {/* Recent tickets. One row per ticket SOLD, so a two-ticket order

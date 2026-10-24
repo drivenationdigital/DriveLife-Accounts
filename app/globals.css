@@ -1384,6 +1384,29 @@
   font-family: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
   font-size: 12.5px;
 }
+/* Wide tables scroll sideways inside their card instead of squashing.
+ * .section clips overflow, so without this wrapper a narrow viewport
+ * simply crushed the columns and nothing could be scrolled. On phones
+ * the cells stop wrapping so the table grows past the card and the
+ * wrapper becomes the scroll surface. */
+.table-scroll {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+}
+@media (max-width: 900px) {
+  .table-scroll .table th,
+  .table-scroll .table td {
+    white-space: nowrap;
+  }
+  .table-scroll .table th,
+  .table-scroll .table td {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}
 
 /* ------------------------------------------------------------------
  * Application tables (show cars + car clubs).
@@ -1500,6 +1523,27 @@
   font-family: "Geist", -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 500;
   color: var(--ink);
+}
+/* Discount code(s) redeemed on an order, shown under the amount paid
+ * with a small coupon glyph in front. */
+.amount .discount-code {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 3px;
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.amount .discount-code svg {
+  width: 11px;
+  height: 11px;
+  flex: 0 0 auto;
 }
 .pill {
   display: inline-flex;

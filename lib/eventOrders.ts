@@ -42,6 +42,8 @@ export interface EventOrder {
   marketing_opt_in: boolean;
   marketing_source: string | null;
   cars: OrderCar[];
+  /** Discount codes redeemed on the order; absent on older backends. */
+  discount_codes?: string[];
 }
 
 export interface EventAttendee {

@@ -89,6 +89,13 @@ export interface PaymentProvidersResponse {
   /** True when a Stripe Connect account is linked. */
   stripe_connected: boolean;
   /**
+   * Profile flag "Allow Paid Tickets Override" on the organiser whose
+   * providers these are. When set, paid tickets are allowed with nothing
+   * connected and card payments run through the CarEvents platform
+   * Stripe account. Optional: absent from older backends.
+   */
+  paid_tickets_override?: boolean;
+  /**
    * Whose providers these are when the query was scoped to an event:
    * the event's primary organiser (first user in its organiser field),
    * which is the account the checkout charges through. Null (or absent

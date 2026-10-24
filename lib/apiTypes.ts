@@ -330,6 +330,9 @@ export interface ApiOrder {
   /** Per-ticket answers to custom checkout questions, only for items
    *  that answered any. Optional: absent from older backends. */
   custom_answers?: ApiOrderCustomAnswers[];
+  /** Discount codes redeemed on the order. Optional: absent from older
+   *  backends. */
+  discount_codes?: string[];
 }
 
 /** One answered custom checkout question. */

@@ -152,6 +152,7 @@ export const mockEventData: EventData = {
       date: "Today, 14:23",
       encryptedId: "encrypted-CE-10324",
       customAnswers: [],
+      discountCodes: [],
     },
     {
       id: "CE-10323",
@@ -163,6 +164,7 @@ export const mockEventData: EventData = {
       date: "Today, 11:08",
       encryptedId: "encrypted-CE-10323",
       customAnswers: [],
+      discountCodes: [],
     },
   ],
 

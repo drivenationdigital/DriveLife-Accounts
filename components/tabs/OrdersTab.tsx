@@ -31,6 +31,7 @@ import {
   DropdownTrigger,
 } from "@/components/ui/Dropdown";
 import {
+  CouponIcon,
   DownloadIcon,
   SearchIcon,
   MoreHorizontalIcon,
@@ -293,172 +294,190 @@ export function OrdersTab() {
       </div>
 
       <div className="section-body flush">
-        <table
-          className="table"
-          style={{
-            opacity:
-              isFirstLoad || (isFetching && isPlaceholderData) ? 0.55 : 1,
-            transition: "opacity 120ms",
-          }}
-        >
-          <thead>
-            <tr>
-              <th>Order</th>
-              <th>Customer</th>
-              <th>Qty</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Date</th>
-              <th>Additional info</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((o) => (
-              <tr
-                key={o.id}
-                {...clickableRow(
-                  () => {
-                    rememberListPosition();
-                    router.push(
-                      orderDetailPath(
-                        o.encryptedId,
-                        event.region.key,
-                        event.encryptedId,
-                        currentQuery(),
-                      ),
-                    );
-                  },
-                  { label: `Open order #${o.id}` },
-                )}
-              >
-                <td>
-                  <span className="mono order-id">#{o.id}</span>
-                </td>
-                <td>
-                  <div className="customer-cell">
-                    <div>
-                      <div className="customer-name">{o.customerName}</div>
-                      <div className="customer-email">{o.customerEmail}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="mono">{o.quantity}</td>
-                <td className="amount">{currency(o.amount, event.region)}</td>
-                <td>
-                  <span
-                    className={`pill ${statusPillClass(o.status)}`}
-                    style={pillStyle(o.status)}
-                  >
-                    {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
-                  </span>
-                </td>
-                <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
-                  {o.date}
-                </td>
-                <td>
-                  {o.customAnswers.length > 0 ? (
-                    <ResponsesLink
-                      ariaLabel={`View responses for order #${o.id}`}
-                      onOpen={() =>
-                        setResponses(
-                          o.customAnswers.map((g) => ({
-                            title: g.lineId
-                              ? `${g.ticketName || "Ticket"} · #${g.lineId}`
-                              : g.ticketName || "Ticket",
-                            answers: g.answers,
-                          })),
-                        )
-                      }
-                    />
-                  ) : (
-                    <span style={{ color: "var(--muted)" }}>-</span>
+        <div className="table-scroll">
+          <table
+            className="table"
+            style={{
+              opacity:
+                isFirstLoad || (isFetching && isPlaceholderData) ? 0.55 : 1,
+              transition: "opacity 120ms",
+            }}
+          >
+            <thead>
+              <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Qty</th>
+                <th>Amount</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Additional info</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((o) => (
+                <tr
+                  key={o.id}
+                  {...clickableRow(
+                    () => {
+                      rememberListPosition();
+                      router.push(
+                        orderDetailPath(
+                          o.encryptedId,
+                          event.region.key,
+                          event.encryptedId,
+                          currentQuery(),
+                        ),
+                      );
+                    },
+                    { label: `Open order #${o.id}` },
                   )}
-                </td>
-                <td style={{ width: 44, textAlign: "right" }}>
-                  <Dropdown className="row-action">
-                    <DropdownTrigger
-                      className="row-action-btn"
-                      ariaLabel="Order actions"
-                    >
-                      <MoreHorizontalIcon />
-                    </DropdownTrigger>
-                    <DropdownMenu>
-                      <DropdownItem
-                        onClick={() => {
-                          rememberListPosition();
-                          router.push(
-                            orderDetailPath(
-                              o.encryptedId,
-                              event.region.key,
-                              event.encryptedId,
-                              currentQuery(),
-                            ),
-                          );
-                        }}
+                >
+                  <td>
+                    <span className="mono order-id">#{o.id}</span>
+                  </td>
+                  <td>
+                    <div className="customer-cell">
+                      <div>
+                        <div className="customer-name">{o.customerName}</div>
+                        <div className="customer-email">{o.customerEmail}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="mono">{o.quantity}</td>
+                  <td className="amount">
+                    {currency(o.amount, event.region)}
+                    {o.discountCodes.length > 0 && (
+                      <span
+                        className="discount-code"
+                        title="Discount code used"
                       >
-                        View &amp; edit
-                      </DropdownItem>
-                      <DropdownItem onClick={() => handleResend(o.encryptedId)}>
-                        Resend confirmation
-                      </DropdownItem>
-                      <DropdownItem
-                        onClick={() =>
-                          window.open(
-                            orderTicketsUrl(o.encryptedId),
-                            "_blank",
-                            "noopener,noreferrer",
+                        <CouponIcon aria-hidden="true" />
+                        {o.discountCodes.join(", ")}
+                      </span>
+                    )}
+                  </td>
+                  <td>
+                    <span
+                      className={`pill ${statusPillClass(o.status)}`}
+                      style={pillStyle(o.status)}
+                    >
+                      {o.status.charAt(0).toUpperCase() + o.status.slice(1)}
+                    </span>
+                  </td>
+                  <td style={{ color: "var(--muted)", fontSize: "12.5px" }}>
+                    {o.date}
+                  </td>
+                  <td>
+                    {o.customAnswers.length > 0 ? (
+                      <ResponsesLink
+                        ariaLabel={`View responses for order #${o.id}`}
+                        onOpen={() =>
+                          setResponses(
+                            o.customAnswers.map((g) => ({
+                              title: g.lineId
+                                ? `${g.ticketName || "Ticket"} · #${g.lineId}`
+                                : g.ticketName || "Ticket",
+                              answers: g.answers,
+                            })),
                           )
                         }
+                      />
+                    ) : (
+                      <span style={{ color: "var(--muted)" }}>-</span>
+                    )}
+                  </td>
+                  <td style={{ width: 44, textAlign: "right" }}>
+                    <Dropdown className="row-action">
+                      <DropdownTrigger
+                        className="row-action-btn"
+                        ariaLabel="Order actions"
                       >
-                        Download tickets
-                      </DropdownItem>
-                      <DropdownSeparator />
-                      {o.amount > 0 && (
+                        <MoreHorizontalIcon />
+                      </DropdownTrigger>
+                      <DropdownMenu>
+                        <DropdownItem
+                          onClick={() => {
+                            rememberListPosition();
+                            router.push(
+                              orderDetailPath(
+                                o.encryptedId,
+                                event.region.key,
+                                event.encryptedId,
+                                currentQuery(),
+                              ),
+                            );
+                          }}
+                        >
+                          View &amp; edit
+                        </DropdownItem>
+                        <DropdownItem
+                          onClick={() => handleResend(o.encryptedId)}
+                        >
+                          Resend confirmation
+                        </DropdownItem>
+                        <DropdownItem
+                          onClick={() =>
+                            window.open(
+                              orderTicketsUrl(o.encryptedId),
+                              "_blank",
+                              "noopener,noreferrer",
+                            )
+                          }
+                        >
+                          Download tickets
+                        </DropdownItem>
+                        <DropdownSeparator />
+                        {o.amount > 0 && (
+                          <DropdownItem
+                            danger
+                            disabled={
+                              o.status === "cancelled" ||
+                              o.status === "refunded"
+                            }
+                            onClick={() =>
+                              handleRefund(o.encryptedId, o.amount)
+                            }
+                          >
+                            Refund
+                          </DropdownItem>
+                        )}
                         <DropdownItem
                           danger
                           disabled={
                             o.status === "cancelled" || o.status === "refunded"
                           }
-                          onClick={() => handleRefund(o.encryptedId, o.amount)}
+                          onClick={() => handleCancelOrder(o.encryptedId)}
                         >
-                          Refund
+                          Cancel order
                         </DropdownItem>
-                      )}
-                      <DropdownItem
-                        danger
-                        disabled={
-                          o.status === "cancelled" || o.status === "refunded"
-                        }
-                        onClick={() => handleCancelOrder(o.encryptedId)}
-                      >
-                        Cancel order
-                      </DropdownItem>
-                    </DropdownMenu>
-                  </Dropdown>
-                </td>
-              </tr>
-            ))}
+                      </DropdownMenu>
+                    </Dropdown>
+                  </td>
+                </tr>
+              ))}
 
-            {rows.length === 0 && !isFirstLoad && (
-              <tr>
-                <td
-                  colSpan={8}
-                  style={{
-                    textAlign: "center",
-                    padding: "32px 16px",
-                    color: "var(--muted)",
-                    fontSize: "13px",
-                  }}
-                >
-                  {debouncedSearch.trim() || orderStatus !== "all"
-                    ? "No orders match your search."
-                    : "No orders yet."}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              {rows.length === 0 && !isFirstLoad && (
+                <tr>
+                  <td
+                    colSpan={8}
+                    style={{
+                      textAlign: "center",
+                      padding: "32px 16px",
+                      color: "var(--muted)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    {debouncedSearch.trim() || orderStatus !== "all"
+                      ? "No orders match your search."
+                      : "No orders yet."}
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
         {responses && (
           <ResponsesModal

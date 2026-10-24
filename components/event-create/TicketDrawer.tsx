@@ -102,12 +102,19 @@ export function TicketDrawer({
   // event sees the owner's status, not their own, and the note names
   // the owner rather than sending them to their own settings page.
   const providers = usePaymentProviders(eid ? { eid, site } : undefined);
-  const canTakePayments = providers.data
+  const anyProviderConnected = providers.data
     ? providers.data.stripe_connected ||
       providers.data.providers.square.connected ||
       providers.data.providers.mollie.connected ||
       providers.data.providers.paypal.connected
     : true;
+  // "Allow Paid Tickets Override" on the owner's profile unlocks the
+  // price with nothing connected; the checkout then charges the
+  // CarEvents platform Stripe account instead of an organiser's own.
+  const paidTicketsOverride = providers.data?.paid_tickets_override === true;
+  const canTakePayments = anyProviderConnected || paidTicketsOverride;
+  const paysViaPlatform =
+    paidTicketsOverride && providers.data ? !anyProviderConnected : false;
   // Whose connections decided that. Absent (own status, or an older
   // backend that ignores eid) reads as "you".
   const paymentOwner = providers.data?.organiser ?? null;
@@ -508,6 +515,25 @@ export function TicketDrawer({
                 event.
               </span>
             )}
+          </p>
+        )}
+
+        {/* The override is on, nothing is connected: say where the money
+            goes so nobody waits for a payout that lands elsewhere. */}
+        {paysViaPlatform && (
+          <p
+            id="ticket-price-platform-note"
+            className="-mt-2 text-xs leading-snug text-ink-500 flex items-start gap-2"
+          >
+            <i
+              className="fa-solid fa-circle-info text-gold-500 mt-0.5"
+              aria-hidden
+            />
+            <span>
+              Card payments for this event are taken through the CarEvents
+              Stripe account
+              {ownerIsSelf ? "" : " on behalf of this event's organiser"}.
+            </span>
           </p>
         )}
 
