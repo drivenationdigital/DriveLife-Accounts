@@ -63,3 +63,29 @@ export function appAction(action: string): string {
   const sep = base.includes("?") ? "&" : "?";
   return `${base}${sep}${action}`;
 }
+
+/**
+ * Sends an expired session back to the app, if we are in one.
+ *
+ * Returns true when it took over, so the caller can stop.
+ *
+ * A 401 inside the container used to navigate to /login, which is the worst
+ * available answer: the login page carries "Register" and "Forgot password"
+ * links, so a stale token turned a one-job webview into an open door onto
+ * the rest of the site. And signing in there would not help anyway -- the
+ * session belongs to the app, which minted the token this page arrived
+ * with, so the only thing that can refresh it is the app.
+ */
+export function returnToAppForSignIn(): boolean {
+  const back = appAction("dl-signin=1");
+  if (!back) return false;
+
+  if (typeof window !== "undefined") {
+    // A real navigation: the WebView intercepts the scheme, closes the
+    // screen and hands control back. Unknown parameters are ignored by the
+    // app, so this behaves as a plain close until it chooses to act on one.
+    window.location.href = back;
+  }
+
+  return true;
+}

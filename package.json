@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "audit:container": "node scripts/audit-container-escapes.mjs",
     "build": "next build",
     "start": "next start -p 3005",
     "start:staging": "next start -p 3009",

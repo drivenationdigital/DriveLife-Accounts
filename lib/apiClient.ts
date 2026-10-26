@@ -1,4 +1,5 @@
 import { readTokenClient, clearTokenClient } from "./authCookies";
+import { returnToAppForSignIn } from "./appReturn";
 import { decodeEntitiesDeep } from "./decodeEntities";
 import { REGION_LIST, isRegionKey } from "./regions";
 
@@ -37,6 +38,9 @@ export class ApiError extends Error {
 type UnauthorizedHandler = () => void;
 let unauthorizedHandler: UnauthorizedHandler = () => {
   clearTokenClient();
+  // Inside the app's web container, hand back rather than showing a login
+  // page with Register and Forgot-password links on it.
+  if (returnToAppForSignIn()) return;
   if (typeof window !== "undefined") {
     const here = window.location.pathname + window.location.search;
     const returnTo =

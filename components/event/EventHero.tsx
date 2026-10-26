@@ -1,5 +1,6 @@
 "use client";
 
+import { appAction } from "@/lib/appReturn";
 import { useEventData } from "@/context/EventContext";
 import {
   Dropdown,
@@ -80,6 +81,25 @@ export function EventHero() {
   };
 
   const openPublic = () => {
+    // Inside the app, hand back and let it open its own event screen.
+    //
+    // Two reasons. window.open with _blank is a no-op in a WKWebView and
+    // needs onCreateWindow wiring on Android, so this button simply did
+    // nothing in the container. And the app's event page already exists
+    // natively, with the gallery and the community tab — opening a browser
+    // on top of the app to show a worse copy is the kind of seam that makes
+    // an embedded page announce itself as a website.
+    //
+    // The app has handled dl-view=1 all along (see open_event_overview.dart);
+    // the only code that sent it lived in EventActions.tsx, which nothing
+    // imports any more, so the signal had quietly stopped being sent.
+    const viewInApp = appAction("dl-view=1");
+
+    if (viewInApp) {
+      window.location.href = viewInApp;
+      return;
+    }
+
     if (eventUrl) window.open(eventUrl, "_blank", "noopener,noreferrer");
   };
 
@@ -121,7 +141,30 @@ export function EventHero() {
       run: () =>
         cancel.mutateAsync({ eid: event.encryptedId, site: event.region.key }),
     });
-    if (res) router.push("/events");
+    if (res) leaveAfterRemoval();
+  };
+
+  /**
+   * Where to go once the event this page is about no longer exists.
+   *
+   * In a browser that is the events list. Inside the app's web container
+   * there is no events list to land on: the dashboard renders it without a
+   * header or sidebar in there, so pushing to it drops the user on a bare
+   * list with no way onward. The app has its own events list already
+   * underneath, so hand control back and let it show that.
+   */
+  const leaveAfterRemoval = () => {
+    const back = appAction("dl-back=1");
+
+    if (back) {
+      // A real navigation, not router.push: the target is a custom scheme
+      // the Next router knows nothing about. The WebView intercepts it,
+      // closes the screen and pops back to the app.
+      window.location.href = back;
+      return;
+    }
+
+    router.push("/events");
   };
 
   const handleDelete = async () => {
@@ -141,7 +184,7 @@ export function EventHero() {
       run: () =>
         del.mutateAsync({ eid: event.encryptedId, site: event.region.key }),
     });
-    if (res) router.push("/events");
+    if (res) leaveAfterRemoval();
   };
 
   return (

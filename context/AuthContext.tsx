@@ -11,6 +11,7 @@ import {
 } from "react";
 import { useRouter } from "next/navigation";
 import { apiPost, setUnauthorizedHandler } from "@/lib/apiClient";
+import { returnToAppForSignIn } from "@/lib/appReturn";
 import {
   readTokenClient,
   writeTokenClient,
@@ -71,6 +72,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUnauthorizedHandler(() => {
       clearTokenClient();
       setUser(null);
+      // Same reasoning as the default handler in apiClient: inside the
+      // app's container there is nothing useful at /login, and plenty of
+      // ways out of the container from it.
+      if (returnToAppForSignIn()) return;
       if (typeof window !== "undefined") {
         const here = window.location.pathname + window.location.search;
         const returnTo =
@@ -108,6 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearTokenClient();
     setUser(null);
     queryClient.clear(); // wipe all cached account data
+
+    if (returnToAppForSignIn()) return;
+
     window.location.href = "/login"; // hard reload - NOT router.push
   }, [queryClient]);
 

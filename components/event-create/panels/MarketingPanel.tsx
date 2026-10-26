@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { inAppContainer } from "@/lib/appReturn";
 import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
@@ -131,6 +132,23 @@ function SettingsLink({
   const { run, isSaving } = useEditorSave();
 
   const onClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Inside the app's web container /settings is a dead end: the dashboard
+    // renders it with no header and no sidebar, so following this link in
+    // there leaves the user on a settings page with no route onward and a
+    // half-edited event behind them.
+    //
+    // Stopped here rather than by rendering a <span> instead of a <Link>,
+    // which would be a hydration mismatch -- the cookie this reads does not
+    // exist during SSR, so the server would render one and the client the
+    // other. Same markup either way, different behaviour on click.
+    if (inAppContainer()) {
+      e.preventDefault();
+      toast.info(
+        "You can change your default list in account settings on the web.",
+      );
+      return;
+    }
+
     if (!state.isDirty) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
       return;
