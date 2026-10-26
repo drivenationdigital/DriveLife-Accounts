@@ -1,3 +1,4 @@
+import { WP_JSON_ROOT } from "./apiClient";
 /**
  * Club administrators - invitations.
  *
@@ -19,10 +20,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { readTokenClient } from "./authCookies";
 
-const DL_ACCOUNTS_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  "https://www.carevents.com/uk/wp-json/dl-accounts/v1";
-const WP_JSON_ROOT = DL_ACCOUNTS_BASE.replace(/\/dl-accounts\/v1\/?$/, "");
 const APP_V1 = `${WP_JSON_ROOT}/app/v1`;
 
 function authHeaders(): Record<string, string> {

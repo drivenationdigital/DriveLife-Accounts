@@ -80,10 +80,11 @@ export function mapTrader(r: ApiTraderRecord, region: Region): Trader {
 /** @param region the event's region - see useClubApplications. */
 export function useTraderApplications(eid: string | undefined, region: Region) {
   return useQuery<TraderApplicationsResponse, Error, Trader[]>({
-    queryKey: ["event-trader-applications", eid],
+    queryKey: ["event-trader-applications", eid, region.key],
     queryFn: () =>
       apiGet<TraderApplicationsResponse>(
         `/event-trader-applications?eid=${encodeURIComponent(eid ?? "")}`,
+        { site: region.key },
       ),
     enabled: !!eid,
     staleTime: 30_000,

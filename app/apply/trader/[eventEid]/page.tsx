@@ -72,7 +72,11 @@ export default function TraderApplyPage({
   params: Promise<{ eventEid: string }>;
 }) {
   const { eventEid } = use(params);
-  const { data, isLoading, error } = useTraderPublic(eventEid);
+  // The event's region, carried on the link as ?site= by the public event
+  // page (bare = the default site). Sent with every call so the API resolves
+  // the id against the right blog - a post id is only unique within one.
+  const site = useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
+  const { data, isLoading, error } = useTraderPublic(eventEid, site);
   // Currency for the event's own site - see the note on the show-car
   // apply page; resolves to the default region until the public
   // endpoint echoes a site block.
@@ -158,7 +162,7 @@ export default function TraderApplyPage({
             steps.
           </p>
           <a
-            href={eventPageUrl(data.event_id)}
+            href={eventPageUrl(data.event_id, region)}
             className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
           >
             Continue
@@ -175,7 +179,7 @@ export default function TraderApplyPage({
     e.preventDefault();
     if (!form.categoryEid) return;
     try {
-      await submit.mutateAsync({ ...form, eventEid });
+      await submit.mutateAsync({ ...form, eventEid, site });
     } catch {
       // surfaced below the button via submit.error
     }

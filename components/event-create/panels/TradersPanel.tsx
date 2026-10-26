@@ -86,6 +86,7 @@ export function TradersPanel() {
         eid,
         id: c.id,
         body: mapTraderCategoryToBody(c),
+        site: state.site,
       });
       // Swap the local synthetic id for the server's category id so
       // later edits route to the update path.
@@ -124,7 +125,7 @@ export function TradersPanel() {
       successTitle: "Category deleted",
       errorTitle: "Couldn't delete the category",
       run: async () => {
-        await remover.mutateAsync({ eid, id });
+        await remover.mutateAsync({ eid, id, site: state.site });
         return true;
       },
     });
@@ -338,6 +339,7 @@ export function TradersPanel() {
 
           <ApplicationLinksCard
             applicationKind="trader"
+            site={state.site}
             slug={state.encryptedId || slugify(state.title || "event")}
             iframeTitle="Trader applications"
           />

@@ -105,10 +105,11 @@ export function mapClub(r: ApiCarClubRecord, region: Region): Club {
  *  rendered in it. Pass `event.region` from the tab. */
 export function useClubApplications(eid: string | undefined, region: Region) {
   return useQuery<ClubApplicationsResponse, Error, ClubApplicationsData>({
-    queryKey: ["event-car-club-applications", eid],
+    queryKey: ["event-car-club-applications", eid, region.key],
     queryFn: () =>
       apiGet<ClubApplicationsResponse>(
         `/event-car-club-applications?eid=${encodeURIComponent(eid ?? "")}`,
+        { site: region.key },
       ),
     enabled: !!eid,
     staleTime: 30_000,

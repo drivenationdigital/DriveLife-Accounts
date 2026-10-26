@@ -805,6 +805,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { ccDecrypt, ccEncrypt } from "@/lib/checkout/crypt";
+import { DEFAULT_REGION_KEY, REGION_LIST, isRegionKey } from "@/lib/regions";
 import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
 // From constants, NOT from lib/checkout/api - that file is "use client",
 // and importing a value from it here yields a client-reference proxy
@@ -851,17 +852,24 @@ function wpBase(site: unknown): string {
     process.env.CHECKOUT_WP_BASE ?? "https://staging.carevents.com/uk"
   ).replace(/\/$/, "");
 
-  if (String(site ?? "").trim().toLowerCase() !== "us") return uk;
+  const key = normaliseSite(site);
+  if (key === "uk") return uk;
 
-  return (
-    process.env.CHECKOUT_WP_BASE_US ?? uk.replace(/\/uk$/i, "")
-  ).replace(/\/$/, "");
+  // A per-region override wins: CHECKOUT_WP_BASE_US, CHECKOUT_WP_BASE_EU…
+  const override = process.env[`CHECKOUT_WP_BASE_${key.toUpperCase()}`];
+  if (override) return override.replace(/\/$/, "");
+
+  // Otherwise the network's own layout: the US site is the network root
+  // and every other region lives under its own path, /uk, /eu, …
+  const root = uk.replace(/\/uk$/i, "");
+  return key === "us" ? root : `${root}/${key}`;
 }
 
-/** 'uk'/'gb' → uk, 'us'/'usa' → us, anything else → uk. */
-function normaliseSite(value: unknown): "uk" | "us" {
-  const key = String(value ?? "").trim().toLowerCase();
-  return key === "us" || key === "usa" ? "us" : "uk";
+/** 'gb' → uk, 'usa' → us, any known region key as itself, else the default. */
+function normaliseSite(value: unknown): string {
+  const raw = String(value ?? "").trim().toLowerCase();
+  const key = raw === "gb" ? "uk" : raw === "usa" ? "us" : raw;
+  return isRegionKey(key) ? key : DEFAULT_REGION_KEY;
 }
 
 /** True when this decrypts to a post id on its own, i.e. it is a bare eid. */
@@ -888,7 +896,7 @@ function isBareEid(value: string): boolean {
 function splitSiteEid(
   raw: unknown,
   fallbackSite: unknown,
-): { site: "uk" | "us"; eid: string } {
+): { site: string; eid: string } {
   const value = String(raw ?? "").trim();
 
   // Bare first: a valid id is never re-read as a prefixed one.
@@ -896,11 +904,18 @@ function splitSiteEid(
     return { site: normaliseSite(fallbackSite), eid: value };
   }
 
-  const head = value.slice(0, 2).toLowerCase();
-  const rest = value.slice(2);
-
-  if ((head === "uk" || head === "us") && isBareEid(rest)) {
-    return { site: head === "us" ? "us" : "uk", eid: rest };
+  // Every region the client knows, longest key first so a longer key is
+  // never mistaken for a shorter one it happens to start with.
+  const keys = REGION_LIST.map((r) => r.key).sort(
+    (a, b) => b.length - a.length,
+  );
+  const lower = value.toLowerCase();
+  for (const key of keys) {
+    if (!lower.startsWith(key)) continue;
+    const rest = value.slice(key.length);
+    if (isBareEid(rest)) {
+      return { site: key, eid: rest };
+    }
   }
 
   // Not decipherable either way - hand it on unchanged and let the PHP say

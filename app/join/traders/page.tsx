@@ -143,7 +143,9 @@ function JoinFlow() {
   }, [outcome]);
 
   const options = useBusinessOptions(site);
-  const priceLabel = options.data?.traders_directory.price_label ?? (site === "us" ? "$20 per year" : "£20 per year");
+  const priceLabel =
+    options.data?.traders_directory.price_label ??
+    `${resolveRegion(site).currencySymbol}20 per year`;
 
   return (
     <>
@@ -385,7 +387,7 @@ function BusinessStep({
   // reads "£20 per year"; fall back to the known price while it loads.
   const priceLabel = options.data?.traders_directory.price_label
     ? options.data.traders_directory.price_label.replace(/\s+per\s+year$/i, " p/year")
-    : site === "us" ? "$20 p/year" : "£20 p/year";
+    : `${resolveRegion(site).currencySymbol}20 p/year`;
 
   const toggle = (slug: string) =>
     setCategories((c) => (c.includes(slug) ? c.filter((s) => s !== slug) : [...c, slug]));

@@ -93,9 +93,15 @@ export function useSaveTraderCategory() {
   return useMutation<
     ApiTraderSaveResponse,
     Error,
-    { eid: string; id: TraderCategoryId; body: ApiTraderSaveBody }
+    {
+      eid: string;
+      id: TraderCategoryId;
+      body: ApiTraderSaveBody;
+      /** The event's region key - the eid is only unique within its blog. */
+      site?: string | null;
+    }
   >({
-    mutationFn: ({ eid, id, body }) => {
+    mutationFn: ({ eid, id, body, site }) => {
       const params = new URLSearchParams({ eid });
       if (!isLocalTraderId(id)) {
         params.set("tcid", id);
@@ -103,6 +109,7 @@ export function useSaveTraderCategory() {
       return apiPost<ApiTraderSaveResponse, ApiTraderSaveBody>(
         `/event-trader?${params.toString()}`,
         body,
+        { site: site ?? undefined },
       );
     },
     onSuccess: (_data, { eid }) => {
@@ -116,11 +123,13 @@ export function useDeleteTraderCategory() {
   return useMutation<
     { success: true },
     Error,
-    { eid: string; id: TraderCategoryId }
+    { eid: string; id: TraderCategoryId; site?: string | null }
   >({
-    mutationFn: ({ eid, id }) => {
+    mutationFn: ({ eid, id, site }) => {
       const params = new URLSearchParams({ eid, tcid: id });
-      return apiDelete<{ success: true }>(`/event-trader?${params.toString()}`);
+      return apiDelete<{ success: true }>(`/event-trader?${params.toString()}`, {
+        site: site ?? undefined,
+      });
     },
     onSuccess: (_data, { eid }) => {
       qc.invalidateQueries({ queryKey: ["event-edit", eid] });

@@ -16,7 +16,7 @@ import type {
   CheckoutEvent,
   CheckoutTicket,
 } from "@/lib/checkout/api";
-import { formatRegionCurrency, type Region } from "@/lib/regions";
+import { formatRegionCurrency, regionTaxLabel, type Region } from "@/lib/regions";
 import { ButtonSpinner } from "@/components/apply/ApplyIcons";
 import { Field, Section } from "./CheckoutShell";
 
@@ -806,7 +806,7 @@ export function DetailsStep({
               )}
               {totals.vat > 0 && (
                 <SummaryRow
-                  label="VAT (20%)"
+                  label={regionTaxLabel(region)}
                   value={formatRegionCurrency(totals.vat, region)}
                 />
               )}

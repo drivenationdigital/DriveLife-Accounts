@@ -21,7 +21,14 @@
 
 import type { EventSite } from "./apiTypes";
 
-export type RegionKey = "uk" | "us";
+/**
+ * A region key is whatever the API's registry says it is - "uk", "us",
+ * and any region added later ("eu", say). Open on purpose: the server
+ * owns the list (GET /dl-accounts/v1/sites), and `isRegionKey` checks
+ * against the regions this module currently knows rather than a
+ * compile-time union that would need a release per region.
+ */
+export type RegionKey = string;
 
 export interface Region {
   /** Site slug, and the value sent as `site` on every API call. */
@@ -132,7 +139,11 @@ export const REGION_COUNTRIES: string[] = REGION_LIST.map((r) => r.country);
 export const DEFAULT_REGION_KEY: RegionKey = "uk";
 
 export function isRegionKey(key: unknown): key is RegionKey {
-  return key === "uk" || key === "us";
+  return (
+    typeof key === "string" &&
+    key !== "" &&
+    Object.prototype.hasOwnProperty.call(REGIONS, key)
+  );
 }
 
 /** Look up a region by key, falling back to the default. */
@@ -156,12 +167,12 @@ export function regionFromSite(site: EventSite | null | undefined): Region {
     ...base,
     // Keep the API's key when it isn't one we know, so calls made with
     // this region still address the right blog.
-    key: (isRegionKey(site.key) ? site.key : base.key) as RegionKey,
+    key: site.key || base.key,
     label: site.label || base.label,
     // An unknown region falls back to its own key rather than
     // inheriting the default region's abbreviation, which would
     // mislabel a third site as "UK".
-    abbr: isRegionKey(site.key) ? base.abbr : site.key.toUpperCase(),
+    abbr: isRegionKey(site.key) ? base.abbr : String(site.key).toUpperCase(),
     country: site.country || base.country,
     currency: site.currency || base.currency,
     currencySymbol: site.currency_symbol || base.currencySymbol,
@@ -511,4 +522,120 @@ export function formatRegionDateString(
     /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(trimmed);
   if (!machineReadable) return trimmed;
   return formatRegionDate(trimmed.replace(" ", "T"), region, options);
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// Regions from the API
+// ─────────────────────────────────────────────────────────────────────
+
+/** One row of `sites[]` from GET /dl-accounts/v1/sites. */
+export interface ApiSitePayload {
+  key: string;
+  blog_id: number;
+  default?: boolean;
+  label: string;
+  abbr?: string;
+  country: string;
+  countries?: string[];
+  currency: string;
+  currency_symbol: string;
+  locale?: string;
+  timezone?: string;
+  ticketing: boolean;
+  home_url?: string | null;
+  default_cover?: string | null;
+}
+
+const CURRENCY_ICONS: Record<string, string> = {
+  GBP: "fa-solid fa-sterling-sign",
+  USD: "fa-solid fa-dollar-sign",
+  EUR: "fa-solid fa-euro-sign",
+  AUD: "fa-solid fa-dollar-sign",
+};
+
+/**
+ * Fold the server's region table into this module.
+ *
+ * The table above is only the bootstrap; the registry on the server
+ * (mu-plugins/carevents-regions.php) is the authority, and a region it
+ * adds should appear here without a release. Rows for regions we know
+ * update them in place and keep our locale and icon; new rows are added
+ * to REGIONS and REGION_LIST, which every selector and badge iterates.
+ *
+ * Idempotent, so it can be called on every load of the table.
+ */
+export function applyApiSites(sites: ApiSitePayload[]): void {
+  for (const s of sites) {
+    const key = String(s?.key ?? "").trim().toLowerCase();
+    if (!key) continue;
+    const existing: Region | undefined = REGIONS[key];
+    const currency = (s.currency || existing?.currency || "GBP").toUpperCase();
+    const region: Region = {
+      key,
+      label: s.label || existing?.label || key.toUpperCase(),
+      abbr: s.abbr || existing?.abbr || key.toUpperCase(),
+      country: (s.country || existing?.country || key).toUpperCase(),
+      locale: s.locale || existing?.locale || "en-GB",
+      currency,
+      currencySymbol: s.currency_symbol || existing?.currencySymbol || "£",
+      currencyIcon:
+        existing?.currencyIcon ??
+        CURRENCY_ICONS[currency] ??
+        "fa-solid fa-coins",
+      publicSiteUrl: (s.home_url || existing?.publicSiteUrl || "").replace(
+        /\/$/,
+        "",
+      ),
+      ticketing: typeof s.ticketing === "boolean" ? s.ticketing : existing?.ticketing ?? true,
+    };
+    REGIONS[key] = region;
+    const idx = REGION_LIST.findIndex((r) => r.key === key);
+    if (idx >= 0) REGION_LIST[idx] = region;
+    else REGION_LIST.push(region);
+  }
+  REGION_COUNTRIES.splice(
+    0,
+    REGION_COUNTRIES.length,
+    ...REGION_LIST.map((r) => r.country),
+  );
+}
+
+let regionsLoad: Promise<void> | null = null;
+
+/**
+ * Fetch the server's region table once and apply it. Safe to call from
+ * anywhere; failures are swallowed because the bootstrap table above is
+ * always enough to render with.
+ */
+export function loadRegionsFromApi(apiBase: string): Promise<void> {
+  if (regionsLoad) return regionsLoad;
+  regionsLoad = (async () => {
+    try {
+      const res = await fetch(`${apiBase.replace(/\/$/, "")}/sites`, {
+        credentials: "omit",
+      });
+      if (!res.ok) return;
+      const json = (await res.json()) as { sites?: ApiSitePayload[] };
+      if (Array.isArray(json?.sites)) applyApiSites(json.sites);
+    } catch {
+      // Bootstrap table stands.
+    }
+  })();
+  return regionsLoad;
+}
+
+/**
+ * What the tax line on a checkout summary is called in this region.
+ * The 20% is the UK rate the server applies when an event charges VAT;
+ * other regions get a generic label until the server sends a rate.
+ */
+export function regionTaxLabel(region: Region): string {
+  const byCountry: Record<string, string> = {
+    GB: "VAT (20%)",
+    US: "Sales tax",
+    CA: "Sales tax",
+    AU: "GST",
+    NZ: "GST",
+  };
+  return byCountry[region.country.toUpperCase()] ?? "VAT";
 }

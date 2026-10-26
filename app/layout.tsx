@@ -8,6 +8,7 @@ import NextTopLoader from "nextjs-toploader";
 import { ToastProvider } from "@/context/ToastContext";
 import { ActionProvider } from "@/context/ActionContext";
 import { LoadingSplash } from "@/components/layout/LoadingSplash";
+import { RegionsBootstrap } from "@/components/layout/RegionsBootstrap";
 
 /**
  * `?loading=1` on any URL: switch the white loading screen (#ce-splash
@@ -66,6 +67,7 @@ export default function RootLayout({
           showSpinner={false} // just the bar, no corner spinner
           shadow="0 0 10px #bd7420, 0 0 5px #bd7420"
         />
+        <RegionsBootstrap />
         <QueryProvider>
           <AuthProvider>
             <ConfirmProvider>

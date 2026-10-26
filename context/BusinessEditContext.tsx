@@ -22,6 +22,10 @@ import {
   useUploadBusinessImage,
 } from "@/lib/uploadBusinessImage";
 import type { BusinessEditStepKey } from "@/lib/businessEditSteps";
+import { DEFAULT_REGION_KEY, REGIONS, resolveRegion } from "@/lib/regions";
+
+// Placeholders before the API answers: the default region's currency and country.
+const DEFAULT_REGION = REGIONS[DEFAULT_REGION_KEY];
 
 /**
  * Business edit state + save controller. Same design as
@@ -82,9 +86,9 @@ export const EMPTY_TRADERS: BusinessTradersDirectory = {
   requested_at: null,
   member: false,
   expires: null,
-  price_label: "£20 per year",
-  amount_label: "£20",
-  currency: "gbp",
+  price_label: `${DEFAULT_REGION.currencySymbol}20 per year`,
+  amount_label: `${DEFAULT_REGION.currencySymbol}20`,
+  currency: DEFAULT_REGION.currency.toLowerCase(),
   amount: 2000,
   stripe_enabled: false,
   portal_available: false,
@@ -94,11 +98,11 @@ export const EMPTY_TRADERS: BusinessTradersDirectory = {
 
 const EMPTY_BUSINESS: BusinessForm = {
   bid: "",
-  site: "uk",
+  site: DEFAULT_REGION_KEY,
   rawId: 0,
   title: "",
   tagline: "",
-  country: "GB",
+  country: DEFAULT_REGION.country,
   categories: [],
   logo: null,
   cover: null,
@@ -267,7 +271,7 @@ export function BusinessEditProvider({ children }: { children: ReactNode }) {
       rawId: data.id,
       title: data.title,
       tagline: data.tagline ?? "",
-      country: data.country || "GB",
+      country: data.country || resolveRegion(data.site).country,
       categories: data.categories ?? [],
       logo: data.logo?.url ?? null,
       cover: data.coverImage?.url ?? null,

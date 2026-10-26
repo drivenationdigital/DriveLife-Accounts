@@ -41,6 +41,8 @@ export interface CarClubPublicResponse {
 
 export interface CarClubApplicationBody {
   eventEid: string;
+  /** Region key of the event's site, from the form URL's `?site=`. */
+  site?: string;
   clubName: string;
   clubWebsite: string;
   clubInstagram: string;
@@ -69,12 +71,12 @@ export interface CarClubApplicationResponse {
  * Fetch event title + club capacity. `enabled` is gated by !!eventEid
  * so the query stays idle until the route param resolves.
  */
-export function useCarClubPublic(eventEid: string) {
+export function useCarClubPublic(eventEid: string, site?: string) {
   return useQuery<CarClubPublicResponse, Error>({
-    queryKey: ["car-clubs-public", eventEid],
+    queryKey: ["car-clubs-public", eventEid, site ?? ""],
     queryFn: () =>
       apiGet<CarClubPublicResponse>(
-        `/event-car-clubs-public?eid=${encodeURIComponent(eventEid)}`,
+        `/event-car-clubs-public?eid=${encodeURIComponent(eventEid)}${site ? `&site=${encodeURIComponent(site)}` : ""}`,
       ),
     enabled: !!eventEid,
     staleTime: 30_000,

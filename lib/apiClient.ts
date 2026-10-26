@@ -1,9 +1,13 @@
 import { readTokenClient, clearTokenClient } from "./authCookies";
 import { decodeEntitiesDeep } from "./decodeEntities";
+import { REGION_LIST, isRegionKey } from "./regions";
 
-const API_BASE =
+export const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ??
   "https://www.carevents.com/uk/wp-json/dl-accounts/v1";
+
+/** The wp-json root the dl-accounts base hangs off, for the app/v1 + app/v2 namespaces. */
+export const WP_JSON_ROOT = API_BASE.replace(/\/dl-accounts\/v1\/?$/, "");
 
 function buildHeaders(): HeadersInit {
   const headers: Record<string, string> = {
@@ -169,11 +173,13 @@ function extractErrorMessage(parsed: unknown, status: number): string {
 // ============================================================
 
 /**
- * The multisite blog a request addresses. Validated server-side -
- * anything other than these two is a 400, so a typo surfaces at once
- * rather than silently resolving to UK.
+ * The multisite blog a request addresses - a region key from
+ * lib/regions ("uk", "us", …). Validated on both sides: `assertSite`
+ * below checks it against the regions the client knows, and the API
+ * returns a 400 for a key its registry doesn't, so a typo surfaces at
+ * once rather than silently resolving to UK.
  */
-export type ApiSite = "uk" | "us";
+export type ApiSite = string;
 
 /**
  * Routes where `site` is part of the record's IDENTITY, not a filter.
@@ -272,18 +278,17 @@ function routeKey(path: string): string {
  */
 function assertSite(path: string, site: string | undefined): void {
   const route = routeKey(path);
-  if (site !== undefined && site !== "uk" && site !== "us") {
+  const known = REGION_LIST.map((r) => `"${r.key}"`).join(" | ");
+  if (site !== undefined && !isRegionKey(site)) {
     throw new ApiError(
-      `[apiClient] "${route}" got site="${site}"; expected "uk" or "us".`,
+      `[apiClient] "${route}" got site="${site}"; expected one of ${known}.`,
       0,
       null,
     );
   }
   if (SITE_REQUIRED_ROUTES.has(route) && !site) {
-    console.log(route);
-    
     throw new ApiError(
-      `[apiClient] "${route}" requires a site ("uk" | "us"). ` +
+      `[apiClient] "${route}" requires a site (${known}). ` +
         `Without it the API resolves the id against the UK blog and may ` +
         `read or write a different region's record without erroring.`,
       0,

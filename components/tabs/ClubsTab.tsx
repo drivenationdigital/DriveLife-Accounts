@@ -37,6 +37,7 @@ export function ClubsTab() {
     <ApplicationLinkBar
       kind="car-club"
       eid={eid}
+      site={event.region.key}
       title="Car club application form"
     />
   ) : null;
@@ -52,7 +53,8 @@ export function ClubsTab() {
       successTitle: "Applications exported",
       successMessage: "The CSV has been downloaded.",
       errorTitle: "Export failed",
-      run: () => exportApps.mutateAsync({ eid, type: "car_club" }),
+      run: () =>
+        exportApps.mutateAsync({ eid, type: "car_club", site: event.region.key }),
     });
   };
   const clubs = data?.clubs ?? [];

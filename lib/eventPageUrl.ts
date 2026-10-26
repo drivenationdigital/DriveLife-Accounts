@@ -8,13 +8,22 @@
  * can't produce a broken link if the organiser renames the event.
  * Same shape the editor's Preview button uses.
  */
-import type { Region } from "./regions";
+import { DEFAULT_REGION_KEY, REGIONS, type Region } from "./regions";
 
-const CAREVENTS_BASE =
-  process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com/uk";
+/**
+ * The region's public site, or the staging override. Without a region the
+ * default region's site is used - a post id is only unique within one blog,
+ * so callers should pass the event's region whenever they have it.
+ */
+function publicBase(region?: Region | null): string {
+  if (process.env.NEXT_PUBLIC_CAREVENTS_URL) {
+    return process.env.NEXT_PUBLIC_CAREVENTS_URL.replace(/\/$/, "");
+  }
+  return (region ?? REGIONS[DEFAULT_REGION_KEY]).publicSiteUrl.replace(/\/$/, "");
+}
 
-export function eventPageUrl(eventId: number): string {
-  return `${CAREVENTS_BASE}/?post_type=events&p=${eventId}`;
+export function eventPageUrl(eventId: number, region?: Region | null): string {
+  return `${publicBase(region)}/?post_type=events&p=${eventId}`;
 }
 
 /**

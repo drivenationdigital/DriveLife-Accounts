@@ -34,6 +34,7 @@ import {
 import { useAction } from "@/context/ActionContext";
 import { eventDetailPath, eventEditorPath } from "@/lib/siteRoutes";
 import { CountryFlag } from "@/components/ui/CountryFlag";
+import { DEFAULT_REGION_KEY } from "@/lib/regions";
 
 export function EventHero() {
   const { event, occurrences } = useEventData();
@@ -294,8 +295,9 @@ export function EventHero() {
                         // office opens whichever UK event shares that post
                         // id — and places a real order against it.
                         `/get-tickets/${encodeURIComponent(
-                          (event.region.key === "us" ? "us" : "") +
-                            event.encryptedId,
+                          (event.region.key !== DEFAULT_REGION_KEY
+                            ? event.region.key
+                            : "") + event.encryptedId,
                         )}?boxoffice=1`,
                         "_blank",
                         "noopener,noreferrer",

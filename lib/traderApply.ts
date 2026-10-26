@@ -48,6 +48,8 @@ export interface TraderPublicResponse {
 
 export interface TraderApplicationBody {
   eventEid: string;
+  /** Region key of the event's site, from the form URL's `?site=`. */
+  site?: string;
   categoryEid: string;
   businessName: string;
   description: string;
@@ -79,12 +81,12 @@ export interface TraderApplicationResponse {
   application_id: number;
 }
 
-export function useTraderPublic(eventEid: string) {
+export function useTraderPublic(eventEid: string, site?: string) {
   return useQuery<TraderPublicResponse, Error>({
-    queryKey: ["traders-public", eventEid],
+    queryKey: ["traders-public", eventEid, site ?? ""],
     queryFn: () =>
       apiGet<TraderPublicResponse>(
-        `/event-traders-public?eid=${encodeURIComponent(eventEid)}`,
+        `/event-traders-public?eid=${encodeURIComponent(eventEid)}${site ? `&site=${encodeURIComponent(site)}` : ""}`,
       ),
     enabled: !!eventEid,
     staleTime: 30_000,

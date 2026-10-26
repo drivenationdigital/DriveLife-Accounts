@@ -1,5 +1,7 @@
 "use client";
 
+import { REGION_COUNTRIES } from "@/lib/regions";
+
 import { useBusinessEdit } from "@/context/BusinessEditContext";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
 import { MapPreview } from "@/components/event-create/MapPreview";
@@ -58,7 +60,11 @@ export function BusinessProfilePanel() {
         </FieldLabel>
         <LocationAutocomplete
           value={business.address}
-          countries={business.country ? business.country.toLowerCase() : ["gb", "us"]}
+          countries={
+            business.country
+              ? business.country.toLowerCase()
+              : REGION_COUNTRIES.map((c) => c.toLowerCase())
+          }
           onValueChange={(text) => set("address", text)}
           onPlacePicked={(place) => {
             set("address", place.address || place.name);

@@ -1,3 +1,4 @@
+import { WP_JSON_ROOT } from "./apiClient";
 /**
  * Event community gallery - bulk upload (photographer web uploader).
  *
@@ -17,10 +18,6 @@ import { readTokenClient } from "./authCookies";
 
 // Derive the wp-json root from the dl-accounts base so both namespaces
 // stay on the same host/env without a second env var.
-const DL_ACCOUNTS_BASE =
-  process.env.NEXT_PUBLIC_API_BASE ??
-  "https://www.carevents.com/uk/wp-json/dl-accounts/v1";
-const WP_JSON_ROOT = DL_ACCOUNTS_BASE.replace(/\/dl-accounts\/v1\/?$/, "");
 const APP_V2 = `${WP_JSON_ROOT}/app/v2`;
 
 function authHeaders(): Record<string, string> {

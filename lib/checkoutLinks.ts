@@ -15,6 +15,8 @@
  * browser.
  */
 
+import { DEFAULT_REGION_KEY, isRegionKey } from "./regions";
+
 const CHECKOUT_VANITY_ORIGIN = "https://checkout.carevents.com";
 const ACCOUNT_ORIGIN = "https://account.carevents.com";
 
@@ -42,8 +44,10 @@ function currentOrigin(): string {
  * ever issued already is, so none of them change.
  */
 function siteEid(eid: string, site?: string | null): string {
-  const prefix =
-    String(site ?? "").trim().toLowerCase() === "us" ? "us" : "";
+  const key = String(site ?? "").trim().toLowerCase();
+  // Any region other than the default carries its key; bare means the
+  // default (UK), which is what every link ever issued already is.
+  const prefix = isRegionKey(key) && key !== DEFAULT_REGION_KEY ? key : "";
   return `${prefix}${eid}`;
 }
 

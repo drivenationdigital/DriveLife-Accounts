@@ -21,6 +21,8 @@ interface ApplicationsExportResponse {
 interface ExportVars {
   eid: string;
   type: ApplicationExportType;
+  /** The event's region key - the id is only unique within its blog. */
+  site?: string;
 }
 
 /** Trigger a browser download of a CSV string. */

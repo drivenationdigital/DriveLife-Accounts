@@ -1,5 +1,7 @@
 "use client";
 
+import { resolveRegion } from "@/lib/regions";
+
 import { useEffect, useMemo, useState } from "react";
 
 type AddSeriesDatesProps = {
@@ -60,6 +62,8 @@ function AddSeriesDatesDialog({
   defaultEndTime,
   seriesIsLive,
 }: AddSeriesDatesProps) {
+  // Dates in the event's own region (was hardcoded en-GB).
+  const locale = resolveRegion(site).locale;
   const hasPattern = patternType === "week" || patternType === "month";
   const runAction = useAction();
   const addDates = useAddSeriesDates();
@@ -161,7 +165,7 @@ function AddSeriesDatesDialog({
           <p className="sad-intro">
             Each new date becomes its own event, copied from the latest one
             in the series
-            {lastDate ? ` (${formatDay(lastDate)})` : ""} - same details,
+            {lastDate ? ` (${formatDay(lastDate, locale)})` : ""} - same details,
             images and settings.
           </p>
 
@@ -201,7 +205,7 @@ function AddSeriesDatesDialog({
               />
               <div className="sad-hint">
                 {lastDate
-                  ? `The series currently runs until ${formatDay(lastDate)}. New dates follow the pattern from there.`
+                  ? `The series currently runs until ${formatDay(lastDate, locale)}. New dates follow the pattern from there.`
                   : "New dates follow the series' pattern from today."}
               </div>
             </div>
@@ -238,11 +242,11 @@ function AddSeriesDatesDialog({
                   {dates.map((d) => (
                     <li key={d} className="sad-date">
                       <CalendarIcon />
-                      {formatDay(d)}
+                      {formatDay(d, locale)}
                       <button
                         type="button"
                         onClick={() => removeDate(d)}
-                        aria-label={`Remove ${formatDay(d)}`}
+                        aria-label={`Remove ${formatDay(d, locale)}`}
                       >
                         <XIcon />
                       </button>
@@ -361,10 +365,10 @@ function addMonths(iso: string | null, n: number): string | null {
   return toIso(d);
 }
 
-function formatDay(iso: string): string {
+function formatDay(iso: string, locale: string): string {
   const d = parseIso(iso);
   if (!d) return iso;
-  return d.toLocaleDateString("en-GB", {
+  return d.toLocaleDateString(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",

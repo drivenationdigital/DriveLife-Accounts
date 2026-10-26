@@ -18,6 +18,7 @@ import {
   parseApplyTheme,
 } from "@/lib/applyTheme";
 import { ApiError } from "@/lib/apiClient";
+import { eventPageUrl } from "@/lib/eventPageUrl";
 import {
   formatRegionCurrency,
   formatRegionDateRange,
@@ -103,7 +104,11 @@ export default function ShowCarApplyPage({
   params: Promise<{ eventEid: string }>;
 }) {
   const { eventEid } = use(params);
-  const { data, isLoading, error } = useShowCarPublic(eventEid);
+  // The event's region, carried on the link as ?site= by the public event
+  // page (bare = the default site). Sent with every call so the API resolves
+  // the id against the right blog - a post id is only unique within one.
+  const site = useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
+  const { data, isLoading, error } = useShowCarPublic(eventEid, site);
   // Currency and date order for the event's own site. The public
   // endpoint doesn't send a site block yet, so this resolves to the
   // API's default region until it does.
@@ -202,7 +207,7 @@ export default function ShowCarApplyPage({
             days.
           </p>
           <a
-            href={eventPageUrl(data.event_id)}
+            href={eventPageUrl(data.event_id, region)}
             className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
           >
             Continue
@@ -271,6 +276,7 @@ export default function ShowCarApplyPage({
       try {
         photoUrl = await uploadShowCarPhoto({
           eventEid,
+          site,
           file: photoFile,
         });
       } catch (err) {
@@ -288,6 +294,7 @@ export default function ShowCarApplyPage({
         ...form,
         ticketEid: form.ticketEids[0] ?? "",
         eventEid,
+        site,
         photoUrl,
         // Never send a stale address if the organiser turned the box off
         // while the form was open.
@@ -730,22 +737,6 @@ export default function ShowCarApplyPage({
 // ============================================================
 // Subcomponents
 // ============================================================
-
-/**
- * Public event page on the main site.
- *
- * The /event-show-cars-public payload gives us `event_id` but no
- * permalink, so we use WordPress' canonical post URL - it 302s to the
- * pretty permalink, which means we don't need the slug and can't
- * produce a broken link if the organiser renames the event. Same
- * shape the editor's Preview button uses.
- */
-const CAREVENTS_BASE =
-  process.env.NEXT_PUBLIC_CAREVENTS_URL || "https://www.carevents.com/uk";
-
-function eventPageUrl(eventId: number): string {
-  return `${CAREVENTS_BASE}/?post_type=events&p=${eventId}`;
-}
 
 /**
  * One-shot gold-and-black confetti burst, fired on mount.

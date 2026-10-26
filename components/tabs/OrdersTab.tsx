@@ -222,7 +222,7 @@ export function OrdersTab() {
       successTitle: "Refund issued",
       successMessage: `${currency(amount, event.region)} is on its way back to the customer.`,
       errorTitle: "Refund failed",
-      run: () => refund.mutateAsync({ oid }),
+      run: () => refund.mutateAsync({ oid, site: event.region.key }),
     });
 
   const goToPage = (next: number) => {

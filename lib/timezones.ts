@@ -22,7 +22,7 @@
  * and it is genuinely approximate - see `offlineZoneFromCoords`.
  */
 
-import { REGIONS, type Region, type RegionKey } from "./regions";
+import { REGIONS, type Region } from "./regions";
 
 export interface TimezoneOption {
   /** IANA zone id, e.g. "America/Chicago". The stored value. */
@@ -44,8 +44,22 @@ export interface TimezoneOption {
  * observe DST - for half the year it matches Denver and for the other
  * half it matches Los Angeles, so neither of those can stand in for it.
  */
-export const TIMEZONES_BY_REGION: Record<RegionKey, TimezoneOption[]> = {
+export const TIMEZONES_BY_REGION: Record<string, TimezoneOption[]> = {
   uk: [{ value: "Europe/London", label: "UK time" }],
+  eu: [
+    { value: "Europe/Lisbon", label: "Western European Time" },
+    { value: "Europe/Paris", label: "Central European Time" },
+    { value: "Europe/Athens", label: "Eastern European Time" },
+  ],
+  au: [
+    { value: "Australia/Perth", label: "Western Australia" },
+    { value: "Australia/Darwin", label: "Northern Territory" },
+    { value: "Australia/Adelaide", label: "South Australia" },
+    { value: "Australia/Brisbane", label: "Queensland" },
+    { value: "Australia/Sydney", label: "New South Wales / Victoria / ACT" },
+    { value: "Australia/Hobart", label: "Tasmania" },
+    { value: "Pacific/Auckland", label: "New Zealand" },
+  ],
   us: [
     { value: "America/New_York", label: "Eastern Time" },
     { value: "America/Chicago", label: "Central Time" },
@@ -64,9 +78,11 @@ export const TIMEZONES_BY_REGION: Record<RegionKey, TimezoneOption[]> = {
  * wrong guess is least often wrong for. It is only ever a placeholder:
  * picking an address replaces it.
  */
-const DEFAULT_ZONE_BY_REGION: Record<RegionKey, string> = {
+const DEFAULT_ZONE_BY_REGION: Record<string, string> = {
   uk: "Europe/London",
   us: "America/New_York",
+  eu: "Europe/Paris",
+  au: "Australia/Sydney",
 };
 
 /** Zones available for a region. Unknown regions fall back to the UK

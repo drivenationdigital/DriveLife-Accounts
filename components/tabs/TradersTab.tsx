@@ -23,8 +23,8 @@ import type { Trader } from "@/context/types";
  * yields the apply.carevents.com short form in production and the
  * current origin's /apply path elsewhere.
  */
-function traderApplyUrl(eid: string): string {
-  return applyFormUrl("trader", eid);
+function traderApplyUrl(eid: string, site?: string): string {
+  return applyFormUrl("trader", eid, site);
 }
 
 function TraderGroup({
@@ -69,6 +69,7 @@ export function TradersTab() {
     <ApplicationLinkBar
       kind="trader"
       eid={eid}
+      site={event.region.key}
       title="Trader application form"
     />
   ) : null;
@@ -164,7 +165,11 @@ export function TradersTab() {
             type="button"
             className="btn btn-secondary"
             onClick={() =>
-              window.open(traderApplyUrl(eid), "_blank", "noopener,noreferrer")
+              window.open(
+                traderApplyUrl(eid, event.region.key),
+                "_blank",
+                "noopener,noreferrer",
+              )
             }
           >
             <PlusIcon /> Add Trader

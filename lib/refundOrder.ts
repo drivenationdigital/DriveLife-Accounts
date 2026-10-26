@@ -10,6 +10,7 @@
  */
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { resolveRegion } from "./regions";
 import { readTokenClient } from "./authCookies";
 
 interface RefundResponse {
@@ -22,10 +23,12 @@ interface RefundResponse {
   code?: string;
 }
 
-function refundEndpoint(): string {
+function refundEndpoint(site?: string | null): string {
+  // The order's own region, so the request bootstraps on that blog; the
+  // env override still wins so staging never calls the live site.
   const base = (
     process.env.NEXT_PUBLIC_GET_TICKETS_URL ||
-    "https://www.carevents.com/uk/get-tickets"
+    `${resolveRegion(site).publicSiteUrl}/get-tickets`
   ).replace(/\/$/, "");
   return `${base}/refund-order.php`;
 }
@@ -36,13 +39,13 @@ function refundEndpoint(): string {
  */
 export function useRefundOrder() {
   const qc = useQueryClient();
-  return useMutation<RefundResponse, Error, { oid: string }>({
-    mutationFn: async ({ oid }) => {
+  return useMutation<RefundResponse, Error, { oid: string; site?: string | null }>({
+    mutationFn: async ({ oid, site }) => {
       const token = readTokenClient();
 
       let res: Response;
       try {
-        res = await fetch(refundEndpoint(), {
+        res = await fetch(refundEndpoint(site), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

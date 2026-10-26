@@ -72,7 +72,11 @@ export default function CarClubApplyPage({
   params: Promise<{ eventEid: string }>;
 }) {
   const { eventEid } = use(params);
-  const { data, isLoading, error } = useCarClubPublic(eventEid);
+  // The event's region, carried on the link as ?site= by the public event
+  // page (bare = the default site). Sent with every call so the API resolves
+  // the id against the right blog - a post id is only unique within one.
+  const site = useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
+  const { data, isLoading, error } = useCarClubPublic(eventEid, site);
   const region = regionFromSite(data?.site);
   const submit = useSubmitCarClubApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -142,7 +146,7 @@ export default function CarClubApplyPage({
             application and email you with next steps.
           </p>
           <a
-            href={eventPageUrl(data.event_id)}
+            href={eventPageUrl(data.event_id, region)}
             className="mt-7 inline-flex items-center justify-center gap-2 px-8 py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition"
           >
             Continue
@@ -165,7 +169,7 @@ export default function CarClubApplyPage({
     e.preventDefault();
     if (closedReason) return;
     try {
-      await submit.mutateAsync({ ...form, eventEid });
+      await submit.mutateAsync({ ...form, eventEid, site });
     } catch {
       // surfaced below the button via submit.error
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { DEFAULT_REGION_KEY, isRegionKey } from "../regions";
 
 /**
  * Client API for the Next.js ticket checkout.
@@ -29,11 +30,12 @@ export class CheckoutError extends Error {
  * an error, it produces a DIFFERENT event's tickets. Held here rather than
  * threaded through every signature, where one call could quietly miss it.
  */
-let checkoutSite: "uk" | "us" = "uk";
+let checkoutSite: string = DEFAULT_REGION_KEY;
 
 /** Points every later call at the event's own blog. Call before the first. */
 export function setCheckoutSite(site: string | null | undefined): void {
-  checkoutSite = String(site ?? "").trim().toLowerCase() === "us" ? "us" : "uk";
+  const key = String(site ?? "").trim().toLowerCase();
+  checkoutSite = isRegionKey(key) ? key : DEFAULT_REGION_KEY;
 }
 
 /**
@@ -154,7 +156,7 @@ export interface CheckoutEvent {
   site_terms_html: string;
   company_name: string;
   /** Region key, resolvable with resolveRegion() from lib/regions. */
-  site: "uk" | "us";
+  site: string;
   currency: string;
 }
 

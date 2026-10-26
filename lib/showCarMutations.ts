@@ -97,9 +97,15 @@ export function useSaveShowCarCategory() {
   return useMutation<
     ApiShowCarSaveResponse,
     Error,
-    { eid: string; id: ShowCarCategoryId; body: ApiShowCarSaveBody }
+    {
+      eid: string;
+      id: ShowCarCategoryId;
+      body: ApiShowCarSaveBody;
+      /** The event's region key - the eid is only unique within its blog. */
+      site?: string | null;
+    }
   >({
-    mutationFn: ({ eid, id, body }) => {
+    mutationFn: ({ eid, id, body, site }) => {
       const params = new URLSearchParams({ eid });
       if (!isLocalShowCarId(id)) {
         params.set("sccid", id);
@@ -107,6 +113,7 @@ export function useSaveShowCarCategory() {
       return apiPost<ApiShowCarSaveResponse, ApiShowCarSaveBody>(
         `/event-show-car?${params.toString()}`,
         body,
+        { site: site ?? undefined },
       );
     },
     onSuccess: (_data, { eid }) => {
@@ -120,12 +127,13 @@ export function useDeleteShowCarCategory() {
   return useMutation<
     { success: true },
     Error,
-    { eid: string; id: ShowCarCategoryId }
+    { eid: string; id: ShowCarCategoryId; site?: string | null }
   >({
-    mutationFn: ({ eid, id }) => {
+    mutationFn: ({ eid, id, site }) => {
       const params = new URLSearchParams({ eid, sccid: id });
       return apiDelete<{ success: true }>(
         `/event-show-car?${params.toString()}`,
+        { site: site ?? undefined },
       );
     },
     onSuccess: (_data, { eid }) => {

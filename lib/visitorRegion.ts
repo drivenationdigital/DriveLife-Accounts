@@ -14,7 +14,13 @@
  * an event's region comes from its `site` block, always.
  */
 
-import { DEFAULT_REGION_KEY, isRegionKey, type RegionKey } from "./regions";
+import {
+  DEFAULT_REGION_KEY,
+  REGION_LIST,
+  isRegionKey,
+  type RegionKey,
+} from "./regions";
+import { TIMEZONES_BY_REGION } from "./timezones";
 
 /**
  * IANA zones that mean "United States".
@@ -90,9 +96,18 @@ export function detectVisitorRegion(): RegionKey {
   if (UK_TIME_ZONES.has(tz)) return "uk";
   if (US_TIME_ZONES.has(tz)) return "us";
 
+  // Any other region: its own zone list in lib/timezones.
+  for (const region of REGION_LIST) {
+    if (region.key === "uk" || region.key === "us") continue;
+    const zones = TIMEZONES_BY_REGION[region.key] ?? [];
+    if (zones.some((z) => z.value === tz)) return region.key;
+  }
+
   for (const country of languageCountries()) {
     if (country === "GB") return "uk";
     if (country === "US") return "us";
+    const match = REGION_LIST.find((r) => r.country === country);
+    if (match) return match.key;
   }
 
   return DEFAULT_REGION_KEY;

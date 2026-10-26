@@ -16,18 +16,38 @@
  * the browser.
  */
 
+import { DEFAULT_REGION_KEY, isRegionKey } from "./regions";
+
 export type ApplyFormKind = "show-car" | "car-club" | "trader";
 
 const APPLY_VANITY_ORIGIN = "https://apply.carevents.com";
 
-export function applyFormUrl(kind: ApplyFormKind, eid: string): string {
+/**
+ * `?site=` for a region other than the default. Load-bearing: the form
+ * resolves the encrypted id against that blog, and a post id is only
+ * unique within one. A bare link means the default (UK) site, which is
+ * what every link ever issued already is.
+ */
+function siteQuery(site?: string | null): string {
+  const key = String(site ?? "").trim().toLowerCase();
+  return isRegionKey(key) && key !== DEFAULT_REGION_KEY
+    ? `?site=${encodeURIComponent(key)}`
+    : "";
+}
+
+export function applyFormUrl(
+  kind: ApplyFormKind,
+  eid: string,
+  site?: string | null,
+): string {
   const host =
     typeof window !== "undefined" ? window.location.hostname.toLowerCase() : "";
   const onProductionDomain =
     host === "carevents.com" || host.endsWith(".carevents.com");
+  const query = siteQuery(site);
   if (onProductionDomain) {
-    return `${APPLY_VANITY_ORIGIN}/${kind}/${encodeURIComponent(eid)}`;
+    return `${APPLY_VANITY_ORIGIN}/${kind}/${encodeURIComponent(eid)}${query}`;
   }
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}/apply/${kind}/${encodeURIComponent(eid)}`;
+  return `${origin}/apply/${kind}/${encodeURIComponent(eid)}${query}`;
 }

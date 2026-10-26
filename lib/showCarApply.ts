@@ -68,6 +68,10 @@ export interface ShowCarPublicResponse {
 
 export interface ShowCarApplicationBody {
   eventEid: string;
+  /** Region key of the event's site ("uk", "us", …), from the form URL's
+   *  `?site=`. Absent means the API's default site, which every link
+   *  issued before regions existed already is. */
+  site?: string;
   /** First chosen category - kept for a backend that predates
    *  multi-category submissions. `ticketEids` is authoritative. */
   ticketEid: string;
@@ -145,6 +149,8 @@ interface PhotoMintResponse {
 
 export interface UploadShowCarPhotoArgs {
   eventEid: string;
+  /** The event's region key - see ShowCarApplicationBody.site. */
+  site?: string;
   file: File;
   signal?: AbortSignal;
 }
@@ -152,12 +158,12 @@ export interface UploadShowCarPhotoArgs {
 export async function uploadShowCarPhoto(
   args: UploadShowCarPhotoArgs,
 ): Promise<string> {
-  const { eventEid, file, signal } = args;
+  const { eventEid, site, file, signal } = args;
 
   // Step 1 - mint a one-time CF direct-upload URL.
-  const mint = await apiPost<PhotoMintResponse, { eventEid: string }>(
+  const mint = await apiPost<PhotoMintResponse, { eventEid: string; site?: string }>(
     "/show-car-photo-upload-url",
-    { eventEid },
+    { eventEid, site },
   );
 
   if (signal?.aborted) throw new DOMException("Upload aborted", "AbortError");
@@ -217,12 +223,12 @@ export async function uploadShowCarPhoto(
  * Fetch event title + show car categories. `enabled` is gated by
  * `!!eventEid` so the query stays idle until the route param is in.
  */
-export function useShowCarPublic(eventEid: string) {
+export function useShowCarPublic(eventEid: string, site?: string) {
   return useQuery<ShowCarPublicResponse, Error>({
-    queryKey: ["event-show-cars-public", eventEid],
+    queryKey: ["event-show-cars-public", eventEid, site ?? ""],
     queryFn: () =>
       apiGet<ShowCarPublicResponse>(
-        `/event-show-cars-public?eid=${encodeURIComponent(eventEid)}`,
+        `/event-show-cars-public?eid=${encodeURIComponent(eventEid)}${site ? `&site=${encodeURIComponent(site)}` : ""}`,
       ),
     enabled: !!eventEid,
     // Capacity counts can drift fast during a busy application period

@@ -65,6 +65,7 @@ export function ShowCarsTab() {
       <ApplicationLinkBar
         kind="show-car"
         eid={eid}
+        site={event.region.key}
         title="Show car application form"
       />
     ) : null;
@@ -78,7 +79,8 @@ export function ShowCarsTab() {
       successTitle: "Applications exported",
       successMessage: "The CSV has been downloaded.",
       errorTitle: "Export failed",
-      run: () => exportApps.mutateAsync({ eid, type: "show_car" }),
+      run: () =>
+        exportApps.mutateAsync({ eid, type: "show_car", site: event.region.key }),
     });
   };
   // "Approve all" on the pending group runs this one approval per row.

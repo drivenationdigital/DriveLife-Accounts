@@ -26,12 +26,15 @@ import { applyFormUrl, type ApplyFormKind } from "@/lib/applyFormUrl";
 export function ApplicationLinkBar({
   kind,
   eid,
+  site,
   title,
 }: {
   /** "show-car" | "car-club" | "trader" - the form kind. */
   kind: ApplyFormKind;
   /** Encrypted event id. */
   eid: string;
+  /** The event's region key; non-default regions go on the link as ?site=. */
+  site?: string | null;
   /** e.g. "Show car application form". */
   title: string;
 }) {
@@ -39,7 +42,7 @@ export function ApplicationLinkBar({
 
   // apply.carevents.com short form in production, current-origin
   // /apply path elsewhere - see lib/applyFormUrl.ts.
-  const url = applyFormUrl(kind, eid);
+  const url = applyFormUrl(kind, eid, site);
 
   const copy = async () => {
     try {

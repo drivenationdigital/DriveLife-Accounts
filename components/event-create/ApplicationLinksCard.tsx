@@ -25,12 +25,15 @@ import { embedScriptSrc } from "@/lib/checkoutLinks";
 export function ApplicationLinksCard({
   applicationKind,
   slug,
+  site,
   iframeTitle,
 }: {
   /** "show-car" | "car-club" | "trader" - the form kind. */
   applicationKind: ApplyFormKind;
   /** Event slug - used in both the direct URL and the iframe src. */
   slug: string;
+  /** The event's region key; non-default regions go on the links as ?site=. */
+  site?: string | null;
   /** Title attribute on the embed iframe (also used as the H3 hint
    *  for screen readers). E.g. "Show car applications". */
   iframeTitle: string;
@@ -46,9 +49,14 @@ export function ApplicationLinksCard({
   //
   // Direct link uses the short apply.carevents.com form (falling back
   // to the current origin off-production) - see lib/applyFormUrl.ts.
-  const directUrl = withApplyTheme(applyFormUrl(applicationKind, slug), theme);
+  const directUrl = withApplyTheme(
+    applyFormUrl(applicationKind, slug, site),
+    theme,
+  );
+  const siteQuery =
+    site && site !== "uk" ? `?site=${encodeURIComponent(site)}` : "";
   const embedSrc = withApplyTheme(
-    `https://account.carevents.com/embed/${applicationKind}/${slug}`,
+    `https://account.carevents.com/embed/${applicationKind}/${slug}${siteQuery}`,
     theme,
   );
   // The iframe plus the host-side helper that sizes it to the form's

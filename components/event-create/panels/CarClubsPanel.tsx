@@ -311,6 +311,7 @@ export function CarClubsPanel() {
           {/* Application links */}
           <ApplicationLinksCard
             applicationKind="car-club"
+            site={state.site}
             slug={state.encryptedId ? state.encryptedId : ""}
             iframeTitle="Car club applications"
           />

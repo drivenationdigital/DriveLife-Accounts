@@ -12,7 +12,7 @@ import {
   useQueryClient,
   keepPreviousData,
 } from "@tanstack/react-query";
-import { apiGet, apiPost, apiDelete } from "./apiClient";
+import { apiGet, apiPost, apiDelete, WP_JSON_ROOT } from "./apiClient";
 import { readTokenClient } from "./authCookies";
 import type { EventSite, SiteKey } from "./apiTypes";
 
@@ -234,11 +234,7 @@ export function useUpdateVenue() {
 //   - Same sequential-chunk + unique-filename constraints as clubs
 //     (server appends to a temp file keyed by file_name).
 
-const WP_JSON_ROOT_V = (
-  process.env.NEXT_PUBLIC_API_BASE ??
-  "https://www.carevents.com/uk/wp-json/dl-accounts/v1"
-).replace(/\/dl-accounts\/v1\/?$/, "");
-const APP_V2 = `${WP_JSON_ROOT_V}/app/v2`;
+const APP_V2 = `${WP_JSON_ROOT}/app/v2`;
 
 const VENUE_CHUNK_BYTES = 512 * 1024;
 

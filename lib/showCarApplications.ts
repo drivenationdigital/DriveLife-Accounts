@@ -30,10 +30,12 @@ export function useShowCarApplications(
   enabled: boolean = true,
 ) {
   return useQuery<ShowCarApplicationsResponse, Error, ShowCar[]>({
-    queryKey: ["event-show-car-applications", eid],
+    queryKey: ["event-show-car-applications", eid, region.key],
     queryFn: () =>
       apiGet<ShowCarApplicationsResponse>(
         `/event-show-car-applications?eid=${encodeURIComponent(eid ?? "")}`,
+        // The event's own site: the id is only unique within its blog.
+        { site: region.key },
       ),
     enabled: !!eid && enabled,
     staleTime: 30_000,

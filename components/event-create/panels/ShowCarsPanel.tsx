@@ -94,6 +94,7 @@ export function ShowCarsPanel() {
         eid,
         id: c.id,
         body: mapShowCarCategoryToBody(c),
+        site: state.site,
       });
       // Swap the local synthetic id for the server's raw post id -
       // matches the ticket/discount panel convention so later edits
@@ -133,7 +134,7 @@ export function ShowCarsPanel() {
       successTitle: "Category deleted",
       errorTitle: "Couldn't delete the category",
       run: async () => {
-        await remover.mutateAsync({ eid, id });
+        await remover.mutateAsync({ eid, id, site: state.site });
         return true;
       },
     });
@@ -391,6 +392,7 @@ export function ShowCarsPanel() {
           {/* Application links */}
           <ApplicationLinksCard
             applicationKind="show-car"
+            site={state.site}
             slug={state.encryptedId ? state.encryptedId : ""}
             iframeTitle="Show car applications"
           />
