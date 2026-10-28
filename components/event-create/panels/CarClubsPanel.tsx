@@ -29,7 +29,8 @@ import { PerDatePanel } from "../PerDateNotice";
  *   1. Master enable toggle.
  *   2. Application window - open/close dates + times.
  *   3. Limit total club vehicles toggle + max input.
- *   4. Require ticket after acceptance toggle + cost input.
+ *   4. Require ticket after acceptance toggle + default price input
+ *      (per-club price + allocation are set at approval time).
  *   5. Info textarea.
  *   6. Application links.
  */
@@ -254,8 +255,13 @@ export function CarClubsPanel() {
             {state.carClubsRequireTicket && (
               <div className="mt-4 pt-4 border-t border-ink-200">
                 <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                  Club vehicle ticket cost ({region.currencySymbol})
+                  Default club ticket price ({region.currencySymbol})
                 </label>
+                <p className="text-xs text-ink-500 mb-3">
+                  You can set a different price, and how many spaces to
+                  give them, for each club when you approve its
+                  application.
+                </p>
                 <input
                   type="number"
                   inputMode="decimal"

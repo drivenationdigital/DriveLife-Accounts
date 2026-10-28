@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 import { useUI } from "@/context/UIContext";
 import { ApplicationActionsMenu } from "@/components/applications/ApplicationActionsMenu";
+import { ClubApproveModal } from "@/components/applications/ClubApproveModal";
 import type { Club, Trader, DetailPayload } from "@/context/types";
 import {
   useApproveClubApplication,
@@ -20,6 +23,10 @@ type AppCardProps =
 export function AppCard(props: AppCardProps) {
   const { openDetail } = useUI();
   const runAction = useAction();
+
+  // A club is approved through its own dialog (price + spaces); the
+  // card only opens it. Traders keep the plain confirm.
+  const [approvingClub, setApprovingClub] = useState<Club | null>(null);
 
   // Approve / reject mutations - the pair is picked by kind below.
   const clubApprove = useApproveClubApplication();
@@ -45,8 +52,12 @@ export function AppCard(props: AppCardProps) {
 
   const kindLabel = props.kind === "club" ? "car club" : "trader";
 
-  const handleApprove = () =>
-    runAction({
+  const handleApprove = () => {
+    if (props.kind === "club") {
+      setApprovingClub(props.entity);
+      return;
+    }
+    return runAction({
       confirm: {
         title: "Approve this application?",
         message: `The ${kindLabel} will be notified that they've been accepted for this event.`,
@@ -65,6 +76,7 @@ export function AppCard(props: AppCardProps) {
         return true;
       },
     });
+  };
 
   const handleReject = () =>
     runAction({
@@ -184,6 +196,13 @@ export function AppCard(props: AppCardProps) {
           <ApplicationActionsMenu kind="trader" entity={props.entity} />
         )}
       </div>
+
+      {approvingClub && (
+        <ClubApproveModal
+          club={approvingClub}
+          onClose={() => setApprovingClub(null)}
+        />
+      )}
     </div>
   );
 }

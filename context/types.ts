@@ -229,6 +229,14 @@ export interface Club {
   /** Per-club ticket sales (confirmed clubs only; 0 otherwise). */
   ticketsSold: number;
   ticketSales: number;
+  /** Spaces the club holds once confirmed (its ticket's sold + unsold
+   *  stock), or null before it has a ticket. `membersAttending` is
+   *  what it asked for; this is what the organiser granted. */
+  spacesAllocated: number | null;
+  /** This club's member ticket price once confirmed; null before. */
+  ticketPrice: number | null;
+  /** Currency symbol of the club's event, for showing ticketPrice. */
+  currencySymbol: string;
 }
 
 export interface Trader {

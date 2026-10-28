@@ -11,6 +11,7 @@ import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib
 import { useApproveClubApplication, useRejectClubApplication, useUpdateClubSpaces } from "@/lib/clubApplications";
 import { useApproveTraderApplication, useConfirmTraderApplication, useRejectTraderApplication } from "@/lib/traderApplications";
 import { useAction } from "@/context/ActionContext";
+import { ClubApproveModal } from "@/components/applications/ClubApproveModal";
 
 function statusLabel(status: string) {
   return status
@@ -207,6 +208,10 @@ export function DetailModal() {
   const traderConfirm = useConfirmTraderApplication();
   const runAction = useAction();
 
+  // A club's approval runs through its own dialog (price + spaces)
+  // instead of the plain confirm the other kinds use.
+  const [approvingClub, setApprovingClub] = useState<Club | null>(null);
+
   if (!detail) return null;
 
   const isShowCar = detail.type === "showcar";
@@ -259,6 +264,10 @@ export function DetailModal() {
   const handleApprove = async () => {
     if (!isActionable) {
       closeDetail();
+      return;
+    }
+    if (detail.type === "club") {
+      setApprovingClub(detail.data);
       return;
     }
     const res = await runAction({
@@ -414,6 +423,14 @@ export function DetailModal() {
 
         {renderFooter()}
       </div>
+
+      {approvingClub && (
+        <ClubApproveModal
+          club={approvingClub}
+          onClose={() => setApprovingClub(null)}
+          onApproved={handleClose}
+        />
+      )}
     </div>
   );
 }
@@ -434,17 +451,28 @@ function ClubDetail({ club }: { club: Club }) {
       <div className="detail-section">
         <div className="detail-section-title">Club Details</div>
         <div className="detail-grid">
-          {/* Full width so the allocated / sold pair sits together on
-              its own row - they read as a comparison. */}
-          <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+          <div className="detail-field">
             <div className="detail-label">Club name</div>
             <div className="detail-value">{club.name}</div>
           </div>
-          <ClubSpacesField club={club} />
           <div className="detail-field">
-            <div className="detail-label">Spaces sold</div>
-            <div className="detail-value mono">{club.ticketsSold}</div>
+            <div className="detail-label">Spaces requested</div>
+            <div className="detail-value mono">{club.membersAttending}</div>
           </div>
+          {/* A confirmed club has its own ticket: its allocation and
+              member price are editable here (top up spaces, change the
+              price). The allocated / sold pair sits on one row - they
+              read as a comparison. */}
+          {club.status === "approved" && (
+            <>
+              <ClubSpacesField club={club} />
+              <div className="detail-field">
+                <div className="detail-label">Spaces sold</div>
+                <div className="detail-value mono">{club.ticketsSold}</div>
+              </div>
+              <ClubPriceField club={club} />
+            </>
+          )}
         </div>
       </div>
       <div className="detail-section">
@@ -474,16 +502,20 @@ function ClubDetail({ club }: { club: Club }) {
   );
 }
 
+/**
+ * Allocated spaces, inline-editable. This is the club's ticket stock
+ * (sold + unsold), so raising it is how an organiser gives a club
+ * more member tickets after approval. Can't go below what's sold.
+ */
 function ClubSpacesField({ club }: { club: Club }) {
+  const current = club.spacesAllocated ?? Number(club.membersAttending) ?? 0;
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState<string>(String(club.membersAttending));
+  const [draft, setDraft] = useState<string>(String(current));
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const updateSpaces = useUpdateClubSpaces();
   const saving = updateSpaces.isPending;
-
-  const current = Number(club.membersAttending) || 0;
 
   useEffect(() => {
     if (editing) inputRef.current?.select();
@@ -556,6 +588,134 @@ function ClubSpacesField({ club }: { club: Club }) {
             className="spaces-input mono"
             type="number"
             min={0}
+            value={draft}
+            disabled={saving}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+          />
+          <button
+            type="button"
+            className="icon-btn confirm"
+            onClick={save}
+            disabled={saving}
+            title="Save"
+          >
+            {saving ? <span className="spinner-xs" /> : "✓"}
+          </button>
+          <button
+            type="button"
+            className="icon-btn cancel"
+            onClick={cancel}
+            disabled={saving}
+            title="Cancel"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {error && <div className="field-error">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * The club's member ticket price, inline-editable. Changes what each
+ * member pays from now on; sales already made are unaffected. Free or
+ * at least the checkout minimum (lib/ticketPrice).
+ */
+function ClubPriceField({ club }: { club: Club }) {
+  const current = club.ticketPrice ?? 0;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(current.toFixed(2));
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const update = useUpdateClubSpaces();
+  const saving = update.isPending;
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(current.toFixed(2));
+    setError(null);
+    setEditing(true);
+  };
+
+  const cancel = () => {
+    setEditing(false);
+    setError(null);
+  };
+
+  const save = () => {
+    const parsed = parseFloat(draft);
+    if (isNaN(parsed) || parsed < 0) {
+      setError("Enter a valid price");
+      return;
+    }
+    const rounded = Math.round(parsed * 100) / 100;
+    if (Math.abs(rounded - current) < 0.005) {
+      setEditing(false);
+      return;
+    }
+    if (rounded > 0 && rounded < 1) {
+      setError("At least 1.00, or 0 for free");
+      return;
+    }
+
+    setError(null);
+    update.mutate(
+      { applicationId: Number(club.id), price: rounded },
+      {
+        onSuccess: () => setEditing(false),
+        onError: (e) => setError(e.message || "Save failed"),
+      },
+    );
+  };
+
+  return (
+    <div className="detail-field">
+      <div className="detail-label">Member ticket price</div>
+
+      {!editing ? (
+        <div className="detail-value mono spaces-view">
+          {current > 0
+            ? `${club.currencySymbol}${current.toFixed(2)}`
+            : "Free"}
+          <button
+            type="button"
+            className="icon-btn"
+            title="Edit ticket price"
+            onClick={startEdit}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="spaces-edit">
+          <span className="mono" style={{ fontSize: 13 }}>
+            {club.currencySymbol}
+          </span>
+          <input
+            ref={inputRef}
+            className="spaces-input mono"
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
             value={draft}
             disabled={saving}
             onChange={(e) => setDraft(e.target.value)}

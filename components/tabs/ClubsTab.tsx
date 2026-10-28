@@ -140,6 +140,7 @@ export function ClubsTab() {
             <ApproveAllButton
               ids={pending.map((c) => Number(c.id))}
               noun="club application"
+              message="Every club is approved on the event's default club ticket price with the spaces it requested, and emailed exactly as if you approved them one by one. To set a different price or allocation for a club, approve it on its own. Approvals can't be undone from here - reject individually if you change your mind."
               approve={(applicationId) =>
                 approver.mutateAsync({ applicationId })
               }

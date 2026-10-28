@@ -229,9 +229,10 @@ export default function CarClubApplyPage({
         )}
         {data.require_ticket && typeof data.ticket_cost === "number" && (
           <p className="text-sm text-ink-700 mt-3 inline-flex items-center gap-2 bg-gold-50 border border-gold-200 rounded-lg px-3 py-2">
-            Approved clubs purchase tickets at{" "}
+            Approved clubs&apos; members purchase tickets at{" "}
             {formatRegionCurrency(data.ticket_cost, regionFromSite(data.site))}{" "}
-            per vehicle.
+            per vehicle as standard. The organiser confirms your club&apos;s
+            price and number of spaces when approving.
           </p>
         )}
       </header>

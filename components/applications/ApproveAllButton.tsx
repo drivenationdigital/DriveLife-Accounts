@@ -26,6 +26,7 @@ export function ApproveAllButton({
   ids,
   noun,
   approve,
+  message = "Each applicant is approved and emailed exactly as if you approved them one by one. Approvals can't be undone from here - reject individually if you change your mind.",
 }: {
   /** Application ids currently pending, in display order. */
   ids: number[];
@@ -33,6 +34,9 @@ export function ApproveAllButton({
   noun: string;
   /** The per-application approve. Should reject on failure. */
   approve: (id: number) => Promise<unknown>;
+  /** Body of the confirm dialog, when the default doesn't say enough
+   *  (e.g. clubs are approved on the event's default terms). */
+  message?: string;
 }) {
   const confirm = useConfirm();
   const toast = useToast();
@@ -50,8 +54,7 @@ export function ApproveAllButton({
     const targets = [...ids];
     const ok = await confirm({
       title: `Approve all ${plural(targets.length)}?`,
-      message:
-        "Each applicant is approved and emailed exactly as if you approved them one by one. Approvals can't be undone from here - reject individually if you change your mind.",
+      message,
       confirmLabel: "Approve all",
     });
     if (!ok) return;

@@ -537,6 +537,9 @@ export function mapCarClub(r: ApiCarClubRecord, region: Region): Club {
     // Default to 0 so the Club shape stays complete.
     ticketsSold: 0,
     ticketSales: 0,
+    spacesAllocated: null,
+    ticketPrice: null,
+    currencySymbol: region.currencySymbol,
   };
 }
 

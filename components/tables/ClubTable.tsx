@@ -14,8 +14,9 @@ import { ApplicationActionsMenu } from "@/components/applications/ApplicationAct
  * The spaces column changes meaning with the group:
  *   - pending / rejected → "Spaces requested", the number the club
  *     asked for.
- *   - approved           → "Spaces sold", sold out of allocated, so
- *     the organiser can see take-up at a glance.
+ *   - approved           → "Spaces sold", sold out of allocated (what
+ *     the organiser granted at approval plus any top-ups - not the
+ *     number requested), so take-up is visible at a glance.
  *
  * Whole-row click opens the detail modal; approve / reject live in
  * there.
@@ -98,7 +99,7 @@ function ClubTableRow({
           <>
             {club.ticketsSold}{" "}
             <span style={{ color: "var(--muted)" }}>
-              / {club.membersAttending}
+              / {club.spacesAllocated ?? club.membersAttending}
             </span>
           </>
         ) : (
