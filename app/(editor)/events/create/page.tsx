@@ -172,6 +172,14 @@ export default function CreateEventPage() {
             >
               Cancel and return to dashboard
             </Link>
+            {/* The same link for the app's Event Manager, where the
+                dashboard home is off limits and the events list is the
+                screen above this one. Both are in the markup; the CSS
+                (.dashboard-exit / .manager-only) shows one or neither
+                depending on the container, so the first paint is right. */}
+            <Link href="/events" className="manager-only text-xs text-ink-500 hover:text-ink-900 transition">
+              Cancel and return to My Events
+            </Link>
           </div>
         </section>
       </div>

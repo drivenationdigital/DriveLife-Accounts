@@ -2,11 +2,17 @@
 /**
  * Finds ways out of the mobile app's web container.
  *
- * The app opens three page families in a WebView with no address bar and no
- * browser chrome: /events/create, /events/new and /events/<ref>. Inside,
- * the dashboard renders without its header or sidebar — so a navigation to
- * another dashboard page drops the user on a screen with nothing to
- * navigate with, and the event they came to edit half-finished behind them.
+ * The app opens the dashboard in a WebView with no address bar and no
+ * browser chrome, in two flows (see lib/appReturn.ts): one page for one job
+ * (/events/create, /events/new, /events/<ref>, each handed straight back to
+ * the app when done), and the Event Manager, which enters at /events and
+ * lets the user move between the list, an event's overview, the editor and
+ * an order's detail. Inside, the dashboard renders without its header or
+ * sidebar — so a navigation to any OTHER dashboard page drops the user on a
+ * screen with nothing to navigate with, and the event they came to edit
+ * half-finished behind them. (The middleware refuses those pages in the
+ * Event Manager flow; this audit is the belt to that brace, and the only
+ * check for the single-page flow.)
  *
  * Run after touching anything in the editor or the event overview:
  *
@@ -33,9 +39,11 @@ import { readFileSync, existsSync, statSync } from "node:fs";
 import { dirname, join, normalize, relative } from "node:path";
 
 const ENTRIES = [
+  ["app/(dashboard)/events/page.tsx", "MY EVENTS        /events"],
   ["app/(editor)/events/create/page.tsx", "ADD EVENT        /events/create"],
   ["app/(editor)/events/new/page.tsx", "EDIT EVENT       /events/new"],
   ["app/(dashboard)/events/[id]/page.tsx", "EVENT OVERVIEW   /events/<ref>"],
+  ["app/(dashboard)/orders/[oid]/page.tsx", "ORDER DETAIL     /orders/<oid>"],
 ];
 
 /** How a file says "go somewhere". */
@@ -55,8 +63,11 @@ const NAV = [
 const ALLOWED = new Map([
   [
     "components/event/Breadcrumb.tsx:/events",
-    "Hidden: [data-app-container] .breadcrumb { display: none } in globals.css, " +
-      "and both branches of this component carry that class.",
+    "Hidden in the single-page flow: [data-app-container] .breadcrumb " +
+      "{ display: none } in globals.css, and both branches of this component " +
+      "carry that class. Shown again in the Event Manager " +
+      "([data-app-mode=manager]), where /events is the flow's own entry " +
+      "screen and the way back from an overview.",
   ],
   [
     "components/event/Breadcrumb.tsx:/events/${encodeURIComponent(parent)",
@@ -64,9 +75,18 @@ const ALLOWED = new Map([
   ],
   [
     "components/event/EventHero.tsx:/events",
-    "The browser branch of leaveAfterRemoval(), after an event is cancelled " +
-      "or deleted. In the container it calls appAction('dl-back=1') instead " +
-      "and never reaches this line.",
+    "leaveAfterRemoval(), after an event is cancelled or deleted. Reached in " +
+      "a browser and in the Event Manager, where the list is the screen " +
+      "behind the overview; the single-page flow calls appAction('dl-back=1') " +
+      "instead and never gets here.",
+  ],
+  [
+    "app/(editor)/events/create/page.tsx:/events",
+    "The Event Manager's 'Cancel and return to My Events'. Carries " +
+      ".manager-only, which globals.css hides everywhere except under " +
+      "[data-app-mode=manager] - and there /events is the flow's home. The " +
+      "browser's 'Cancel and return to dashboard' beside it carries " +
+      ".dashboard-exit and spans lines, so this regex does not see it.",
   ],
   [
     "components/ui/clickableRow.ts:/orders/${id}",

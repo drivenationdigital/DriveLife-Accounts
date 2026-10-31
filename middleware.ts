@@ -1,6 +1,14 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_COOKIE_NAME } from "@/lib/authCookies";
-import { APP_RETURN_COOKIE } from "@/lib/appReturn";
+import {
+  APP_MANAGER_HOME,
+  APP_MODE_COOKIE,
+  APP_MODE_MANAGER,
+  APP_RETURN_COOKIE,
+  APP_SPLASH_COOKIE,
+  SESSION_EXPIRED_PATH,
+  isAppLink,
+} from "@/lib/appReturn";
 
 /**
  * Routes that should render without a valid token. Everything else redirects
@@ -28,7 +36,84 @@ const PUBLIC_PATHS = [
   // Public landing pages that create the account as part of the flow
   // (/join/traders: sign up, list a business, pay for the directory).
   "/join",
+  // Where an Event Manager session (see below) lands once its token has
+  // died. Reached precisely when there is no token, so it cannot be gated.
+  SESSION_EXPIRED_PATH,
 ];
+
+/**
+ * The Event Manager: the mobile app opens /events inside its web container
+ * and lets the user move around - the list, an event's overview, the
+ * editor - with the app's own header as the only way out. The dashboard's
+ * header and sidebar are not rendered in there, so every other page would
+ * be a dead end; and the brief for the container is that the dashboard's
+ * main menu is NOT on offer. So while the mode cookie is set, anything
+ * outside this list is sent back to the list.
+ *
+ * Matched by exact path or by prefix with a trailing slash, like
+ * PUBLIC_PATHS. "/orders/" (an order opened from an event's Orders tab) is
+ * part of managing that event; "/orders" (the list) is not, so the prefix
+ * form only.
+ */
+const MANAGER_PATHS = [
+  // The list, an event's overview (/events/<ref>), the editor
+  // (/events/create, /events/new).
+  APP_MANAGER_HOME,
+  // Reached from the Orders / Tickets tabs of an event.
+  "/orders/",
+  SESSION_EXPIRED_PATH,
+  // Public pages the overview can open (box-office checkout, the
+  // application forms). Not menu items; refusing them would break those
+  // buttons for no gain.
+  "/get-tickets",
+  "/apply",
+  "/embed",
+  "/embed.js",
+];
+
+function inManagerFlow(pathname: string): boolean {
+  return MANAGER_PATHS.some(
+    (p) =>
+      pathname === p ||
+      (p.endsWith("/") ? pathname.startsWith(p) : pathname.startsWith(`${p}/`)),
+  );
+}
+
+/** How long the Event Manager mode outlives its token. Long enough that an
+ *  expired token is still met by the in-container "session expired" screen
+ *  rather than the browser's login page. */
+const MANAGER_MODE_MAX_AGE = 60 * 60 * 12;
+
+/** The splash is for the page the handoff lands on; after that it must
+ *  not come back, however the cookie is left behind. */
+const SPLASH_MAX_AGE = 120;
+
+/** When the handoff token carries no readable expiry. Matches what
+ *  app/v1/dashboard-session issues by default. */
+const HANDOFF_FALLBACK_LIFETIME = 15 * 60;
+
+/**
+ * Seconds until a dashboard JWT expires, read from its `exp` claim, so the
+ * cookie that carries it lives exactly as long as the token does.
+ *
+ * NOT a verification - the signature is not checked here, and need not be:
+ * every API call verifies the token server-side. A forged `exp` only buys a
+ * cookie holding a token the API refuses. Falls back to the handoff's
+ * default life when the claim is missing or unreadable, and is clamped so a
+ * bad clock cannot produce a zero-life or year-long cookie.
+ */
+function tokenLifetime(token: string): number {
+  try {
+    const payload = token.split(".")[1] ?? "";
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const exp = Number(JSON.parse(json)?.exp);
+    if (!Number.isFinite(exp)) return HANDOFF_FALLBACK_LIFETIME;
+    const remaining = Math.floor(exp - Date.now() / 1000);
+    return Math.min(Math.max(remaining, 60), 60 * 60 * 24 * 30);
+  } catch {
+    return HANDOFF_FALLBACK_LIFETIME;
+  }
+}
 
 /** Signed-out pages that make no sense once you have a token - all of
  *  them bounce an authenticated user to the dashboard. */
@@ -93,6 +178,7 @@ const RESERVED_SEGMENTS = new Set([
   "apply",
   "embed",
   "get-tickets",
+  "session-expired",
 ]);
 
 /**
@@ -222,23 +308,81 @@ export function middleware(request: NextRequest) {
     const complete = request.nextUrl.searchParams.get("complete") ?? "";
     clean.searchParams.delete("complete");
 
+    // Which flow this is (see lib/appReturn.ts). Landing on the events list
+    // IS the Event Manager - that is its entry route and nothing in the
+    // single-page flow opens the list - and `dl_mode=manager` lets the app
+    // ask for it explicitly on any other allowed page.
+    const modeParam = request.nextUrl.searchParams.get("dl_mode");
+    clean.searchParams.delete("dl_mode");
+    const manager =
+      modeParam === APP_MODE_MANAGER ||
+      clean.pathname === APP_MANAGER_HOME ||
+      clean.pathname === `${APP_MANAGER_HOME}/`;
+
     const response = NextResponse.redirect(clean);
+    const secure = request.nextUrl.protocol === "https:";
+
+    // Each handoff defines the session completely: whatever an earlier one
+    // left in the cookie jar is overwritten or removed, never inherited.
+    // A `complete` from last week's single-page handoff must not turn
+    // today's Event Manager "back" links into exits.
+    //
+    // Max-Age=0 AND an epoch Expires: browsers honour either, but some
+    // clients (curl's jar among them) keep a Max-Age=0 cookie written in the
+    // same second, and the explicit past date leaves no room for that.
+    const expire = (name: string) =>
+      response.cookies.set({
+        name,
+        value: "",
+        path: "/",
+        maxAge: 0,
+        expires: new Date(0),
+      });
 
     // Only ever the app's own scheme. This value ends up in an href on a page
     // the user is signed into, so an open list would turn the dashboard into
     // a redirector.
-    if (/^drivelife:\/\//i.test(complete)) {
+    if (isAppLink(complete)) {
       response.cookies.set({
         name: APP_RETURN_COOKIE,
         value: complete,
         path: "/",
         sameSite: "lax",
-        secure: request.nextUrl.protocol === "https:",
+        secure,
         // Read by client components, so not HttpOnly — same reasoning as the
         // auth cookie beside it.
         httpOnly: false,
         maxAge: 60 * 60 * 8,
       });
+    } else {
+      expire(APP_RETURN_COOKIE);
+    }
+
+    if (manager) {
+      response.cookies.set({
+        name: APP_MODE_COOKIE,
+        value: APP_MODE_MANAGER,
+        path: "/",
+        sameSite: "lax",
+        secure,
+        httpOnly: false,
+        maxAge: MANAGER_MODE_MAX_AGE,
+      });
+      // The "Loading CarEvents.com Event Manager" screen, rendered by the
+      // dashboard layout on the page this redirect lands on. The layout
+      // clears the cookie once the splash has run.
+      response.cookies.set({
+        name: APP_SPLASH_COOKIE,
+        value: "1",
+        path: "/",
+        sameSite: "lax",
+        secure,
+        httpOnly: false,
+        maxAge: SPLASH_MAX_AGE,
+      });
+    } else {
+      expire(APP_MODE_COOKIE);
+      expire(APP_SPLASH_COOKIE);
     }
 
     response.cookies.set({
@@ -246,19 +390,36 @@ export function middleware(request: NextRequest) {
       value: handoff,
       path: "/",
       sameSite: "lax",
-      secure: request.nextUrl.protocol === "https:",
+      secure,
       // Readable by JS on purpose, matching how this cookie is already set
       // and read (see lib/authCookies.ts) - the dashboard attaches it to
       // X-WP-Token on every API call, so an HttpOnly cookie would sign the
       // user in and then let them do nothing.
       httpOnly: false,
-      // The handoff token expires in fifteen minutes server-side; the cookie
-      // is given the same life so a dead token does not linger as a session
-      // that looks alive.
-      maxAge: 15 * 60,
+      // The cookie lives exactly as long as the token says it does (fifteen
+      // minutes for a single-page handoff, longer for an Event Manager
+      // session - app/v1/dashboard-session?scope=manager), so a dead token
+      // does not linger as a session that looks alive.
+      maxAge: tokenLifetime(handoff),
     });
 
     return response;
+  }
+
+  // ── Event Manager: only its own screens ────────────────────────────
+  //
+  // Set by the handoff above. Everything the dashboard's menu would offer
+  // is refused here, server-side, so no link, deep link or typed URL can
+  // reach it from inside the container - the pages hide their exits too,
+  // but a hidden link is not a closed door.
+  const managerMode =
+    request.cookies.get(APP_MODE_COOKIE)?.value === APP_MODE_MANAGER;
+
+  if (managerMode && !inManagerFlow(pathname)) {
+    const url = request.nextUrl.clone();
+    url.pathname = APP_MANAGER_HOME;
+    url.search = "";
+    return NextResponse.redirect(url);
   }
 
   const isPublic = PUBLIC_PATHS.some(
@@ -270,6 +431,18 @@ export function middleware(request: NextRequest) {
   // Unauthenticated user trying to reach a protected page → /login
   if (!token && !isPublic) {
     const url = request.nextUrl.clone();
+
+    // Inside the Event Manager the token can only have come from the app,
+    // and only the app can mint another - so a login form is the wrong
+    // answer, and one with Register / Forgot-password links on it is an
+    // open door out of the container besides. A screen that says to come
+    // back in from the app instead.
+    if (managerMode) {
+      url.pathname = SESSION_EXPIRED_PATH;
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+
     url.pathname = "/login";
     url.searchParams.set("returnTo", pathname + request.nextUrl.search);
     return NextResponse.redirect(url);

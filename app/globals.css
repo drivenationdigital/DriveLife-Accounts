@@ -5422,6 +5422,132 @@
   display: none;
 }
 
+/* The Event Manager flow (data-app-mode="manager", see lib/appReturn.ts):
+   the app opens /events and the user moves between the list, an event's
+   overview and the editor INSIDE the container, so the links that step back
+   through that flow are wanted again. Only the dashboard's own chrome and
+   the exits to the dashboard home (.dashboard-exit) stay hidden. */
+[data-app-container][data-app-mode="manager"] .breadcrumb {
+  display: flex;
+}
+
+/* Rendered only in the Event Manager flow - e.g. a "Cancel" link that goes
+   to /events where the browser's version goes to the dashboard home. Both
+   versions are in the markup so the first paint is right either way; the
+   browser's carries .dashboard-exit, this one .manager-only. `revert` gives
+   the element back its own display (inline for a link). */
+.manager-only {
+  display: none;
+}
+[data-app-mode="manager"] .manager-only {
+  display: revert;
+}
+
+/* ── Event Manager splash (components/layout/AppSplash.tsx) ──────────────
+   Server-rendered by the dashboard layout while the dl_app_splash cookie
+   is present, so it is in the first HTML and nothing of the page behind it
+   shows; the component fades it out (data-out) once the page is ready.
+   Above everything, including #ce-splash's siblings (modals, the top
+   loader bar). */
+#ce-app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 24px;
+  background: #fff;
+  opacity: 1;
+  transition: opacity 0.45s ease;
+}
+#ce-app-splash[data-out] {
+  opacity: 0;
+  pointer-events: none;
+}
+#ce-app-splash .logo-mark {
+  display: block;
+  width: 116px;
+  height: auto;
+}
+#ce-app-splash .ce-app-splash-text {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  color: var(--muted);
+  text-align: center;
+}
+#ce-app-splash .ce-app-splash-bar {
+  width: 168px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border, #e6e0d1);
+  overflow: hidden;
+}
+#ce-app-splash .ce-app-splash-bar span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--gold-deep, #8a6d3f);
+  animation: ce-app-splash-slide 1.3s ease-in-out infinite;
+}
+@keyframes ce-app-splash-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #ce-app-splash .ce-app-splash-bar span {
+    animation: none;
+    width: 100%;
+  }
+}
+
+/* ── /session-expired (app/session-expired/page.tsx) ───────────────────
+   The Event Manager's end-of-session screen. Standalone page: no dashboard
+   chrome around it. */
+.ce-session-expired {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 32px 24px;
+  text-align: center;
+  background: #fff;
+}
+.ce-session-expired .logo-mark {
+  display: block;
+  width: 88px;
+  height: auto;
+  margin-bottom: 10px;
+}
+.ce-session-expired h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.ce-session-expired p {
+  margin: 0;
+  max-width: 400px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.ce-session-expired .btn {
+  margin-top: 10px;
+}
+
 /* ── Tracks & Circuits cards (reuse the venue card block) ─────────── */
 .track-card-types { margin: 0 0 6px; font-size: 12px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; color: var(--gold-deep, #bd7420); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 

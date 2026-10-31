@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/Icons";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect } from "react";
+import { inEventManager } from "@/lib/appReturn";
 
 type CreateType = "event" | "club" | "venue" | "track" | "business";
 
@@ -63,11 +64,19 @@ const options: Array<{
  */
 function CreateModalUrlTrigger() {
   const search = useSearchParams();
+  const router = useRouter();
   const { openCreateModal } = useUI();
   const wantsCreate = search?.has("create") ?? false;
 
   useEffect(() => {
     if (!wantsCreate) return;
+    // Inside the app's Event Manager only events are on offer - the club /
+    // venue / track / business editors are refused by the middleware - so
+    // the choice the popup would ask is already made.
+    if (inEventManager()) {
+      router.replace("/events/create");
+      return;
+    }
     openCreateModal();
     const url = new URL(window.location.href);
     url.searchParams.delete("create");
@@ -76,7 +85,7 @@ function CreateModalUrlTrigger() {
       "",
       url.pathname + url.search + url.hash
     );
-  }, [wantsCreate, openCreateModal]);
+  }, [wantsCreate, openCreateModal, router]);
 
   return null;
 }

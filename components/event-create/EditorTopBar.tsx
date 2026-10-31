@@ -4,7 +4,8 @@ import Link from "next/link";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { eventDetailPath } from "@/lib/siteRoutes";
-import { appReturnUrl } from "@/lib/appReturn";
+import { APP_MANAGER_HOME } from "@/lib/appReturn";
+import { useAppContainer } from "@/lib/useAppContainer";
 import { useEventRegion } from "@/lib/useEventSteps";
 import { CountryFlag } from "@/components/ui/CountryFlag";
 import { useEditorSave } from "@/lib/useEditorSave";
@@ -81,19 +82,36 @@ export function EditorTopBar() {
     : "Saving…";
   const ctaIcon = willGoLive ? "fa-solid fa-rocket" : "fa-solid fa-floppy-disk";
 
+  // Opened from the mobile app, in one of its two flows (lib/appReturn.ts).
+  // Read through the hook so the server render (no cookies) and the first
+  // client render agree - a bare cookie read here left the href hydrated
+  // with the wrong value.
+  const container = useAppContainer();
+
   // `encryptedId` is set once the event exists server-side. Before that
   // - a brand new event still being drafted - there is no overview page
-  // to go back to, so the dashboard stays the destination.
+  // to go back to, so the dashboard stays the destination: its home in a
+  // browser, the events list inside the app's Event Manager, which is the
+  // only dashboard screen above the editor in there.
   const backHref = state.encryptedId
     ? eventDetailPath(state.encryptedId, state.site)
-    : "/";
-  const backLabel = state.encryptedId ? "Event Overview" : "Dashboard";
+    : container.manager
+      ? APP_MANAGER_HOME
+      : "/";
+  const backLabel = state.encryptedId
+    ? "Event Overview"
+    : container.manager
+      ? "My Events"
+      : "Dashboard";
 
-  // Opened from the mobile app. "Back" then means back to the app, not to a
-  // dashboard page the user cannot otherwise reach from in there — and it has
-  // to be a real navigation rather than a Next <Link>, because the target is
-  // a custom scheme the router knows nothing about.
-  const appReturn = appReturnUrl();
+  // The single-page flow: the app opened the editor for this one job, so
+  // "Back" means back to the app, not to a dashboard page the user cannot
+  // otherwise reach from in there — and it has to be a real navigation
+  // rather than a Next <Link>, because the target is a custom scheme the
+  // router knows nothing about. In the Event Manager the overview / list is
+  // a real screen behind this one, so the ordinary link below is right even
+  // when the app did leave a return link.
+  const appReturn = container.manager ? null : container.returnUrl;
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-ink-200">

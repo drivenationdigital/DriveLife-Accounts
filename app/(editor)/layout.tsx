@@ -3,7 +3,7 @@ import "./editor.css";
 import { cookies } from "next/headers";
 
 import { EventCreateProvider } from "@/context/EventCreateContext";
-import { APP_RETURN_COOKIE } from "@/lib/appReturn";
+import { appContainerFromCookies } from "@/lib/appReturn";
 
 /**
  * Layout for the (editor) route group.
@@ -40,7 +40,14 @@ export default async function EditorLayout({
   //
   // Server-side, so the first paint is already correct. A JS check would
   // render the link and then take it away.
-  const inApp = Boolean((await cookies()).get(APP_RETURN_COOKIE)?.value);
+  //
+  // `data-app-mode="manager"` marks the Event Manager flow, where the
+  // editor's "back" is the event overview or the events list rather than
+  // the app - see lib/appReturn.ts.
+  const cookieStore = await cookies();
+  const { inApp, manager } = appContainerFromCookies(
+    (name) => cookieStore.get(name)?.value,
+  );
 
   return (
     <EventCreateProvider>
@@ -58,6 +65,7 @@ export default async function EditorLayout({
       <div
         className="event-editor min-h-screen bg-ink-50 text-ink-900 font-sans"
         data-app-container={inApp ? "" : undefined}
+        data-app-mode={manager ? "manager" : undefined}
       >
         {children}
       </div>

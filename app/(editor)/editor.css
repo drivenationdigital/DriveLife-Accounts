@@ -39,6 +39,15 @@
   touch-action: pan-x;
   overscroll-behavior-x: contain;
   -webkit-overflow-scrolling: touch;
+  /* Horizontal only. With overflow-x set, overflow-y computes to auto,
+     and the active tab's underline (.tab.is-active::after, 1px below
+     the button so it sits over the nav's border) gave the strip 1px of
+     vertical overflow - enough to drag the tabs up and down on a phone.
+     The padding keeps that 1px inside the box so the underline still
+     shows; the negative margin keeps the nav the same height. */
+  overflow-y: hidden;
+  padding-bottom: 1px;
+  margin-bottom: -1px;
 }
 
 /* ------------------------------------------------------------------

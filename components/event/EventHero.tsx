@@ -1,6 +1,6 @@
 "use client";
 
-import { appAction } from "@/lib/appReturn";
+import { appAction, inEventManager } from "@/lib/appReturn";
 import { useEventData } from "@/context/EventContext";
 import {
   Dropdown,
@@ -154,7 +154,10 @@ export function EventHero() {
    * underneath, so hand control back and let it show that.
    */
   const leaveAfterRemoval = () => {
-    const back = appAction("dl-back=1");
+    // In the app's Event Manager the events list is a real screen behind
+    // this one, so it is where a removed event's page gives way to - the
+    // handback below is for the single-page flow, where there is no list.
+    const back = inEventManager() ? "" : appAction("dl-back=1");
 
     if (back) {
       // A real navigation, not router.push: the target is a custom scheme

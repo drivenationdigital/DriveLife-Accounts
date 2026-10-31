@@ -21,6 +21,8 @@ import {
 } from "@/lib/regions";
 import { eventDetailPath } from "@/lib/siteRoutes";
 import { parseRef } from "@/lib/siteRef";
+import { APP_MANAGER_HOME } from "@/lib/appReturn";
+import { useAppContainer } from "@/lib/useAppContainer";
 import { useAction } from "@/context/ActionContext";
 
 // Status → pill colour. Kept local so the page doesn't depend on a
@@ -76,9 +78,16 @@ export default function OrderPage() {
   // the back button into a redirect.
   const backQuery = searchParams.get("back") ?? "";
   const backSafe = /^\?[A-Za-z0-9=&%._~+-]*$/.test(backQuery) ? backQuery : "";
+  //
+  // Inside the app's Event Manager the dashboard root is refused by the
+  // middleware, and the events list is the flow's own home - so the
+  // fallback goes there instead (lib/appReturn.ts).
+  const { manager } = useAppContainer();
   const backHref = from.id
     ? eventDetailPath(from.id, from.site ?? site) + backSafe
-    : "/";
+    : manager
+      ? APP_MANAGER_HOME
+      : "/";
 
   const resend = useResendOrder();
   const cancelOrder = useCancelOrder();
@@ -204,7 +213,11 @@ export default function OrderPage() {
           backHref === "/" ? "order-back dashboard-exit" : "order-back"
         }
       >
-        {backHref === "/" ? "‹ Back to Dashboard" : "‹ Back to event"}
+        {backHref === "/"
+          ? "‹ Back to Dashboard"
+          : from.id
+            ? "‹ Back to event"
+            : "‹ Back to My Events"}
       </button>
 
       {isLoading && <OrderSkeleton />}
