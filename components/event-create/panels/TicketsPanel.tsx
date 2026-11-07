@@ -206,7 +206,14 @@ export function TicketsPanel() {
       // state needs to match - saving here as encrypted_id would mean
       // a later refresh produces a different id and the row wouldn't
       // match the one in state.
-      const persisted: Ticket = { ...t, id: String(res.ticket_id) as TicketId };
+      // Keep the encrypted id too: the reorder list is built from it,
+      // and a row created in this session has none until the page is
+      // reloaded - which left such rows out of every drag (2026-11-04).
+      const persisted: Ticket = {
+        ...t,
+        id: String(res.ticket_id) as TicketId,
+        encryptedTicketID: res.encrypted_id || t.encryptedTicketID,
+      };
       dispatch(
         isUpdate
           ? { type: "UPDATE_TICKET", ticket: persisted }
@@ -232,6 +239,7 @@ export function TicketsPanel() {
       const persisted: TicketSection = {
         ...s,
         id: String(res.ticket_id) as SectionId,
+        encryptedTicketID: res.encrypted_id || s.encryptedTicketID,
       };
       dispatch(
         isUpdate
@@ -317,7 +325,12 @@ export function TicketsPanel() {
    *  next save / refresh will reconcile. */
   const persistOrder = (items: typeof state.ticketList) => {
     if (!eid) return;
-    const ids = items.map((it) => String(it.encryptedTicketID));
+    // The server resolves an encrypted id or a plain post id, so a row
+    // without the former (created before this fix, or mid-session) is
+    // sent by its raw id rather than as "undefined", which the server
+    // could not resolve and silently skipped - leaving that row at its
+    // old position while the others moved around it.
+    const ids = items.map((it) => String(it.encryptedTicketID ?? it.id));
     reorderer.mutate({ eid, site, ids });
   };
 

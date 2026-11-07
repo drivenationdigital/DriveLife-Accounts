@@ -307,35 +307,9 @@ export function TradersPanel() {
             </button>
           </div>
 
-          {/* Apply-form requirement - asked of every trader, whatever
-              the type. */}
-          <div className="bg-white border border-ink-200 rounded-xl mb-6">
-            <label className="flex items-center justify-between gap-3 p-5 cursor-pointer">
-              <div>
-                <p className="text-sm font-semibold text-ink-900">
-                  Request postal address
-                </p>
-                <p className="text-xs text-ink-500 mt-0.5">
-                  Request the address to post out any passes or prizes before
-                  or after the event
-                </p>
-              </div>
-              <span className="switch">
-                <input
-                  type="checkbox"
-                  checked={state.tradersRequestAddress}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_FIELD",
-                      key: "tradersRequestAddress",
-                      value: e.target.checked,
-                    })
-                  }
-                />
-                <span className="slider" />
-              </span>
-            </label>
-          </div>
+          {/* "Request postal address" toggle removed 2026-11-04 (Mark). The
+              tradersRequestAddress flag still round-trips through state and
+              the save body so an event that already had it set keeps it. */}
 
           <ApplicationLinksCard
             applicationKind="trader"
@@ -463,7 +437,7 @@ function subtitleForCategory(c: TraderCategory, region: Region): string {
   const bits: string[] = [];
   // Payment mode + fee
   if (c.paymentMode === "in_person") {
-    bits.push("Pay in person");
+    bits.push("Direct to you");
   } else {
     bits.push("Online");
   }

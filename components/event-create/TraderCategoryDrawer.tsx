@@ -93,8 +93,14 @@ export function TraderCategoryDrawer({
     const trimmed = name.trim();
     if (!trimmed || feeTooLow) return;
     const id = editing?.id ?? (makeLocalId("tc") as TraderCategoryId);
-    const cost = costStr.trim() === "" ? NaN : Number(costStr);
-    const spaces = spacesStr.trim() === "" ? NaN : Number(spacesStr);
+    // In-person categories are priced and allocated by hand when the
+    // organiser reviews each application (2026-11-04), so the fee and
+    // spaces fields are hidden for them and nothing is persisted - a
+    // value typed before switching modes must not linger in the DB.
+    const inPerson = paymentMode === "in_person";
+    const cost = inPerson || costStr.trim() === "" ? NaN : Number(costStr);
+    const spaces =
+      inPerson || spacesStr.trim() === "" ? NaN : Number(spacesStr);
     onSave({
       id,
       name: trimmed,
@@ -218,7 +224,7 @@ export function TraderCategoryDrawer({
             >
               <span className="block text-sm font-semibold text-ink-900">
                 <i className="fa-solid fa-file-invoice mr-1.5" aria-hidden />
-                In person
+                Direct to you
               </span>
               <span className="block text-xs text-ink-500 mt-0.5">
                 Invoice / bank transfer / on the day
@@ -226,46 +232,50 @@ export function TraderCategoryDrawer({
             </button>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-            <div>
-              <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                Pitch fee ({region.currencySymbol})
-              </label>
-              <input
-                type="number"
-                min={0}
-                step="0.01"
-                className="input"
-                placeholder="0.00"
-                value={costStr}
-                onChange={(e) => setCostStr(e.target.value)}
-              />
-              {feeTooLow && (
-                <p className="text-xs text-red-600 mt-1" role="alert">
-                  {minimumPriceMessage(region, "Online pitch fees")}
-                </p>
-              )}
-              {paymentMode === "in_person" && (
-                <p className="text-xs text-ink-400 mt-1">
-                  Collected offline - shown to traders for reference.
-                </p>
-              )}
+          {paymentMode === "in_person" && (
+            <p className="text-xs text-ink-500 mt-3">
+              Pitch fees and spaces are agreed with each trader when you review
+              their application.
+            </p>
+          )}
+
+          {paymentMode === "online" && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+              <div>
+                <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+                  Pitch fee ({region.currencySymbol})
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  className="input"
+                  placeholder="0.00"
+                  value={costStr}
+                  onChange={(e) => setCostStr(e.target.value)}
+                />
+                {feeTooLow && (
+                  <p className="text-xs text-red-600 mt-1" role="alert">
+                    {minimumPriceMessage(region, "Online pitch fees")}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+                  Spaces (optional)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  step="1"
+                  className="input"
+                  placeholder="Unlimited"
+                  value={spacesStr}
+                  onChange={(e) => setSpacesStr(e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
-                Spaces (optional)
-              </label>
-              <input
-                type="number"
-                min={0}
-                step="1"
-                className="input"
-                placeholder="Unlimited"
-                value={spacesStr}
-                onChange={(e) => setSpacesStr(e.target.value)}
-              />
-            </div>
-          </div>
+          )}
         </div>
 
         <div className="pt-3 border-t border-ink-200">

@@ -111,7 +111,7 @@ export function isTraderCategoryOpenToday(c: TraderPublicCategory): boolean {
   return true;
 }
 
-/** "£25 · in person · 3 left" style suffix for the dropdown label. */
+/** "£25 · Paid direct to event organiser · 3 left" style suffix for the dropdown label. */
 export function traderCategoryAvailabilityLabel(
   c: TraderPublicCategory,
   region: Region,
@@ -121,7 +121,7 @@ export function traderCategoryAvailabilityLabel(
     bits.push(formatRegionCurrency(c.ticket_cost, region));
   }
   if (c.payment_mode === "in_person") {
-    bits.push("pay in person");
+    bits.push("Paid direct to event organiser");
   }
   if (c.spaces_remaining !== null) {
     bits.push(c.is_full ? "full" : `${c.spaces_remaining} left`);

@@ -82,8 +82,23 @@ export type EditorImage =
        *  uploaded through this editor (and older /event-edit payloads
        *  without the field) on the delete path. */
       source?: "cloudflare" | "wordpress" | string;
+      /** "video" for a gallery clip on Cloudflare Stream (2026-11-04):
+       *  `url` is then the clip's thumbnail. Absent means image. */
+      mediaType?: "image" | "video";
+      /** Stream player URL (videos only). */
+      playbackUrl?: string;
+      /** Whether Stream has finished encoding the clip (videos only).
+       *  The gallery panel polls /event-video-status until it flips. */
+      ready?: boolean;
     }
-  | { kind: "local"; previewUrl: string; file: File };
+  | {
+      kind: "local";
+      previewUrl: string;
+      file: File;
+      /** Set from the picked file's type; a local video shows a
+       *  film-strip tile instead of an <img> of the blob URL. */
+      mediaType?: "image" | "video";
+    };
 
 // ----------------------------------------------------------------
 // Tickets & Sections

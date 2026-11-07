@@ -19,11 +19,7 @@ import {
 } from "@/lib/applyTheme";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
-import {
-  formatRegionCurrency,
-  formatRegionDateRange,
-  regionFromSite,
-} from "@/lib/regions";
+import { formatRegionDateRange, regionFromSite } from "@/lib/regions";
 import { SubmitOverlay } from "@/components/apply/SubmitOverlay";
 import { MarketingConsent } from "@/components/apply/MarketingConsent";
 import {
@@ -75,7 +71,8 @@ export default function CarClubApplyPage({
   // The event's region, carried on the link as ?site= by the public event
   // page (bare = the default site). Sent with every call so the API resolves
   // the id against the right blog - a post id is only unique within one.
-  const site = useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
+  const site =
+    useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
   const { data, isLoading, error } = useCarClubPublic(eventEid, site);
   const region = regionFromSite(data?.site);
   const submit = useSubmitCarClubApplication();
@@ -226,14 +223,6 @@ export default function CarClubApplyPage({
             className="text-sm text-ink-600 leading-relaxed"
             dangerouslySetInnerHTML={{ __html: data.event_info }}
           />
-        )}
-        {data.require_ticket && typeof data.ticket_cost === "number" && (
-          <p className="text-sm text-ink-700 mt-3 inline-flex items-center gap-2 bg-gold-50 border border-gold-200 rounded-lg px-3 py-2">
-            Approved clubs&apos; members purchase tickets at{" "}
-            {formatRegionCurrency(data.ticket_cost, regionFromSite(data.site))}{" "}
-            per vehicle as standard. The organiser confirms your club&apos;s
-            price and number of spaces when approving.
-          </p>
         )}
       </header>
 

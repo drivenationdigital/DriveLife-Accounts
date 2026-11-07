@@ -260,6 +260,13 @@ function mapEditorImage(row: ApiEventEditImage): EditorImage {
     url: row.url,
     ...(row.id ? { cloudflareId: row.id } : {}),
     ...(row.source ? { source: row.source } : {}),
+    ...(row.type === "video"
+      ? {
+          mediaType: "video" as const,
+          ...(row.playback_url ? { playbackUrl: row.playback_url } : {}),
+          ready: row.ready === true,
+        }
+      : {}),
   };
 }
 
@@ -429,7 +436,11 @@ function mapTraders(api: ApiEventEditResponse["traders"] | undefined | null): {
 } {
   const tradersRequestAddress = api?.request_address ?? false;
   if (!api || !api.enabled) {
-    return { tradersEnabled: false, traderCategories: [], tradersRequestAddress };
+    return {
+      tradersEnabled: false,
+      traderCategories: [],
+      tradersRequestAddress,
+    };
   }
   return {
     tradersEnabled: true,

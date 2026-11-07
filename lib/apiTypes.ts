@@ -468,10 +468,7 @@ export interface ComingSoonStub {
 // ─────────────────────────────────────────────────────────────────────────
 
 export type ApplicationStatusApi =
-  | "applied"
-  | "approved"
-  | "confirmed"
-  | "rejected";
+  "applied" | "approved" | "confirmed" | "rejected";
 
 export interface ApiShowCarRecord {
   id: number;
@@ -677,8 +674,7 @@ export interface ApiCarClubsConfig {
  *  endpoint. Distinct from ApiCarClubs (the dashboard /event
  *  applications section); don't conflate the two. */
 export type ApiCarClubsConfigBlock =
-  | { enabled: true; config: ApiCarClubsConfig }
-  | DisabledSection;
+  { enabled: true; config: ApiCarClubsConfig } | DisabledSection;
 
 /** Dashboard /event clubs section - application counts + recent
  *  lists. */
@@ -731,7 +727,11 @@ export interface ApiEventMarketingBlock {
 /** Traders config block (editor /event-edit). `request_address` is the
  *  "Request postal address" apply-form toggle (absent = off). */
 export type ApiTradersConfigBlock =
-  | { enabled: true; categories: ApiTraderCategory[]; request_address?: boolean }
+  | {
+      enabled: true;
+      categories: ApiTraderCategory[];
+      request_address?: boolean;
+    }
   | { enabled: false; request_address?: boolean };
 
 // Dashboard /event traders section. The dashboard now returns a real
@@ -1039,6 +1039,13 @@ export interface ApiEventEditImage {
   url: string;
   source?: "cloudflare" | "wordpress" | string;
   attachment_id?: number | null;
+  /** "video" for a gallery clip on Cloudflare Stream (2026-11-04) -
+   *  `url` is then its thumbnail. Older deploys omit it (= image). */
+  type?: "image" | "video";
+  /** Stream player URL (videos only). */
+  playback_url?: string;
+  /** Stream has finished encoding (videos only). */
+  ready?: boolean;
 }
 
 export interface ApiEventEditResponse {

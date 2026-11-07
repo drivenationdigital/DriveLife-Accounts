@@ -64,7 +64,22 @@ export function makeLocalImage(file: File): EditorImage {
     kind: "local",
     previewUrl: URL.createObjectURL(file),
     file,
+    mediaType: isVideoFile(file) ? "video" : "image",
   };
+}
+
+/** Gallery videos (2026-11-04): MP4, plus the .mov iPhones record. */
+export function isVideoFile(file: File): boolean {
+  return (
+    file.type === "video/mp4" ||
+    file.type === "video/quicktime" ||
+    /\.(mp4|m4v|mov)$/i.test(file.name)
+  );
+}
+
+/** True for a gallery entry that is a video, local or remote. */
+export function isVideoImage(img: EditorImage): boolean {
+  return img.mediaType === "video";
 }
 
 /** Revoke the blob URL on a local image; no-op for remotes. Safe to

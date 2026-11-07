@@ -6,20 +6,17 @@ import { useSearchParams, usePathname } from "next/navigation";
 
 import { pushStepUrl } from "@/lib/stepNav";
 
-import {
-  useEventCreate,
-  type EditorImage,
-} from "@/context/EventCreateContext";
+import { useEventCreate, type EditorImage } from "@/context/EventCreateContext";
 import {
   imageSrc,
+  isVideoFile,
+  isVideoImage,
   makeLocalImage,
   needsServerDelete,
   revokeIfLocal,
 } from "@/lib/editorImage";
-import {
-  useUploadEventImage,
-  useRemoveEventImage,
-} from "@/lib/imageMutations";
+import { useUploadEventImage, useRemoveEventImage } from "@/lib/imageMutations";
+import { MAX_VIDEO_BYTES, fetchEventVideoStatus } from "@/lib/uploadEventImage";
 import { useUpdateEvent } from "@/lib/eventMutations";
 import { ApiError } from "@/lib/apiClient";
 
@@ -47,6 +44,13 @@ import { PanelHeader } from "../PanelHeader";
  * Lifecycle: local images carry a blob URL that needs revoking when
  * the image is removed or replaced. We revoke individually on
  * remove and bulk-revoke on unmount.
+ *
+ * Videos (2026-11-04): MP4/MOV clips go through the same pipeline but
+ * land on Cloudflare Stream (lib/uploadEventImage branches on the
+ * file type). A clip is "Processing" until Stream has encoded it - the
+ * panel polls /event-video-status meanwhile - and then shows its
+ * thumbnail with a play badge, as the public page's header slider
+ * does. Order, reorder and remove work exactly as for images.
  */
 export function GalleryPanel() {
   const { state, dispatch } = useEventCreate();
@@ -95,6 +99,61 @@ export function GalleryPanel() {
   liveGalleryRef.current = state.gallery;
 
   // ============================================================
+  // Video readiness.
+  //
+  // Stream encodes a clip after the bytes land, so a freshly uploaded
+  // (or just-hydrated) video row can be `ready: false`; the public
+  // page leaves those out. Poll each pending clip every few seconds
+  // while the panel is open. The server records the flip, so a later
+  // reload sees it without polling.
+  // ============================================================
+  const pendingVideoKey = state.gallery
+    .flatMap((i) =>
+      i.kind === "remote" &&
+      i.mediaType === "video" &&
+      !i.ready &&
+      i.cloudflareId
+        ? [i.cloudflareId]
+        : [],
+    )
+    .join(",");
+  useEffect(() => {
+    if (!eid || pendingVideoKey === "") return;
+    const ids = pendingVideoKey.split(",");
+    let cancelled = false;
+    const tick = async () => {
+      for (const mediaId of ids) {
+        try {
+          const res = await fetchEventVideoStatus({ eid, site, mediaId });
+          if (cancelled || !res.ready) continue;
+          dispatch({
+            type: "SET_GALLERY",
+            items: liveGalleryRef.current.map((i) =>
+              i.kind === "remote" && i.cloudflareId === mediaId
+                ? {
+                    ...i,
+                    ready: true,
+                    url: res.image.url || i.url,
+                    ...(res.image.playback_url
+                      ? { playbackUrl: res.image.playback_url }
+                      : {}),
+                  }
+                : i,
+            ),
+          });
+        } catch {
+          // Transient failure - try again on the next tick.
+        }
+      }
+    };
+    const timer = setInterval(tick, 5000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [pendingVideoKey, eid, site, dispatch]);
+
+  // ============================================================
   // Order persistence.
   //
   // Uploads and removals hit the server immediately, so a reorder has
@@ -111,12 +170,17 @@ export function GalleryPanel() {
   const updateEvent = useUpdateEvent();
   const saveOrder = updateEvent.mutate;
   const orderKey = state.gallery
-    .flatMap((i) => (i.kind === "remote" && i.cloudflareId ? [i.cloudflareId] : []))
+    .flatMap((i) =>
+      i.kind === "remote" && i.cloudflareId ? [i.cloudflareId] : [],
+    )
     .join(",");
   const lastSavedOrder = useRef<string | null>(null);
   useEffect(() => {
     if (!eid) return;
-    if (lastSavedOrder.current === null || lastSavedOrder.current === orderKey) {
+    if (
+      lastSavedOrder.current === null ||
+      lastSavedOrder.current === orderKey
+    ) {
       lastSavedOrder.current = orderKey;
       return;
     }
@@ -127,7 +191,9 @@ export function GalleryPanel() {
           eid,
           site,
           body: {
-            media: { gallery_order: orderKey === "" ? [] : orderKey.split(",") },
+            media: {
+              gallery_order: orderKey === "" ? [] : orderKey.split(","),
+            },
           },
         },
         {
@@ -187,6 +253,15 @@ export function GalleryPanel() {
         kind: "remote",
         url: image.url,
         cloudflareId: image.id,
+        ...(image.type === "video"
+          ? {
+              mediaType: "video" as const,
+              ...(image.playback_url
+                ? { playbackUrl: image.playback_url }
+                : {}),
+              ready: image.ready === true,
+            }
+          : {}),
       };
       dispatch({
         type: "SET_GALLERY",
@@ -213,9 +288,24 @@ export function GalleryPanel() {
 
   const acceptFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    const images = Array.from(files)
-      .filter((f) => f.type.startsWith("image/"))
-      .map(makeLocalImage);
+    const images: EditorImage[] = [];
+    const rejected: string[] = [];
+    for (const f of Array.from(files)) {
+      if (isVideoFile(f)) {
+        // Stream's basic direct upload caps a clip at 200 MB; refuse
+        // here rather than after a long upload fails.
+        if (f.size > MAX_VIDEO_BYTES) {
+          rejected.push(
+            `${f.name}: videos must be under ${Math.round(MAX_VIDEO_BYTES / 1024 / 1024)} MB.`,
+          );
+          continue;
+        }
+        images.push(makeLocalImage(f));
+      } else if (f.type.startsWith("image/")) {
+        images.push(makeLocalImage(f));
+      }
+    }
+    if (rejected.length > 0) setUploadErrors((p) => [...p, ...rejected]);
     if (images.length === 0) return;
     dispatch({
       type: "SET_GALLERY",
@@ -296,7 +386,10 @@ export function GalleryPanel() {
       try {
         await remover.mutateAsync({ eid, site, mediaId: removed.cloudflareId });
       } catch (err) {
-        setUploadErrors((p) => [...p, `Couldn't remove image: ${errorText(err)}`]);
+        setUploadErrors((p) => [
+          ...p,
+          `Couldn't remove image: ${errorText(err)}`,
+        ]);
         return;
       }
     }
@@ -376,8 +469,7 @@ export function GalleryPanel() {
           ]
             .filter(Boolean)
             .join(" ");
-          const stableKey =
-            img.kind === "remote" ? img.url : img.previewUrl;
+          const stableKey = img.kind === "remote" ? img.url : img.previewUrl;
           return (
             <div
               key={stableKey}
@@ -388,15 +480,7 @@ export function GalleryPanel() {
               onDragEnd={onTileDragEnd}
               onDrop={onTileDrop(idx)}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element --
-                  Both blob URLs (locals) and remote URLs work fine
-                  with a plain <img>. */}
-              <img
-                src={imageSrc(img)}
-                alt=""
-                className="w-full h-full object-cover pointer-events-none"
-                draggable={false}
-              />
+              <GalleryTileMedia img={img} />
               {isUploading && (
                 <div className="absolute inset-0 bg-ink-900/40 flex items-center justify-center pointer-events-none">
                   <i
@@ -434,7 +518,9 @@ export function GalleryPanel() {
                 <button
                   type="button"
                   onClick={() => removeTile(idx)}
-                  aria-label="Remove image"
+                  aria-label={
+                    isVideoImage(img) ? "Remove video" : "Remove image"
+                  }
                   className="w-7 h-7 rounded-full bg-red-500/95 text-white flex items-center justify-center text-xs hover:bg-red-600 transition"
                 >
                   <i className="fa-solid fa-xmark" aria-hidden />
@@ -453,7 +539,9 @@ export function GalleryPanel() {
           <div className="w-10 h-10 rounded-full bg-white border border-ink-200 flex items-center justify-center text-gold-600">
             <i className="fa-solid fa-plus" aria-hidden />
           </div>
-          <p className="text-xs font-medium text-ink-700">Add photos</p>
+          <p className="text-xs font-medium text-ink-700">
+            Add photos or videos
+          </p>
         </button>
       </div>
 
@@ -477,15 +565,18 @@ export function GalleryPanel() {
         <p className="text-sm font-semibold text-ink-900 mb-1">
           Drop files here or click to upload
         </p>
-        <p className="text-xs text-ink-500">JPG, PNG or GIF · Max 10MB each</p>
+        <p className="text-xs text-ink-500">
+          JPG, PNG or GIF up to 10MB · MP4 or MOV video up to 200MB
+        </p>
       </button>
 
       {/* Hidden multi-select file input. accept="image/*" lets mobile
-          show camera + photo library options on iOS/Android. */}
+          show camera + photo library options on iOS/Android; the video
+          types let the same picker offer clips. */}
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept="image/*,video/mp4,video/quicktime,.mp4,.m4v,.mov"
         multiple
         className="hidden"
         onChange={onFileChange}
@@ -509,5 +600,64 @@ export function GalleryPanel() {
         </button>
       </div>
     </section>
+  );
+}
+
+/**
+ * The visual inside a gallery tile. Images (local blob or remote URL)
+ * are a plain <img>. A video is either still uploading (local), still
+ * encoding on Stream (remote, not ready - no thumbnail exists yet) or
+ * ready: then its Stream thumbnail with a play badge, as the public
+ * page's header slider shows it.
+ */
+function GalleryTileMedia({ img }: { img: EditorImage }) {
+  const [thumbFailed, setThumbFailed] = useState(false);
+
+  if (!isVideoImage(img)) {
+    return (
+      // Both blob URLs (locals) and remote URLs work fine with a plain <img>.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={imageSrc(img)}
+        alt=""
+        className="w-full h-full object-cover pointer-events-none"
+        draggable={false}
+      />
+    );
+  }
+
+  const ready = img.kind === "remote" && img.ready === true && !thumbFailed;
+
+  return (
+    <div className="relative w-full h-full bg-ink-900 flex items-center justify-center pointer-events-none">
+      {ready && (
+        // Stream thumbnail URL; falls back to the plain tile if it 404s.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={imageSrc(img)}
+          alt=""
+          className="absolute inset-0 w-full h-full object-cover"
+          draggable={false}
+          onError={() => setThumbFailed(true)}
+        />
+      )}
+      {ready ? (
+        <span className="relative w-10 h-10 rounded-full bg-black/60 border-2 border-white/90 flex items-center justify-center text-white shadow">
+          <i className="fa-solid fa-play text-sm ml-0.5" aria-hidden />
+        </span>
+      ) : (
+        <div className="flex flex-col items-center gap-1.5 text-white/90">
+          <i className="fa-solid fa-film text-xl" aria-hidden />
+          {img.kind === "remote" && (
+            <span className="text-[10px] uppercase tracking-wider font-semibold">
+              Processing
+            </span>
+          )}
+        </div>
+      )}
+      <span className="absolute bottom-1.5 right-1.5 px-1.5 py-0.5 text-[9px] uppercase tracking-wider font-semibold bg-black/70 text-white rounded">
+        Video
+      </span>
+    </div>
   );
 }
