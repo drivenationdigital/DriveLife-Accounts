@@ -17,6 +17,8 @@ import {
   mapTraderCategoryToBody,
 } from "@/lib/traderMutations";
 import { ApiError } from "@/lib/apiClient";
+import { copyName } from "@/lib/copyName";
+import { makeLocalId } from "@/lib/makeLocalId";
 import { useAction } from "@/context/ActionContext";
 import {
   formatRegionAmount,
@@ -63,12 +65,30 @@ export function TradersPanel() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<TraderCategory | null>(null);
 
+  // "Duplicate": the drawer opens as a NEW trader type pre-filled from
+  // an existing one. Nothing is created until the organiser saves.
+  const [template, setTemplate] = useState<TraderCategory | null>(null);
+
   const openNew = () => {
     setEditing(null);
+    setTemplate(null);
     setDrawerOpen(true);
   };
   const openEdit = (c: TraderCategory) => {
     setEditing(c);
+    setTemplate(null);
+    setDrawerOpen(true);
+  };
+  const openCopy = (c: TraderCategory) => {
+    setEditing(null);
+    setTemplate({
+      ...c,
+      // A fresh local id, so the save hook creates a row instead of
+      // updating the original. The drawer mints the copy its own secret
+      // code - the code is what gates a type's online ticket link.
+      id: makeLocalId("tc") as TraderCategoryId,
+      name: copyName(c.name),
+    });
     setDrawerOpen(true);
   };
 
@@ -285,6 +305,7 @@ export function TradersPanel() {
                       <TraderCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
+                        onCopy={() => openCopy(c)}
                         onDelete={() => handleRemoveCategory(c.id, c.name)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
@@ -338,9 +359,10 @@ export function TradersPanel() {
       </div>
 
       <TraderCategoryDrawer
-        key={`tc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
+        key={`tc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? template?.id ?? "new"}`}
         open={drawerOpen}
         editing={editing}
+        template={template}
         onClose={() => setDrawerOpen(false)}
         onSave={(c) => handleSaveCategory(c, editing !== null)}
         onRemove={(id) => handleRemoveCategory(id, editing?.name ?? "")}
@@ -358,6 +380,7 @@ export function TradersPanel() {
 function TraderCategoryRow({
   category,
   onEdit,
+  onCopy,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -366,6 +389,7 @@ function TraderCategoryRow({
 }: {
   category: TraderCategory;
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -384,7 +408,9 @@ function TraderCategoryRow({
       >
         <i className="fa-solid fa-grip-vertical" aria-hidden />
       </button>
-      <div className="w-10 h-10 rounded-lg bg-gold-50 border border-gold-200 flex items-center justify-center flex-shrink-0">
+      {/* Hidden on phones: the row gained a fifth action button
+          (Duplicate), and the name needs the room more than the tile. */}
+      <div className="w-10 h-10 rounded-lg bg-gold-50 border border-gold-200 hidden sm:flex items-center justify-center flex-shrink-0">
         <i className="fa-solid fa-store text-gold-600 text-sm" aria-hidden />
       </div>
       <div className="flex-1 min-w-0">
@@ -419,6 +445,15 @@ function TraderCategoryRow({
           className="w-8 h-8 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
         >
           <i className="fa-solid fa-pen text-xs" aria-hidden />
+        </button>
+        <button
+          type="button"
+          onClick={onCopy}
+          aria-label="Duplicate"
+          title="Duplicate"
+          className="w-8 h-8 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
+        >
+          <i className="fa-regular fa-copy text-xs" aria-hidden />
         </button>
         <button
           type="button"

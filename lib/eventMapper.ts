@@ -479,6 +479,8 @@ export function mapShowCar(r: ApiShowCarRecord, region: Region): ShowCar {
     // fallback for the edge case where the ticket was deleted after
     // the application was submitted.
     category: r.category || "",
+    // Day(s) entered for, when the category is priced by attendance.
+    attendance: r.attendance?.label ?? "",
     otherCategories: (r.also_applied_for ?? []).map((s) => ({
       id: String(s.id),
       category: s.category || "",

@@ -365,6 +365,18 @@ export type TraderCategoryId = string & {
   readonly __brand: "TraderCategoryId";
 };
 
+/**
+ * One attendance option of a category (multi-day events): a day, or
+ * every day, at its own price. `price` is NaN while unset.
+ */
+export type ShowCarAttendanceOption = {
+  /** "all" or "day:YYYY-MM-DD" - matches the server's keys. */
+  key: string;
+  label: string;
+  days: string[];
+  price: number;
+};
+
 export type ShowCarCategory = {
   id: ShowCarCategoryId;
   name: string;
@@ -386,6 +398,11 @@ export type ShowCarCategory = {
    *  event-wide showcar_secret_code which forced one code to unlock
    *  every category. */
   secretCode: string;
+  /** Price by attendance (multi-day events): when on, the applicant
+   *  picks one of `attendanceOptions` - a day or all days - and each
+   *  option is its own hidden ticket under the category. */
+  priceByAttendance: boolean;
+  attendanceOptions: ShowCarAttendanceOption[];
 };
 
 /** Curated icon set for trader categories - matches the mockup. */
@@ -693,6 +710,14 @@ export type EventCreateState = {
   carClubsMax: number;
   carClubsRequireTicket: boolean;
   carClubsTicketCost: number;
+  /** Attendance options (multi-day events): default member price per
+   *  option key ("all", "day:YYYY-MM-DD"). An option not in the map
+   *  falls back to carClubsTicketCost. */
+  carClubsAttendancePrices: Record<string, number>;
+  /** Which day options clubs are offered (multi-day events): a tick per
+   *  day plus one for the discounted all-days ticket. null = not set,
+   *  which the server reads as every day and the all-days ticket. */
+  carClubsAttendanceOffer: { days: string[]; all: boolean } | null;
   carClubsInfo: string;
 
   // ---- Traders ----
@@ -826,6 +851,8 @@ const INITIAL_STATE: EventCreateState = {
   carClubsMax: NaN,
   carClubsRequireTicket: false,
   carClubsTicketCost: NaN,
+  carClubsAttendancePrices: {},
+  carClubsAttendanceOffer: null,
   carClubsInfo: "",
 
   tradersEnabled: true,
@@ -920,6 +947,8 @@ type ScalarStateKey =
   | "carClubsMax"
   | "carClubsRequireTicket"
   | "carClubsTicketCost"
+  | "carClubsAttendancePrices"
+  | "carClubsAttendanceOffer"
   | "carClubsInfo"
   | "tradersEnabled"
   | "tradersRequestAddress"

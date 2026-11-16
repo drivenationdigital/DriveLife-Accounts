@@ -5,6 +5,10 @@ import { useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 
 import { pushStepUrl } from "@/lib/stepNav";
+import {
+  attendanceOptionsForDays,
+  editorEventDays,
+} from "@/lib/attendanceOptions";
 
 import { useEventCreate } from "@/context/EventCreateContext";
 import { formatEditorShortDate } from "@/lib/formatEditorDate";
@@ -56,6 +60,46 @@ export function CarClubsPanel() {
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
   const region = useEventRegion();
+  // Attendance options (multi-day events): a default member price per
+  // day / all days, which the approve dialog pre-fills for each club.
+  // Clubs are priced per day: a club picks the days it attends and the
+  // organiser sets spaces + price for each. "All days" is the discounted
+  // every-day ticket a club attending two or more days can offer.
+  const attendanceDefs = attendanceOptionsForDays(
+    editorEventDays(state),
+    region,
+  ).map((d) =>
+    d.key === "all" ? { ...d, label: "All days (every day, discounted)" } : d,
+  );
+  const attendancePrices = state.carClubsAttendancePrices ?? {};
+  const setAttendancePrice = (key: string, raw: string) => {
+    const parsed = parseFloat(raw);
+    const next = { ...attendancePrices };
+    if (Number.isFinite(parsed)) next[key] = Math.max(0, parsed);
+    else delete next[key];
+    dispatch({ type: "SET_FIELD", key: "carClubsAttendancePrices", value: next });
+  };
+  // Which day options clubs are offered: a tick per day plus one for the
+  // all-days ticket. Unset (null) means everything is offered.
+  const eventDayKeys = attendanceDefs
+    .filter((d) => d.key !== "all")
+    .map((d) => d.days[0]);
+  const offer = state.carClubsAttendanceOffer ?? {
+    days: eventDayKeys,
+    all: true,
+  };
+  const dayOffered = (iso: string) => offer.days.includes(iso);
+  const setOffer = (next: { days: string[]; all: boolean }) =>
+    dispatch({ type: "SET_FIELD", key: "carClubsAttendanceOffer", value: next });
+  const toggleOfferDay = (iso: string, checked: boolean) => {
+    const days = checked
+      ? Array.from(new Set([...offer.days, iso])).sort()
+      : offer.days.filter((d) => d !== iso);
+    // At least one day stays on - with none, clubs could not apply.
+    if (days.length === 0) return;
+    setOffer({ days, all: offer.all });
+  };
+  const offeredDayCount = offer.days.length;
 
   const renderDateField = (target: DateTarget, value: string | null) => (
     <button
@@ -292,9 +336,108 @@ export function CarClubsPanel() {
                     saved until it&apos;s changed.
                   </p>
                 )}
+
               </div>
             )}
           </div>
+
+          {/* Days offered to clubs (multi-day events): tick per day and
+              for the all-days ticket; default price per option when
+              tickets are charged. */}
+          {attendanceDefs.length > 0 && (
+            <div className="bg-white border border-ink-200 rounded-xl p-5 mb-4">
+              <p className="text-sm font-semibold text-ink-900">
+                Days clubs can apply for
+              </p>
+              <p className="text-xs text-ink-500 mt-0.5 mb-4">
+                This event runs over {attendanceDefs.length - 1} days. Tick
+                the days clubs may apply for; they pick from these on the
+                form and members book a ticket per day.
+                {state.carClubsRequireTicket
+                  ? " Set a default member price for each - blank uses the default club ticket price. You can change prices for each club when you approve it."
+                  : ""}
+              </p>
+              <div className="space-y-2">
+                {attendanceDefs.map((def) => {
+                  const isAll = def.key === "all";
+                  const iso = def.days[0];
+                  const on = isAll ? offer.all : dayOffered(iso);
+                  const lastDay = !isAll && on && offeredDayCount === 1;
+                  const value = attendancePrices[def.key];
+                  const shown = Number.isFinite(value) ? String(value) : "";
+                  const bad = Number.isFinite(value) && isBelowMinimumAmount(value);
+                  return (
+                    <div
+                      key={def.key}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        on ? "border-ink-200 bg-white" : "border-ink-100 bg-ink-50"
+                      }${isAll ? " mt-3" : ""}`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-gold-500 shrink-0"
+                        checked={on}
+                        disabled={lastDay}
+                        title={lastDay ? "Clubs need at least one day to apply for" : undefined}
+                        aria-label={`Offer ${def.label}`}
+                        onChange={(e) =>
+                          isAll
+                            ? setOffer({ days: offer.days, all: e.target.checked })
+                            : toggleOfferDay(iso, e.target.checked)
+                        }
+                      />
+                      <span className="flex-1 min-w-0">
+                        <span
+                          className={`block text-sm ${
+                            on ? "text-ink-900 font-medium" : "text-ink-500"
+                          }`}
+                        >
+                          {isAll ? "All days" : def.label}
+                        </span>
+                        {isAll && (
+                          <span className="block text-xs text-ink-500">
+                            One discounted ticket for every day, for clubs attending
+                            two or more days
+                          </span>
+                        )}
+                      </span>
+                      {state.carClubsRequireTicket && (
+                        <div className="w-32 shrink-0 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-500">
+                            {region.currencySymbol}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min={0}
+                            className={`input ${bad ? "border-red-400" : ""}`}
+                            style={{ paddingLeft: 28 }}
+                            placeholder={
+                              Number.isFinite(state.carClubsTicketCost)
+                                ? state.carClubsTicketCost.toFixed(2)
+                                : "0.00"
+                            }
+                            value={shown}
+                            disabled={!on}
+                            aria-label={`${def.label} default price`}
+                            onChange={(e) => setAttendancePrice(def.key, e.target.value)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {state.carClubsRequireTicket &&
+                Object.values(attendancePrices).some((v) => isBelowMinimumAmount(v)) && (
+                  <p className="mt-1.5 text-xs text-red-600" role="alert">
+                    {minimumPriceMessage(region)} A price in between won&apos;t
+                    be saved.
+                  </p>
+                )}
+            </div>
+          )}
 
           {/* Info textarea */}
           <div className="mb-6">

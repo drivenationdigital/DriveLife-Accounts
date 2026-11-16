@@ -37,6 +37,14 @@ export interface CarClubPublicResponse {
   confirmed?: number;
   remaining?: number | null;
   is_full?: boolean;
+  /** Multi-day events: the days a club can apply for. The organiser then
+   *  sets spaces and the member price per day at approval. Absent / []
+   *  on a single-day event. */
+  event_days?: string[];
+  attendance_days?: { key: string; label: string; days: string[] }[];
+  /** Whether a club attending every offered day may also get the
+   *  discounted all-days ticket. Informational on the form. */
+  all_days_offered?: boolean;
 }
 
 export interface CarClubApplicationBody {
@@ -51,6 +59,9 @@ export interface CarClubApplicationBody {
   email: string;
   contactPhone: string;
   memberCount: string; // kept as string in the form; server coerces to int
+  /** Days the club wants to attend ("YYYY-MM-DD"). Required on a
+   *  multi-day event; ignored on a single-day one. */
+  days: string[];
   notes: string;
   /** "Keep me updated about future events from this event organiser" -
    *  stored as marketing_opt_in on the application row and, where the

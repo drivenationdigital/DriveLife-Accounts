@@ -48,6 +48,12 @@ export interface ApiShowCarSaveBody {
    *  category. Empty string is allowed - server auto-generates one
    *  when missing so categories never end up without a code. */
   secretCode: string;
+  /** Attendance options (multi-day events). When on, only the options
+   *  the organiser switched on are sent; the server creates / updates /
+   *  retires the hidden option rows to match. Price is read when
+   *  requireTicket is on. */
+  priceByAttendance: boolean;
+  attendanceOptions: { key: string; price: number | null }[];
 }
 
 export interface ApiShowCarSaveResponse {
@@ -75,6 +81,13 @@ export function mapShowCarCategoryToBody(
     ticketCost:
       c.requireTicket && Number.isFinite(c.ticketCost) ? c.ticketCost : null,
     secretCode: c.secretCode ?? "",
+    priceByAttendance: c.priceByAttendance,
+    attendanceOptions: c.priceByAttendance
+      ? c.attendanceOptions.map((o) => ({
+          key: o.key,
+          price: c.requireTicket && Number.isFinite(o.price) ? o.price : null,
+        }))
+      : [],
   };
 }
 

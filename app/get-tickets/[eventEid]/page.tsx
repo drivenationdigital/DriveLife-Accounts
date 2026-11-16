@@ -1,5 +1,6 @@
 "use client";
 
+import { useIsEmbedded } from "@/components/embed/EmbedShell";
 import {
   use,
   useCallback,
@@ -303,6 +304,7 @@ export default function GetTicketsPage({
   const confirm = useConfirm();
   const info = useCheckoutInfo(eventEid);
   const event = info.data?.event;
+  const embedded = useIsEmbedded();
   const region = resolveRegion(event?.site);
 
   /**
@@ -1389,7 +1391,7 @@ export default function GetTicketsPage({
 
   const header = (
     <header className="mb-7 text-center">
-      {event.tickets_logo && (
+      {!embedded && event.tickets_logo && (
         <img
           src={event.tickets_logo}
           alt={event.title}

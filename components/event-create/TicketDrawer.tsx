@@ -57,6 +57,7 @@ function seedQuantity(editing: Ticket | null): string {
 export function TicketDrawer({
   open,
   editing,
+  template = null,
   onClose,
   onSave,
   onRemove,
@@ -68,6 +69,10 @@ export function TicketDrawer({
 }: {
   open: boolean;
   editing: Ticket | null;
+  /** "Duplicate": a ticket to pre-fill a NEW one from. Only read when
+   *  `editing` is null - the form opens as "Add ticket" with these
+   *  values and saves as a brand-new row. */
+  template?: Ticket | null;
   /** The event being edited (server eid + its blog). Scopes the
    *  payment-provider check to the event's primary organiser. Without
    *  one (a brand-new, unsaved event) the signed-in user's own
@@ -119,59 +124,64 @@ export function TicketDrawer({
   // backend that ignores eid) reads as "you".
   const paymentOwner = providers.data?.organiser ?? null;
   const ownerIsSelf = !paymentOwner || paymentOwner.is_self;
+  // What the form starts from: the ticket being edited, else the one
+  // being duplicated, else nothing. `editing` alone still decides
+  // everything that makes a row an EXISTING one (its id, its sold
+  // count, the Remove button).
+  const seed = editing ?? template;
   // Numeric inputs are stored as strings so the user can clear them
   // without React turning empty into NaN. We parse on save.
-  const [name, setName] = useState(() => editing?.name ?? "");
+  const [name, setName] = useState(() => seed?.name ?? "");
   const [additionalInfo, setAdditionalInfo] = useState(
-    () => editing?.additionalInfo ?? "",
+    () => seed?.additionalInfo ?? "",
   );
   // The quantity field is AVAILABLE stock (total minus sold), not the
   // total the API stores. `initialQuantity` keeps the seeded string so
   // handleSave can tell an untouched field from one the user retyped
   // to the same number - see the dirty check there.
-  const [quantity, setQuantity] = useState(seedQuantity(editing));
-  const [initialQuantity] = useState(seedQuantity(editing));
+  const [quantity, setQuantity] = useState(seedQuantity(seed));
+  const [initialQuantity] = useState(seedQuantity(seed));
   const [price, setPrice] = useState(() =>
-    editing && Number.isFinite(editing.price) ? String(editing.price) : "",
+    seed && Number.isFinite(seed.price) ? String(seed.price) : "",
   );
   const [limitPerOrder, setLimitPerOrder] = useState(() =>
-    editing && Number.isFinite(editing.limitPerOrder)
-      ? String(editing.limitPerOrder)
+    seed && Number.isFinite(seed.limitPerOrder)
+      ? String(seed.limitPerOrder)
       : "",
   );
   const [saleStart, setSaleStart] = useState<string | null>(
-    () => editing?.saleStart ?? null,
+    () => seed?.saleStart ?? null,
   );
   const [saleEnd, setSaleEnd] = useState<string | null>(
-    () => editing?.saleEnd ?? null,
+    () => seed?.saleEnd ?? null,
   );
   // Time of day for each bound, "HH:MM". Kept as strings for the native
   // time inputs; empty when the matching date is unset.
   const [saleStartTime, setSaleStartTime] = useState<string>(
-    () => (editing?.saleStart ? (editing.saleStartTime ?? "") : ""),
+    () => (seed?.saleStart ? (seed.saleStartTime ?? "") : ""),
   );
   const [saleEndTime, setSaleEndTime] = useState<string>(
-    () => (editing?.saleEnd ? (editing.saleEndTime ?? "") : ""),
+    () => (seed?.saleEnd ? (seed.saleEndTime ?? "") : ""),
   );
   const [requireCarDetails, setRequireCarDetails] = useState(
-    () => editing?.requireCarDetails ?? false,
+    () => seed?.requireCarDetails ?? false,
   );
   // No longer exposed in the UI, but preserved on save so an existing
   // ticket that already has the flag set keeps it.
-  const requireCarClubName = editing?.requireCarClubName ?? false;
-  const individualAttendeeDetails = editing?.individualAttendeeDetails ?? false;
+  const requireCarClubName = seed?.requireCarClubName ?? false;
+  const individualAttendeeDetails = seed?.individualAttendeeDetails ?? false;
   const [requestVehiclePhoto, setRequestVehiclePhoto] = useState(
-    () => editing?.requestVehiclePhoto ?? false,
+    () => seed?.requestVehiclePhoto ?? false,
   );
   // "Ask additional questions". The toggle is on when the ticket has
   // any saved question; switching it off keeps the rows in local state
   // (so flipping back restores them) but saves none.
   const [askQuestions, setAskQuestions] = useState(
-    () => (editing?.customQuestions?.length ?? 0) > 0,
+    () => (seed?.customQuestions?.length ?? 0) > 0,
   );
   const [questions, setQuestions] = useState<TicketQuestion[]>(() =>
-    editing?.customQuestions?.length
-      ? editing.customQuestions.map((q) => ({ ...q }))
+    seed?.customQuestions?.length
+      ? seed.customQuestions.map((q) => ({ ...q }))
       : [newQuestion()],
   );
   const handleToggleQuestions = (next: boolean) => {
@@ -190,8 +200,8 @@ export function TicketDrawer({
     setQuestions((qs) =>
       qs.length > 1 ? qs.filter((q) => q.id !== id) : [newQuestion()],
     );
-  const [isSecret, setIsSecret] = useState(() => editing?.isSecret ?? false);
-  const [secretCode, setSecretCode] = useState(() => editing?.secretCode ?? "");
+  const [isSecret, setIsSecret] = useState(() => seed?.isSecret ?? false);
+  const [secretCode, setSecretCode] = useState(() => seed?.secretCode ?? "");
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
@@ -272,12 +282,13 @@ export function TicketDrawer({
       additionalInfo: additionalInfo.trim(),
       quantity: nextQuantity,
       quantitySold: sold,
-      // Locked field: a new ticket is free, an existing one keeps the
-      // price it already had - the field showed it, greyed out.
+      // Locked field: a new ticket is free, an existing one (or a
+      // duplicate of one) keeps the price it already had - the field
+      // showed it, greyed out.
       price: canTakePayments
         ? Math.max(0, parseFloat(price))
-        : editing && Number.isFinite(editing.price)
-          ? editing.price
+        : seed && Number.isFinite(seed.price)
+          ? seed.price
           : 0,
       limitPerOrder: parseFloat(limitPerOrder),
       saleStart,

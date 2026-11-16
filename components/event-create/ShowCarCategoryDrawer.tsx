@@ -6,6 +6,7 @@ import {
   type ShowCarCategory,
   type ShowCarCategoryId,
 } from "@/context/EventCreateContext";
+import { attendanceOptionsForDays } from "@/lib/attendanceOptions";
 import { formatEditorShortDate } from "@/lib/formatEditorDate";
 import { generateSecretCode } from "@/lib/generateSecretCode";
 import { makeLocalId } from "@/lib/makeLocalId";
@@ -19,7 +20,7 @@ import { SecretCodeField } from "./TicketDrawer";
 /**
  * Show-car category add/edit drawer.
  *
- * State seeding pattern: `useState(() => editing?.x ?? default)` -
+ * State seeding pattern: `useState(() => seed?.x ?? default)` -
  * parent (ShowCarsPanel) re-keys this component on each open so the
  * initial values are fresh per open. No useEffect re-syncing.
  *
@@ -28,51 +29,92 @@ import { SecretCodeField } from "./TicketDrawer";
  *   2. Application window (open/close dates)
  *   3. Spaces available
  *   4. Require ticket toggle + cost field (only shown when on)
+ *   5. Price by attendance (multi-day events only): a day or all days,
+ *      each option switched on/off with its own price
  */
 type DateTarget = "open" | "close";
 
 export function ShowCarCategoryDrawer({
   open,
   editing,
+  template = null,
   onClose,
   onSave,
   onRemove,
   isSaving = false,
   isDeleting = false,
   errorMessage = null,
+  eventDays = [],
 }: {
   open: boolean;
   editing: ShowCarCategory | null;
+  /** "Duplicate": a category to pre-fill a NEW one from. Only read
+   *  when `editing` is null - the form opens as "Add category" and
+   *  saves as a brand-new row with its own secret code. */
+  template?: ShowCarCategory | null;
   onClose: () => void;
   onSave: (category: ShowCarCategory) => void;
   onRemove: (id: ShowCarCategoryId) => void;
   isSaving?: boolean;
   isDeleting?: boolean;
   errorMessage?: string | null;
+  /** The days the event runs on ("YYYY-MM-DD"); fewer than two hides
+   *  the price-by-attendance section. */
+  eventDays?: string[];
 }) {
   // Drives the cost field's currency symbol and the date fields' order.
   const region = useEventRegion();
-  const [name, setName] = useState(() => editing?.name ?? "");
+  // What the form starts from: the category being edited, else the one
+  // being duplicated. `editing` alone still decides what makes a row
+  // an existing one (its id, its secret code, the Remove button).
+  const seed = editing ?? template;
+  // Attendance options (multi-day events): one per day plus "All days".
+  const attendanceDefs = attendanceOptionsForDays(eventDays, region);
+  const canPriceByAttendance = attendanceDefs.length > 0;
+  const [priceByAttendance, setPriceByAttendance] = useState(
+    () => seed?.priceByAttendance ?? false,
+  );
+  // Per option: offered or not, and its price as typed. A new category
+  // offers every option; an existing one offers what it was saved with.
+  const [optionDrafts, setOptionDrafts] = useState<
+    Record<string, { enabled: boolean; price: string }>
+  >(() => {
+    const saved = new Map(
+      (seed?.attendanceOptions ?? []).map((o) => [o.key, o] as const),
+    );
+    const out: Record<string, { enabled: boolean; price: string }> = {};
+    for (const def of attendanceDefs) {
+      const existing = saved.get(def.key);
+      out[def.key] = existing
+        ? {
+            enabled: true,
+            price: Number.isFinite(existing.price) ? String(existing.price) : "",
+          }
+        : { enabled: saved.size === 0, price: "" };
+    }
+    return out;
+  });
+  const [name, setName] = useState(() => seed?.name ?? "");
   const [description, setDescription] = useState(
-    () => editing?.description ?? "",
+    () => seed?.description ?? "",
   );
   const [applicationsOpen, setApplicationsOpen] = useState<string | null>(
-    () => editing?.applicationsOpen ?? null,
+    () => seed?.applicationsOpen ?? null,
   );
   const [applicationsClose, setApplicationsClose] = useState<string | null>(
-    () => editing?.applicationsClose ?? null,
+    () => seed?.applicationsClose ?? null,
   );
   const [spaces, setSpaces] = useState(() =>
-    editing && Number.isFinite(editing.spacesAvailable)
-      ? String(editing.spacesAvailable)
+    seed && Number.isFinite(seed.spacesAvailable)
+      ? String(seed.spacesAvailable)
       : "",
   );
   const [requireTicket, setRequireTicket] = useState(
-    () => editing?.requireTicket ?? false,
+    () => seed?.requireTicket ?? false,
   );
   const [ticketCost, setTicketCost] = useState(() =>
-    editing && Number.isFinite(editing.ticketCost)
-      ? String(editing.ticketCost)
+    seed && Number.isFinite(seed.ticketCost)
+      ? String(seed.ticketCost)
       : "",
   );
   // Per-category secret code. Still needed - it builds the ticket
@@ -86,13 +128,50 @@ export function ShowCarCategoryDrawer({
 
   const [pickerTarget, setPickerTarget] = useState<DateTarget | null>(null);
 
-  // Free or at least 1.00 - see lib/ticketPrice.
+  const byAttendance = priceByAttendance && canPriceByAttendance;
+  const enabledDefs = attendanceDefs.filter(
+    (d) => optionDrafts[d.key]?.enabled,
+  );
+  const optionPriceBad = (key: string) => {
+    const draft = optionDrafts[key];
+    if (!requireTicket || !draft?.enabled) return false;
+    const parsed = parseFloat(draft.price);
+    return (
+      draft.price.trim() === "" ||
+      !Number.isFinite(parsed) ||
+      parsed < 0 ||
+      isBelowMinimumAmount(parsed)
+    );
+  };
+  const optionsInvalid =
+    byAttendance &&
+    (enabledDefs.length === 0 || enabledDefs.some((d) => optionPriceBad(d.key)));
+
+  // Free or at least 1.00 - see lib/ticketPrice. With attendance pricing
+  // on, the category's own cost field is hidden; the options carry it.
   const costTooLow =
-    requireTicket && isBelowMinimumAmount(parseFloat(ticketCost));
+    requireTicket &&
+    !byAttendance &&
+    isBelowMinimumAmount(parseFloat(ticketCost));
 
   const handleSave = () => {
     const trimmed = name.trim();
-    if (!trimmed || costTooLow) return;
+    if (!trimmed || costTooLow || optionsInvalid) return;
+    const options = byAttendance
+      ? enabledDefs.map((d) => ({
+          key: d.key,
+          label: d.label,
+          days: d.days,
+          price: requireTicket
+            ? Math.max(0, parseFloat(optionDrafts[d.key]?.price ?? ""))
+            : NaN,
+        }))
+      : [];
+    const optionPrices = options
+      .map((o) => o.price)
+      .filter((p) => Number.isFinite(p));
+    const lowestOptionPrice =
+      optionPrices.length > 0 ? Math.min(...optionPrices) : NaN;
     const id = editing?.id ?? (makeLocalId("scc") as ShowCarCategoryId);
     // Safety net: if the user cleared the code, regenerate before
     // save so the row isn't persisted with an empty secret_code (the
@@ -109,9 +188,18 @@ export function ShowCarCategoryDrawer({
       // checks pick this up.
       spacesAvailable: spaces ? Math.max(1, parseInt(spaces, 10)) : NaN,
       requireTicket,
-      ticketCost:
-        requireTicket && ticketCost ? Math.max(0, parseFloat(ticketCost)) : NaN,
+      // With attendance pricing the category's badge shows the lowest
+      // option price; the options themselves carry the real prices.
+      ticketCost: byAttendance
+        ? requireTicket
+          ? lowestOptionPrice
+          : NaN
+        : requireTicket && ticketCost
+          ? Math.max(0, parseFloat(ticketCost))
+          : NaN,
       secretCode: finalCode,
+      priceByAttendance: byAttendance,
+      attendanceOptions: options,
     });
     // No onClose() here - the caller drives the drawer's open state
     // around the async save, so the drawer stays open on error and
@@ -160,7 +248,13 @@ export function ShowCarCategoryDrawer({
               <button
                 type="button"
                 onClick={handleSave}
-                disabled={!name.trim() || costTooLow || isSaving || isDeleting}
+                disabled={
+                  !name.trim() ||
+                  costTooLow ||
+                  optionsInvalid ||
+                  isSaving ||
+                  isDeleting
+                }
                 className="flex-1 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition inline-flex items-center justify-center gap-2"
               >
                 {isSaving && (
@@ -279,7 +373,7 @@ export function ShowCarCategoryDrawer({
               <span className="slider" />
             </span>
           </label>
-          {requireTicket && (
+          {requireTicket && !byAttendance && (
             <div className="mt-4 pt-4 border-t border-ink-200">
               <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
                 Ticket cost ({region.currencySymbol})
@@ -302,6 +396,116 @@ export function ShowCarCategoryDrawer({
             </div>
           )}
         </div>
+
+        {canPriceByAttendance && (
+          <div className="pt-3 border-t border-ink-200">
+            <label className="flex items-center justify-between gap-3 cursor-pointer">
+              <div>
+                <p className="text-sm font-semibold text-ink-900">
+                  Price by attendance
+                </p>
+                <p className="text-xs text-ink-500 mt-0.5">
+                  This event runs over {attendanceDefs.length - 1} days. Let
+                  applicants enter for a single day or for all days
+                  {requireTicket ? ", each at its own price" : ""}.
+                </p>
+              </div>
+              <span className="switch">
+                <input
+                  type="checkbox"
+                  checked={priceByAttendance}
+                  onChange={(e) => setPriceByAttendance(e.target.checked)}
+                />
+                <span className="slider" />
+              </span>
+            </label>
+            {priceByAttendance && (
+              <div className="mt-4 pt-4 border-t border-ink-200 space-y-2">
+                {attendanceDefs.map((def) => {
+                  const draft = optionDrafts[def.key] ?? {
+                    enabled: false,
+                    price: "",
+                  };
+                  const bad = optionPriceBad(def.key);
+                  return (
+                    <div
+                      key={def.key}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        draft.enabled
+                          ? "border-ink-200 bg-white"
+                          : "border-ink-100 bg-ink-50"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-gold-500 shrink-0"
+                        checked={draft.enabled}
+                        aria-label={`Offer ${def.label}`}
+                        onChange={(e) =>
+                          setOptionDrafts((d) => ({
+                            ...d,
+                            [def.key]: { ...draft, enabled: e.target.checked },
+                          }))
+                        }
+                      />
+                      <span
+                        className={`flex-1 text-sm ${
+                          draft.enabled
+                            ? "text-ink-900 font-medium"
+                            : "text-ink-500"
+                        }`}
+                      >
+                        {def.label}
+                      </span>
+                      {requireTicket && (
+                        <div className="w-32 shrink-0 relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-ink-500">
+                            {region.currencySymbol}
+                          </span>
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            step="0.01"
+                            min={0}
+                            className={`input ${bad ? "border-red-400" : ""}`}
+                            style={{ paddingLeft: 28 }}
+                            placeholder="0.00"
+                            value={draft.price}
+                            disabled={!draft.enabled}
+                            aria-label={`${def.label} price`}
+                            onChange={(e) =>
+                              setOptionDrafts((d) => ({
+                                ...d,
+                                [def.key]: { ...draft, price: e.target.value },
+                              }))
+                            }
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+                {enabledDefs.length === 0 && (
+                  <p className="text-xs text-red-600" role="alert">
+                    Switch on at least one option.
+                  </p>
+                )}
+                {requireTicket &&
+                  enabledDefs.some((d) => optionPriceBad(d.key)) && (
+                    <p className="text-xs text-red-600" role="alert">
+                      Give every option you offer a price.{" "}
+                      {minimumPriceMessage(region)}
+                    </p>
+                  )}
+                <p className="text-xs text-ink-500">
+                  Each option becomes its own hidden ticket under this
+                  category. Spaces available applies per day: a car entered
+                  for all days takes one space on every day.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
       </EditorDrawer>
 

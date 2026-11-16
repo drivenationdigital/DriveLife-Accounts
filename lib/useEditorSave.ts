@@ -78,6 +78,14 @@ export function useEditorSave() {
     // it as "already part of a recurring series" (2026-10-14).
     const series = res.recurring?.created ? res.recurring : null;
     const firstDate = series ? isoDay(series.dates[0]) : null;
+    // A "specific dates" series gives every date its own times, so the
+    // occurrence the editor now holds runs at its ROW's times, not at the
+    // shared start/end pair (which the custom form never touches). Without
+    // this the next save would reset date #1 to the 09:00-16:00 default.
+    const firstCustomRow =
+      series && firstDate && effective.recurringFrequency === "custom"
+        ? effective.recurringCustomDates.find((r) => r.date === firstDate)
+        : undefined;
     const seriesPartial: Partial<EventCreateState> = series
       ? {
           seriesRole: "child",
@@ -85,6 +93,12 @@ export function useEditorSave() {
           dateType: "single",
           uniqueTimesPerDay: false,
           ...(firstDate ? { startDate: firstDate, endDate: firstDate } : {}),
+          ...(firstCustomRow
+            ? {
+                startTime: firstCustomRow.startTime,
+                endTime: firstCustomRow.endTime,
+              }
+            : {}),
         }
       : {};
 

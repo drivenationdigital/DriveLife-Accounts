@@ -1,6 +1,6 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { useEmbedAutoResize } from "@/lib/useEmbedAutoResize";
 
 /**
@@ -18,6 +18,19 @@ import { useEmbedAutoResize } from "@/lib/useEmbedAutoResize";
 const EMBED_ROOT_STYLE = "html, body { background: transparent !important; }";
 
 /**
+ * True for everything rendered inside EmbedShell (the /embed/* routes).
+ * The same page components also serve the stand-alone checkout and
+ * apply links, so they read this to drop what does not belong in a
+ * frame on the organiser's own site - the event logo above the eyebrow,
+ * since the host page already carries the organiser's branding.
+ */
+const EmbedContext = createContext(false);
+
+export function useIsEmbedded(): boolean {
+  return useContext(EmbedContext);
+}
+
+/**
  * Bare, frame-safe shell for embedded pages. No sidebar, no dashboard
  * chrome, transparent background so the host's page shows through the
  * padding around the card. Runs the auto-resize reporter so the iframe
@@ -31,7 +44,7 @@ export function EmbedShell({ children }: { children: ReactNode }) {
       className="embed-shell min-h-0 bg-transparent p-3 md:p-4"
     >
       <style>{EMBED_ROOT_STYLE}</style>
-      {children}
+      <EmbedContext.Provider value={true}>{children}</EmbedContext.Provider>
     </div>
   );
 }

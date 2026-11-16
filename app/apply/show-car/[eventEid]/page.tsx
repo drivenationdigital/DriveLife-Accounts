@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
+import { useIsEmbedded } from "@/components/embed/EmbedShell";
 import {
   useState,
   use,
@@ -41,6 +42,7 @@ import {
   categoryAvailabilityLabel,
   uploadShowCarPhoto,
   type ShowCarApplicationBody,
+  type ShowCarPublicAttendanceOption,
   type ShowCarPublicCategory,
 } from "@/lib/showCarApply";
 
@@ -112,9 +114,17 @@ export default function ShowCarApplyPage({
   // Currency and date order for the event's own site. The public
   // endpoint doesn't send a site block yet, so this resolves to the
   // API's default region until it does.
+  const embedded = useIsEmbedded();
   const region = regionFromSite(data?.site);
   const submit = useSubmitShowCarApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
+  // Attendance options (multi-day events): for a ticked category priced
+  // by attendance, the option chosen - a day or all days - keyed by the
+  // category's id. The OPTION's id is what the server takes as the
+  // ticket, so these replace the category ids on submit.
+  const [attendanceChoice, setAttendanceChoice] = useState<
+    Record<string, string>
+  >({});
 
   // Photo state is held separately from the form body so we can
   // upload during submit (rather than on file select) and keep the
@@ -230,6 +240,24 @@ export default function ShowCarApplyPage({
   const selectionBlocked = selectedCategories.some(
     (c) => c.is_full || !isCategoryOpenToday(c),
   );
+  const chosenOption = (c: ShowCarPublicCategory) =>
+    (c.attendance_options ?? []).find(
+      (o) => o.encrypted_id === attendanceChoice[c.encrypted_id],
+    ) ?? null;
+  // A category priced by attendance needs one of its options picked,
+  // and that option must still have space.
+  const attendanceMissing = selectedCategories.some((c) => {
+    if (!c.price_by_attendance || !(c.attendance_options ?? []).length) {
+      return false;
+    }
+    const picked = chosenOption(c);
+    return !picked || picked.is_full;
+  });
+  const submitBlocked = selectionBlocked || attendanceMissing;
+  // What is actually sent: the option's id where one was chosen.
+  const resolvedTicketEids = form.ticketEids.map(
+    (eid) => attendanceChoice[eid] ?? eid,
+  );
   const toggleCategory = (eid: string, checked: boolean) => {
     setForm((f) => {
       const rest = f.ticketEids.filter((x) => x !== eid);
@@ -237,6 +265,13 @@ export default function ShowCarApplyPage({
       // `ticketEid` mirrors the first choice for older backends.
       return { ...f, ticketEids, ticketEid: ticketEids[0] ?? "" };
     });
+    if (!checked) {
+      setAttendanceChoice((m) => {
+        const { [eid]: _dropped, ...rest } = m;
+        void _dropped;
+        return rest;
+      });
+    }
   };
 
   // Organiser-set requirements (editor, Show cars step). An older
@@ -247,7 +282,7 @@ export default function ShowCarApplyPage({
   // ----- Submit --------------------------------------------------
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (form.ticketEids.length === 0 || selectionBlocked) return;
+    if (form.ticketEids.length === 0 || submitBlocked) return;
 
     // The photo is required unless the organiser relaxed it. The file
     // input is visually hidden, so the browser can't point at it like
@@ -292,7 +327,8 @@ export default function ShowCarApplyPage({
     try {
       await submit.mutateAsync({
         ...form,
-        ticketEid: form.ticketEids[0] ?? "",
+        ticketEids: resolvedTicketEids,
+        ticketEid: resolvedTicketEids[0] ?? "",
         eventEid,
         site,
         photoUrl,
@@ -346,7 +382,7 @@ export default function ShowCarApplyPage({
         label={photoUploading ? "Uploading your photo…" : "Submitting your application…"}
       />
       <header className="mb-7">
-        {data.event_logo && (
+        {!embedded && data.event_logo && (
           // eslint-disable-next-line @next/next/no-img-element -- remote
           // Cloudflare/WordPress URL with unknown dimensions.
           <img
@@ -401,9 +437,12 @@ export default function ShowCarApplyPage({
               {data.categories.map((c) => {
                 const unavailable = c.is_full || !isCategoryOpenToday(c);
                 const checked = form.ticketEids.includes(c.encrypted_id);
+                const options = c.price_by_attendance
+                  ? (c.attendance_options ?? [])
+                  : [];
                 return (
+                  <div key={c.encrypted_id} className="space-y-2">
                   <label
-                    key={c.encrypted_id}
                     className={`flex items-start gap-3 p-3 rounded-lg border transition ${
                       checked
                         ? "border-gold-400 bg-gold-50"
@@ -431,6 +470,23 @@ export default function ShowCarApplyPage({
                       )}
                     </span>
                   </label>
+                  {/* Outside the <label>: a label wrapping the checkbox
+                      would toggle it on every click in here. */}
+                  {checked && options.length > 0 && (
+                    <AttendanceOptionPicker
+                      category={c}
+                      options={options}
+                      region={region}
+                      choice={attendanceChoice[c.encrypted_id] ?? ""}
+                      onChoose={(eid) =>
+                        setAttendanceChoice((m) => ({
+                          ...m,
+                          [c.encrypted_id]: eid,
+                        }))
+                      }
+                    />
+                  )}
+                  </div>
                 );
               })}
             </div>
@@ -718,7 +774,7 @@ export default function ShowCarApplyPage({
             submit.isPending ||
             photoUploading ||
             form.ticketEids.length === 0 ||
-            selectionBlocked
+            submitBlocked
           }
           className="w-full py-3.5 bg-gold-500 hover:bg-gold-600 active:bg-gold-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-xl shadow-sm shadow-gold-500/20 transition inline-flex items-center justify-center gap-2"
         >
@@ -969,9 +1025,12 @@ function SelectedCategoryDetails({
       )}
       <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-ink-500">
         <span>
-          {category.require_ticket
-            ? `${formatRegionCurrency(category.ticket_cost, region)} on approval`
-            : "Free entry on approval"}
+          {category.price_by_attendance &&
+          (category.attendance_options ?? []).length > 0
+            ? `${categoryAvailabilityLabel(category, region).split(" · ")[0]} on approval, by the day(s) you choose below`
+            : category.require_ticket
+              ? `${formatRegionCurrency(category.ticket_cost, region)} on approval`
+              : "Free entry on approval"}
         </span>
         {/* Deliberately no remaining-space count here - capacity
             numbers stay off the public form. */}
@@ -983,5 +1042,66 @@ function SelectedCategoryDetails({
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Attendance options (multi-day events): which day(s) the car is
+ * entered for. One radio per option with its price; a full option is
+ * shown but cannot be picked. Rendered as a sibling of the category's
+ * checkbox label, never inside it.
+ */
+function AttendanceOptionPicker({
+  category,
+  options,
+  region,
+  choice,
+  onChoose,
+}: {
+  category: ShowCarPublicCategory;
+  options: ShowCarPublicAttendanceOption[];
+  region: Region;
+  choice: string;
+  onChoose: (optionEid: string) => void;
+}) {
+  return (
+    <fieldset className="border-0 p-0 m-0 min-w-0">
+      <legend className="text-xs font-semibold text-ink-700 inline-flex items-center gap-1">
+        Which day(s) are you attending?
+        <span className="text-gold-600 text-sm leading-none">*</span>
+      </legend>
+      <div className="mt-2 space-y-1.5">
+        {options.map((o) => (
+          <label
+            key={o.encrypted_id}
+            className={`flex items-center gap-2 text-sm ${
+              o.is_full ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+            }`}
+          >
+            <input
+              type="radio"
+              name={`attendance-${category.encrypted_id}`}
+              className="h-4 w-4 accent-gold-500 shrink-0"
+              checked={choice === o.encrypted_id}
+              disabled={o.is_full}
+              onChange={() => onChoose(o.encrypted_id)}
+            />
+            <span className="flex-1 text-ink-900">{o.label}</span>
+            <span className="text-xs text-ink-500">
+              {o.is_full
+                ? "Full"
+                : o.require_ticket
+                  ? formatRegionCurrency(o.ticket_cost, region)
+                  : "Free"}
+            </span>
+          </label>
+        ))}
+      </div>
+      {!choice && (
+        <p className="mt-1.5 text-xs text-ink-500">
+          Choose one to continue.
+        </p>
+      )}
+    </fieldset>
   );
 }

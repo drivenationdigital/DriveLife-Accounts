@@ -478,6 +478,9 @@ export interface ApiShowCarRecord {
    *  string when the ticket was deleted after the application was
    *  submitted (LEFT JOIN). */
   category: string;
+  /** Which day(s) the car is entered for when the category is priced by
+   *  attendance (multi-day events); null / absent otherwise. */
+  attendance?: { key: string; label: string; days: string[] } | null;
   /** One apply-form submission can cover several categories (one row
    *  each, sharing a submission id). `also_applied_for` lists the OTHER
    *  rows of the same submission. Optional until every backend sends
@@ -568,6 +571,25 @@ export interface ApiShowCarsConfig {
  * array. Each row maps 1:1 to a ticket with is_show_car_ticket=1; the
  * eventEditMapper translates it to the editor's ShowCarCategory shape.
  */
+/**
+ * One attendance option of a show car category (multi-day events): a
+ * hidden ticket row under the category admitting `days`, at its own
+ * price. Keys match the server: "all" or "day:YYYY-MM-DD".
+ */
+export interface ApiAttendanceOption {
+  ticket_id: number;
+  encrypted_id: string;
+  key: string;
+  /** "Sat 6 Mar 2027" / "All days", built server-side. */
+  label: string;
+  days: string[];
+  price: number;
+  stock: number | null;
+  stock_sold: number;
+  secret_code: string;
+  product_status: string;
+}
+
 export interface ApiShowCarCategory {
   /** Raw post id as a string - matches what the show-car save endpoint
    *  returns (`String(ticket_id)`) so refresh-then-edit re-uses the
@@ -588,11 +610,17 @@ export interface ApiShowCarCategory {
    *  built from this code. Replaces the old event-wide
    *  showcar_secret_code. */
   secret_code: string;
+  /** Attendance options (multi-day events). Absent or false: the
+   *  category sells as one ticket for every day. */
+  price_by_attendance?: boolean;
+  attendance_options?: ApiAttendanceOption[];
 }
 
 export interface ApiShowCarsSection {
   enabled: true;
   config: ApiShowCarsConfig;
+  /** The days a multi-day event runs on ("YYYY-MM-DD"); [] for one day. */
+  event_days?: string[];
   /** Application counts - only present on the events-dashboard
    *  endpoint, not the editor's /event-edit. */
   counts?: ApiApplicationCounts;
@@ -642,9 +670,18 @@ export type ApiShowCars =
   | ApiShowCarsSection
   | (DisabledSection & {
       categories?: ApiShowCarCategory[];
+      event_days?: string[];
       photo_required?: boolean;
       request_address?: boolean;
     });
+
+/** One attendance option a club approval can price (multi-day events). */
+export interface ApiClubAttendanceOption {
+  key: string;
+  label: string;
+  days: string[];
+  default_price: number;
+}
 
 /** Car clubs section in the /event-edit response. Single hidden
  *  ticket per event (vs. show cars' per-category tickets); ticket_id
@@ -658,6 +695,14 @@ export interface ApiCarClubsConfig {
   require_ticket: boolean;
   ticket_cost: number | null;
   ticket_id: number | null;
+  /** Attendance options (multi-day events): the stored default member
+   *  price per option ({key: price}) and every option with its
+   *  effective default. Absent on an older backend / single-day event. */
+  event_days?: string[];
+  attendance_prices?: Record<string, number>;
+  attendance_options?: ApiClubAttendanceOption[];
+  /** Which day options clubs are offered (tick per day + all-days). */
+  attendance_offer?: { days: string[]; all: boolean };
   secret_code: string;
   /** Confirmed slots: sold tickets (paid clubs) or the ACF
    *  confirmed-slots counter (free clubs). */

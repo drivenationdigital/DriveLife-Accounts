@@ -5,6 +5,7 @@ import { useState } from "react";
 import { useSearchParams, usePathname } from "next/navigation";
 
 import { pushStepUrl } from "@/lib/stepNav";
+import { editorEventDays } from "@/lib/attendanceOptions";
 
 import {
   useEventCreate,
@@ -23,6 +24,8 @@ import {
   mapShowCarCategoryToBody,
 } from "@/lib/showCarMutations";
 import { ApiError } from "@/lib/apiClient";
+import { copyName } from "@/lib/copyName";
+import { makeLocalId } from "@/lib/makeLocalId";
 import { useAction } from "@/context/ActionContext";
 
 import { ApplicationLinksCard } from "../ApplicationLinksCard";
@@ -61,13 +64,35 @@ export function ShowCarsPanel() {
   // ---- Drawer state ----
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<ShowCarCategory | null>(null);
+  // The days this event runs on, from the Dates step ([] for one day or
+  // a series) - what a category can be priced by attendance against.
+  const eventDays = editorEventDays(state);
+
+  // "Duplicate": the drawer opens as a NEW category pre-filled from an
+  // existing one. Nothing is created until the organiser saves.
+  const [template, setTemplate] = useState<ShowCarCategory | null>(null);
 
   const openNew = () => {
     setEditing(null);
+    setTemplate(null);
     setDrawerOpen(true);
   };
   const openEdit = (c: ShowCarCategory) => {
     setEditing(c);
+    setTemplate(null);
+    setDrawerOpen(true);
+  };
+  const openCopy = (c: ShowCarCategory) => {
+    setEditing(null);
+    setTemplate({
+      ...c,
+      // A fresh local id, so the save hook creates a row instead of
+      // updating the original. The drawer mints the copy its own secret
+      // code - the code is what makes a category's ticket link unique.
+      id: makeLocalId("scc") as ShowCarCategoryId,
+      name: copyName(c.name),
+      attendanceOptions: c.attendanceOptions.map((o) => ({ ...o })),
+    });
     setDrawerOpen(true);
   };
 
@@ -295,6 +320,7 @@ export function ShowCarsPanel() {
                       <ShowCarCategoryRow
                         category={c}
                         onEdit={() => openEdit(c)}
+                        onCopy={() => openCopy(c)}
                         onDelete={() => handleRemoveCategory(c.id, c.name)}
                         onMoveUp={() => moveItem(idx, -1)}
                         onMoveDown={() => moveItem(idx, 1)}
@@ -417,9 +443,10 @@ export function ShowCarsPanel() {
       </div>
 
       <ShowCarCategoryDrawer
-        key={`scc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? "new"}`}
+        key={`scc-${drawerOpen ? "open" : "closed"}-${editing?.id ?? template?.id ?? "new"}`}
         open={drawerOpen}
         editing={editing}
+        template={template}
         onClose={() => {
           // Reset any error from a previous failed save so the next
           // open of the drawer starts clean.
@@ -431,6 +458,7 @@ export function ShowCarsPanel() {
         isSaving={saver.isPending}
         isDeleting={remover.isPending}
         errorMessage={errorText(saver.error) ?? errorText(remover.error)}
+        eventDays={eventDays}
       />
     </section>
   );
@@ -439,6 +467,7 @@ export function ShowCarsPanel() {
 function ShowCarCategoryRow({
   category,
   onEdit,
+  onCopy,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -447,6 +476,7 @@ function ShowCarCategoryRow({
 }: {
   category: ShowCarCategory;
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -458,7 +488,15 @@ function ShowCarCategoryRow({
   // to format its own fee and dates.
   const region = useEventRegion();
   const ticketBadge = badgeForCategory(category, region);
-  const subtitle = subtitleForCategory(category, region);
+  // Attendance options ride along after the window: "Sat 6 Mar · All days".
+  const subtitle = [
+    subtitleForCategory(category, region),
+    category.priceByAttendance
+      ? category.attendanceOptions.map((o) => o.label).join(" · ")
+      : "",
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
   return (
     <div className="ticket-card bg-white border border-ink-200 rounded-xl p-4 flex items-center gap-3">
       <button
@@ -468,7 +506,9 @@ function ShowCarCategoryRow({
       >
         <i className="fa-solid fa-grip-vertical" aria-hidden />
       </button>
-      <div className="w-10 h-10 rounded-lg bg-gold-50 border border-gold-200 flex items-center justify-center flex-shrink-0">
+      {/* Hidden on phones: the row gained a fifth action button
+          (Duplicate), and the name needs the room more than the tile. */}
+      <div className="w-10 h-10 rounded-lg bg-gold-50 border border-gold-200 hidden sm:flex items-center justify-center flex-shrink-0">
         <i className="fa-solid fa-trophy text-gold-600 text-sm" aria-hidden />
       </div>
       <div className="flex-1 min-w-0">
@@ -509,6 +549,15 @@ function ShowCarCategoryRow({
         </button>
         <button
           type="button"
+          onClick={onCopy}
+          aria-label="Duplicate"
+          title="Duplicate"
+          className="w-8 h-8 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
+        >
+          <i className="fa-regular fa-copy text-xs" aria-hidden />
+        </button>
+        <button
+          type="button"
           onClick={onDelete}
           aria-label="Delete"
           className="w-8 h-8 rounded-lg text-ink-500 hover:text-red-600 hover:bg-red-50 transition"
@@ -531,6 +580,22 @@ function badgeForCategory(
   text: string;
   cls: string;
 } {
+  if (c.priceByAttendance && c.attendanceOptions.length > 0) {
+    // Priced per day / all days: lead with the lowest option price.
+    const prices = c.attendanceOptions
+      .map((o) => o.price)
+      .filter((p) => Number.isFinite(p));
+    const lowest = prices.length > 0 ? Math.min(...prices) : NaN;
+    const text = !c.requireTicket
+      ? "Free · by attendance"
+      : Number.isFinite(lowest) && lowest > 0
+        ? `From ${formatRegionAmount(lowest, region)} · by attendance`
+        : "By attendance";
+    return {
+      text,
+      cls: "text-[10px] uppercase tracking-wider font-semibold bg-gold-50 text-gold-700 border border-gold-200 px-1.5 py-0.5 rounded",
+    };
+  }
   if (!c.requireTicket) {
     return {
       text: "No ticket required",

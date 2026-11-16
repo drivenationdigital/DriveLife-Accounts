@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { useEventData } from "@/context/EventContext";
 import { KpiCard } from "@/components/cards/KpiCard";
 import { ShowCarTable } from "@/components/tables/ShowCarTable";
@@ -97,6 +99,9 @@ export function ShowCarsTab() {
     refetch,
     isFetching,
   } = useShowCarApplications(eid, event.region, features.show_cars.enabled);
+  // Attendance options (multi-day events): filter the lists to one
+  // day / option. "" = everything.
+  const [dayFilter, setDayFilter] = useState("");
 
   // Show cars switched off ⇒ nothing below applies, whatever tickets
   // exist. Every event is seeded with a "General Show Cars" category at
@@ -143,12 +148,20 @@ export function ShowCarsTab() {
     );
   }
 
-  const pending = showCars.filter((c) => c.status === "pending");
-  const awaitingPayment = showCars.filter(
+  const attendanceLabels = Array.from(
+    new Set(showCars.map((c) => c.attendance).filter(Boolean)),
+  );
+  const visibleCars =
+    dayFilter && attendanceLabels.includes(dayFilter)
+      ? showCars.filter((c) => c.attendance === dayFilter)
+      : showCars;
+
+  const pending = visibleCars.filter((c) => c.status === "pending");
+  const awaitingPayment = visibleCars.filter(
     (c) => c.status === "awaiting-payment",
   );
-  const confirmed = showCars.filter((c) => c.status === "confirmed");
-  const rejected = showCars.filter((c) => c.status === "rejected");
+  const confirmed = visibleCars.filter((c) => c.status === "confirmed");
+  const rejected = visibleCars.filter((c) => c.status === "rejected");
 
   // Capacity table comes from the show car tickets directly - each
   // ticket is a category, capacity = stock, confirmed = sold. Single
@@ -221,6 +234,63 @@ export function ShowCarsTab() {
           valueColor="var(--success)"
         />
       </div>
+
+      {attendanceLabels.length > 0 && (
+        <div
+          className="section"
+          style={{
+            padding: "12px 16px",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+            flexWrap: "wrap",
+          }}
+        >
+          <label
+            htmlFor="showCarDayFilter"
+            style={{ fontSize: 13, color: "var(--muted)" }}
+          >
+            Attending
+          </label>
+          <select
+            id="showCarDayFilter"
+            className="input"
+            style={{ maxWidth: 280, padding: "6px 10px", fontSize: 13 }}
+            value={dayFilter}
+            onChange={(e) => setDayFilter(e.target.value)}
+          >
+            <option value="">All days and options</option>
+            {attendanceLabels.map((label) => (
+              <option key={label} value={label}>
+                {label}
+              </option>
+            ))}
+          </select>
+          {dayFilter && (
+            <span style={{ fontSize: 13, color: "var(--muted)" }}>
+              {visibleCars.length} of {showCars.length}{" "}
+              {showCars.length === 1 ? "application" : "applications"}
+            </span>
+          )}
+        </div>
+      )}
+
+      {showCars.length > 0 && dayFilter && visibleCars.length === 0 && (
+        <div className="section">
+          <div className="section-body">
+            <div
+              style={{
+                padding: "24px 16px",
+                textAlign: "center",
+                color: "var(--muted)",
+                fontSize: 14,
+              }}
+            >
+              No applications for {dayFilter}.
+            </div>
+          </div>
+        </div>
+      )}
 
       {showCars.length === 0 ? (
         <div className="section">

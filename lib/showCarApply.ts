@@ -39,6 +39,26 @@ export interface ShowCarPublicCategory {
    *  on that side. */
   applications_open: string | null;
   applications_close: string | null;
+  /** Attendance options (multi-day events): when true the applicant
+   *  must pick one of `attendance_options` - a day or all days - and
+   *  the form sends THAT option's encrypted id as the ticket. The
+   *  category's own `ticket_cost` is then the lowest option price. */
+  price_by_attendance?: boolean;
+  attendance_options?: ShowCarPublicAttendanceOption[];
+}
+
+export interface ShowCarPublicAttendanceOption {
+  encrypted_id: string;
+  /** "all" or "day:YYYY-MM-DD". */
+  key: string;
+  /** "Sat 6 Mar 2027" / "All days", built server-side. */
+  label: string;
+  days: string[];
+  require_ticket: boolean;
+  ticket_cost: number;
+  /** Full when any day the option covers has no space left. */
+  is_full: boolean;
+  spaces_remaining: number | null;
 }
 
 export interface ShowCarPublicResponse {
@@ -63,6 +83,9 @@ export interface ShowCarPublicResponse {
   /** Show an optional postal address box so the organiser can post
    *  out passes or prizes. Absent = no. */
   request_address?: boolean;
+  /** The days a multi-day event runs on ("YYYY-MM-DD"); [] / absent for
+   *  a single day. */
+  event_days?: string[];
   categories: ShowCarPublicCategory[];
 }
 
@@ -282,9 +305,26 @@ export function categoryAvailabilityLabel(
   region: Region,
 ): string {
   const bits: string[] = [];
-  bits.push(
-    c.require_ticket ? formatRegionCurrency(c.ticket_cost, region) : "Free",
-  );
+  const options = c.attendance_options ?? [];
+  if (c.price_by_attendance && options.length > 0) {
+    // Priced per day: lead with the lowest price still available.
+    const open = options.filter((o) => !o.is_full);
+    const pool = open.length > 0 ? open : options;
+    const prices = pool.map((o) => o.ticket_cost);
+    const min = Math.min(...prices);
+    const max = Math.max(...prices);
+    bits.push(
+      !c.require_ticket || max <= 0
+        ? "Free"
+        : min === max
+          ? formatRegionCurrency(min, region)
+          : `From ${formatRegionCurrency(min, region)}`,
+    );
+  } else {
+    bits.push(
+      c.require_ticket ? formatRegionCurrency(c.ticket_cost, region) : "Free",
+    );
+  }
   if (c.is_full) bits.push("full");
   else if (!isCategoryOpenToday(c)) bits.push("closed");
   return bits.join(" · ");

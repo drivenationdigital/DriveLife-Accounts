@@ -25,6 +25,8 @@ export interface ApiCarClubRecord {
     instagram: string | null;
     tiktok: string | null;
     members: number;
+    /** Multi-day events: the days the club attends (labels). */
+    days?: string[];
   };
   contact: {
     name: string;
@@ -40,10 +42,32 @@ export interface ApiCarClubRecord {
     sales: number;
     /** Spaces the club holds (sold + unsold); null without a ticket. */
     allocated: number | null;
+    /** Attendance options (multi-day events): price + sales per option;
+     *  [] / absent when the club sells one ticket for every day. */
+    options?: ApiClubTicketOption[];
   };
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
+}
+
+export interface ApiClubTicketOption {
+  key: string;
+  label: string;
+  days: string[];
+  ticket_id: number;
+  price: number;
+  sold: number;
+  /** Spaces this day holds (sold + unsold); null for an all-days row,
+   *  which is bounded by the day rows instead. */
+  allocated?: number | null;
+  /** True for the earlier pooled layout (one shared allocation). */
+  pooled?: boolean;
+  /** The discounted every-day ticket: a sale takes a space on each day. */
+  all_days?: boolean;
+  /** Day-only tickets sold for a day row (`sold` also counts all-days
+   *  members present that day); equals `sold` on an all-days row. */
+  sold_day_only?: number;
 }
 
 export interface ClubSalesSummary {
@@ -65,6 +89,22 @@ export interface ClubApprovalConfig {
   confirmed_slots: number;
   /** max - confirmed, null when unlimited. */
   remaining: number | null;
+  /** Default member price for the discounted all-days ticket a club
+   *  attending two or more days can offer (multi-day events). */
+  all_days_default_price?: number;
+  /** Whether the organiser offers clubs the all-days ticket at all
+   *  (Car clubs step tick box). Absent = yes. */
+  all_days_offered?: boolean;
+  /** Attendance options (multi-day events): every option with the
+   *  organiser's default member price. [] / absent on a single-day
+   *  event, where `default_price` alone applies. */
+  event_days?: string[];
+  attendance_options?: {
+    key: string;
+    label: string;
+    days: string[];
+    default_price: number;
+  }[];
 }
 
 export interface ClubApplicationsResponse {
@@ -118,6 +158,18 @@ export function mapClub(r: ApiCarClubRecord, region: Region): Club {
     spacesAllocated: r.ticket?.allocated ?? null,
     ticketPrice: r.ticket?.id ? (r.ticket.price ?? 0) : null,
     currencySymbol: region.currencySymbol,
+    options: (r.ticket?.options ?? []).map((o) => ({
+      key: o.key,
+      label: o.label,
+      price: o.price ?? 0,
+      sold: o.sold ?? 0,
+      allocated: o.allocated ?? null,
+      pooled: !!o.pooled,
+      allDays: !!o.all_days,
+      soldDayOnly: o.sold_day_only ?? o.sold ?? 0,
+      ticketId: o.ticket_id,
+    })),
+    days: r.club?.days ?? [],
   };
 }
 
@@ -167,6 +219,16 @@ export interface ClubApproveVars {
   price?: number;
   /** Spaces to allocate (the club's ticket stock). */
   spaces?: number;
+  /** Attendance options (multi-day events): member price per option
+   *  key. An option left out takes `price`, else the event default. */
+  prices?: Record<string, number>;
+  /** Per-day terms (multi-day events): spaces and member price for each
+   *  day the club applied for, keyed "day:YYYY-MM-DD". */
+  days?: Record<string, { spaces: number; price?: number }>;
+  /** The discounted every-day ticket for a club on two or more days:
+   *  whether to offer it and at what member price. Offered by default
+   *  at the event's all-days default when left out. */
+  all_days?: { offer: boolean; price?: number };
 }
 
 export interface ClubRejectResponse {
@@ -184,14 +246,24 @@ export interface ClubRejectResponse {
 export function useApproveClubApplication() {
   const qc = useQueryClient();
   return useMutation<ClubApproveResponse, Error, ClubApproveVars>({
-    mutationFn: ({ applicationId, price, spaces }) =>
+    mutationFn: ({ applicationId, price, spaces, prices, days, all_days }) =>
       apiPost<
         ClubApproveResponse,
-        { application_id: number; price?: number; spaces?: number }
+        {
+          application_id: number;
+          price?: number;
+          spaces?: number;
+          prices?: Record<string, number>;
+          days?: Record<string, { spaces: number; price?: number }>;
+          all_days?: { offer: boolean; price?: number };
+        }
       >("/event-car-club-application-approve", {
         application_id: applicationId,
         ...(price !== undefined ? { price } : {}),
         ...(spaces !== undefined ? { spaces } : {}),
+        ...(prices !== undefined ? { prices } : {}),
+        ...(days !== undefined ? { days } : {}),
+        ...(all_days !== undefined ? { all_days } : {}),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });
@@ -230,6 +302,16 @@ export interface ClubApprovalTerms extends ClubApprovalConfig {
   allocated: number | null;
   sold: number;
   price: number | null;
+  /** Per-option prices once confirmed (multi-day events). */
+  options?: ApiClubTicketOption[];
+  /** The days the club applied for (multi-day events), each with the
+   *  event's default member price - the approve dialog's rows. */
+  requested_days?: {
+    key: string;
+    label: string;
+    days: string[];
+    default_price: number;
+  }[];
   site: EventSite;
 }
 
@@ -274,6 +356,8 @@ export interface ClubUpdateSpacesResponse {
   spaces: number;
   price: number;
   sold: number;
+  /** Per-option prices after the update (multi-day events). */
+  options?: ApiClubTicketOption[];
 }
 
 export function useUpdateClubSpaces() {
@@ -281,16 +365,32 @@ export function useUpdateClubSpaces() {
   return useMutation<
     ClubUpdateSpacesResponse,
     Error,
-    { applicationId: number; spaces?: number; price?: number }
+    {
+      applicationId: number;
+      spaces?: number;
+      price?: number;
+      /** One option's new price, {key: price} (multi-day events). */
+      prices?: Record<string, number>;
+      /** One day's new spaces and/or price (per-day clubs). */
+      days?: Record<string, { spaces?: number; price?: number }>;
+    }
   >({
-    mutationFn: ({ applicationId, spaces, price }) =>
+    mutationFn: ({ applicationId, spaces, price, prices, days }) =>
       apiPost<
         ClubUpdateSpacesResponse,
-        { application_id: number; spaces?: number; price?: number }
+        {
+          application_id: number;
+          spaces?: number;
+          price?: number;
+          prices?: Record<string, number>;
+          days?: Record<string, { spaces?: number; price?: number }>;
+        }
       >("/event-car-club-application-update-spaces", {
         application_id: applicationId,
         ...(spaces !== undefined ? { spaces } : {}),
         ...(price !== undefined ? { price } : {}),
+        ...(prices !== undefined ? { prices } : {}),
+        ...(days !== undefined ? { days } : {}),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["event-car-club-applications"] });

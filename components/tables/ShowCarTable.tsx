@@ -92,6 +92,12 @@ function ShowCarTableRow({ car }: { car: ShowCar }) {
         ) : (
           <span style={{ color: "var(--muted)" }}>-</span>
         )}
+        {/* Day(s) entered for, when the category is priced by attendance. */}
+        {car.attendance && (
+          <div className="showcar-email" style={{ marginTop: 4 }}>
+            {car.attendance}
+          </div>
+        )}
       </td>
       <td className="col-actions">
         <ApplicationActionsMenu kind="showcar" entity={car} />

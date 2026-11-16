@@ -28,6 +28,8 @@ import {
   mapSectionToBody,
 } from "@/lib/ticketMutations";
 import { ApiError } from "@/lib/apiClient";
+import { copyName } from "@/lib/copyName";
+import { makeLocalId } from "@/lib/makeLocalId";
 import { CheckoutLinksCard } from "../CheckoutLinksCard";
 import { useAction } from "@/context/ActionContext";
 
@@ -84,12 +86,43 @@ export function TicketsPanel() {
     null,
   );
 
+  // "Duplicate": the drawer opens as a NEW ticket pre-filled from an
+  // existing one. Nothing is created until the organiser saves, so a
+  // stray click never puts a second buyable ticket on a live event.
+  // `copySourceId` remembers which row it came from, so the saved copy
+  // can be placed directly beneath it.
+  const [ticketTemplate, setTicketTemplate] = useState<Ticket | null>(null);
+  const [copySourceId, setCopySourceId] = useState<TicketId | null>(null);
+
   const openNewTicket = () => {
     setEditingTicket(null);
+    setTicketTemplate(null);
+    setCopySourceId(null);
     setTicketDrawerOpen(true);
   };
   const openEditTicket = (t: Ticket) => {
     setEditingTicket(t);
+    setTicketTemplate(null);
+    setCopySourceId(null);
+    setTicketDrawerOpen(true);
+  };
+  const openCopyTicket = (t: Ticket) => {
+    setEditingTicket(null);
+    setTicketTemplate({
+      ...t,
+      // A fresh local id: the save hook reads it as "not on the server
+      // yet" and creates a row instead of updating the original.
+      id: makeLocalId("tkt") as TicketId,
+      encryptedTicketID: undefined,
+      name: copyName(t.name),
+      // `quantity` is what's LEFT of the original. The copy starts with
+      // the original's full allocation and nothing sold.
+      quantity: Number.isFinite(t.quantity)
+        ? Math.max(0, t.quantity) + Math.max(0, t.quantitySold || 0)
+        : NaN,
+      quantitySold: 0,
+    });
+    setCopySourceId(t.id);
     setTicketDrawerOpen(true);
   };
   const openNewSection = () => {
@@ -214,11 +247,25 @@ export function TicketsPanel() {
         id: String(res.ticket_id) as TicketId,
         encryptedTicketID: res.encrypted_id || t.encryptedTicketID,
       };
-      dispatch(
-        isUpdate
-          ? { type: "UPDATE_TICKET", ticket: persisted }
-          : { type: "ADD_TICKET", ticket: persisted },
-      );
+      // A duplicate goes directly beneath the ticket it was copied
+      // from (and that order is saved, as a drag would be); anything
+      // else new goes to the end of the list.
+      const sourceIdx =
+        !isUpdate && copySourceId
+          ? state.ticketList.findIndex(
+              (it) => it.kind === "ticket" && it.id === copySourceId,
+            )
+          : -1;
+      if (isUpdate) {
+        dispatch({ type: "UPDATE_TICKET", ticket: persisted });
+      } else if (sourceIdx >= 0 && sourceIdx < state.ticketList.length - 1) {
+        const next = [...state.ticketList];
+        next.splice(sourceIdx + 1, 0, persisted);
+        dispatch({ type: "REORDER_TICKET_LIST", items: next });
+        persistOrder(next);
+      } else {
+        dispatch({ type: "ADD_TICKET", ticket: persisted });
+      }
       setTicketDrawerOpen(false);
     } catch {
       // Error stays on ticketSaver.error and renders inside the drawer
@@ -540,6 +587,7 @@ export function TicketsPanel() {
                           region={region}
                           showFees={state.ticketFeeMode === "pass"}
                           onEdit={() => openEditTicket(item)}
+                          onCopy={() => openCopyTicket(item)}
                           onDelete={() => handleRemoveTicket(item.id, item.name)}
                           onMoveUp={() => moveItem(idx, -1)}
                           onMoveDown={() => moveItem(idx, 1)}
@@ -735,9 +783,10 @@ export function TicketsPanel() {
           would trigger React's "setState within an effect can cause
           cascading renders" lint error). */}
       <TicketDrawer
-        key={`tkt-${ticketDrawerOpen ? "open" : "closed"}-${editingTicket?.id ?? "new"}`}
+        key={`tkt-${ticketDrawerOpen ? "open" : "closed"}-${editingTicket?.id ?? ticketTemplate?.id ?? "new"}`}
         open={ticketDrawerOpen}
         editing={editingTicket}
+        template={ticketTemplate}
         eid={eid}
         site={site}
         onClose={() => {
@@ -822,6 +871,7 @@ function TicketRow({
   region,
   showFees,
   onEdit,
+  onCopy,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -832,6 +882,7 @@ function TicketRow({
   region: Region;
   showFees: boolean;
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -854,9 +905,11 @@ function TicketRow({
       </button>
 
       {/* Icon - gold for ordinary tickets, dark with gold car icon when
-          this is a Show Car entry. */}
+          this is a Show Car entry. Hidden on phones: the row gained a
+          fifth action button (Duplicate), and the name needs the room
+          more than the tile does. */}
       <div
-        className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${
+        className={`w-10 h-10 rounded-lg hidden sm:flex items-center justify-center flex-shrink-0 ${
           isShow ? "bg-ink-900" : "bg-gold-50 border border-gold-200"
         }`}
       >
@@ -896,6 +949,7 @@ function TicketRow({
 
       <RowActions
         onEdit={onEdit}
+        onCopy={onCopy}
         onDelete={onDelete}
         onMoveUp={onMoveUp}
         onMoveDown={onMoveDown}
@@ -1020,6 +1074,7 @@ function SectionRowActions({
 
 function RowActions({
   onEdit,
+  onCopy,
   onDelete,
   onMoveUp,
   onMoveDown,
@@ -1027,6 +1082,7 @@ function RowActions({
   canMoveDown,
 }: {
   onEdit: () => void;
+  onCopy: () => void;
   onDelete: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
@@ -1060,6 +1116,15 @@ function RowActions({
         className="w-8 h-8 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
       >
         <i className="fa-solid fa-pen text-xs" aria-hidden />
+      </button>
+      <button
+        type="button"
+        onClick={onCopy}
+        aria-label="Duplicate"
+        title="Duplicate"
+        className="w-8 h-8 rounded-lg text-ink-500 hover:text-ink-900 hover:bg-ink-100 transition"
+      >
+        <i className="fa-regular fa-copy text-xs" aria-hidden />
       </button>
       <button
         type="button"

@@ -199,6 +199,10 @@ export interface ShowCar {
    *  the base `.showcar-category` styling still applies. Re-add
    *  per-category colours via slugified class names if desired. */
   category: string;
+  /** Which day(s) the car is entered for when the category is priced by
+   *  attendance (multi-day events) - "Sat 6 Mar 2027" / "All days".
+   *  Empty / absent otherwise. */
+  attendance?: string;
   /** The other categories this same submission applied for (each is
    *  its own application row with its own status). Empty for a
    *  single-category application. */
@@ -237,6 +241,30 @@ export interface Club {
   ticketPrice: number | null;
   /** Currency symbol of the club's event, for showing ticketPrice. */
   currencySymbol: string;
+  /** Attendance options (multi-day events): the club's per-option
+   *  member tickets - a day or all days, each with its own price and
+   *  sales. Empty / absent when the club sells one ticket for every day. */
+  options?: ClubTicketOption[];
+  /** Multi-day events: the days the club attends (labels). */
+  days?: string[];
+}
+
+export interface ClubTicketOption {
+  /** "all" or "day:YYYY-MM-DD" - the server's key for the option. */
+  key: string;
+  label: string;
+  price: number;
+  sold: number;
+  /** Spaces this day holds (sold + unsold); null when unknown. */
+  allocated: number | null;
+  /** The earlier pooled layout: every option shares one allocation. */
+  pooled: boolean;
+  /** The discounted every-day ticket; a sale takes a space on each day. */
+  allDays: boolean;
+  /** Day-only tickets sold (a day row's `sold` also counts all-days
+   *  members present that day). */
+  soldDayOnly: number;
+  ticketId: number;
 }
 
 export interface Trader {

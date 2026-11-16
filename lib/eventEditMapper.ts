@@ -291,6 +291,8 @@ function mapCarClubs(
   carClubsInfo: string;
   carClubsRequireTicket: boolean;
   carClubsTicketCost: number;
+  carClubsAttendancePrices: Record<string, number>;
+  carClubsAttendanceOffer: { days: string[]; all: boolean } | null;
 } {
   if (!api || !api.enabled) {
     return {
@@ -304,6 +306,8 @@ function mapCarClubs(
       carClubsInfo: "",
       carClubsRequireTicket: false,
       carClubsTicketCost: NaN,
+      carClubsAttendancePrices: {},
+      carClubsAttendanceOffer: null,
     };
   }
   const c = api.config;
@@ -326,6 +330,19 @@ function mapCarClubs(
       typeof c.ticket_cost === "number" && Number.isFinite(c.ticket_cost)
         ? c.ticket_cost
         : NaN,
+    // Attendance options (multi-day events): stored per-option defaults.
+    carClubsAttendancePrices: Object.fromEntries(
+      Object.entries(c.attendance_prices ?? {}).filter(
+        ([, v]) => typeof v === "number" && Number.isFinite(v),
+      ),
+    ),
+    carClubsAttendanceOffer:
+      c.attendance_offer && Array.isArray(c.attendance_offer.days)
+        ? {
+            days: c.attendance_offer.days.filter((d) => typeof d === "string"),
+            all: c.attendance_offer.all !== false,
+          }
+        : null,
   };
 }
 
@@ -420,6 +437,15 @@ function mapShowCarCategory(api: ApiShowCarCategory): ShowCarCategory {
         ? api.ticket_cost
         : NaN,
     secretCode: api.secret_code ?? "",
+    // Attendance options (multi-day events) - absent on an older
+    // backend, in which case the category sells as one ticket.
+    priceByAttendance: !!api.price_by_attendance,
+    attendanceOptions: (api.attendance_options ?? []).map((o) => ({
+      key: o.key,
+      label: o.label,
+      days: o.days ?? [],
+      price: Number.isFinite(o.price) ? o.price : NaN,
+    })),
   };
 }
 

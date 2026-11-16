@@ -98,12 +98,29 @@ export function PublishPanel() {
   // start time is left off (it used to print the 09:00 default here even
   // when the organiser had hidden the times), and a visible end time with
   // a hidden start reads "until". A recurring series shows its first date.
+  //
+  // "Specific dates" has no first-date field of its own: its first date is
+  // the earliest row in the list, and that row carries its own times. This
+  // used to read "Not set" for every hand-picked series.
+  const firstCustomRow =
+    state.dateType === "recurring" && state.recurringFrequency === "custom"
+      ? (state.recurringCustomDates
+          .filter((r) => Boolean(r.date))
+          .sort((a, b) => (a.date ?? "").localeCompare(b.date ?? ""))[0] ??
+        null)
+      : null;
   const summaryStartDate =
-    state.dateType === "recurring" ? state.recurringFirstDate : state.startDate;
-  const summaryTime = !state.hideStartTime && state.startTime
-    ? formatRegionTime(state.startTime, region)
-    : state.hideStartTime && !state.hideEndTime && state.endTime
-      ? `until ${formatRegionTime(state.endTime, region)}`
+    state.dateType !== "recurring"
+      ? state.startDate
+      : state.recurringFrequency === "custom"
+        ? (firstCustomRow?.date ?? null)
+        : state.recurringFirstDate;
+  const summaryStartTime = firstCustomRow?.startTime ?? state.startTime;
+  const summaryEndTime = firstCustomRow?.endTime ?? state.endTime;
+  const summaryTime = !state.hideStartTime && summaryStartTime
+    ? formatRegionTime(summaryStartTime, region)
+    : state.hideStartTime && !state.hideEndTime && summaryEndTime
+      ? `until ${formatRegionTime(summaryEndTime, region)}`
       : "";
   const summaryDate = summaryStartDate
     ? `${formatRegionShortDate(summaryStartDate, region, true)}${summaryTime ? `, ${summaryTime}` : ""}`

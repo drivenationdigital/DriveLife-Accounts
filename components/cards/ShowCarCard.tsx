@@ -86,6 +86,9 @@ export function ShowCarCard({ car, actions = "pending" }: ShowCarCardProps) {
       </div>
       <div className="showcar-model">{car.model}</div>
       <span className="showcar-reg">{car.reg}</span>
+      {car.attendance && (
+        <div className="showcar-email">Attending: {car.attendance}</div>
+      )}
       <div className="showcar-owner">
         {car.ownerFirstName} {car.ownerLastName}
       </div>

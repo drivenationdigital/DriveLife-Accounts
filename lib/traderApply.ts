@@ -111,7 +111,9 @@ export function isTraderCategoryOpenToday(c: TraderPublicCategory): boolean {
   return true;
 }
 
-/** "£25 · Paid direct to event organiser · 3 left" style suffix for the dropdown label. */
+/** "£25 · 3 left" style suffix for the dropdown label. The payment
+ *  method is deliberately not mentioned: a category paid direct to the
+ *  organiser reads the same as one paid online (Mark, 2026-11-09). */
 export function traderCategoryAvailabilityLabel(
   c: TraderPublicCategory,
   region: Region,
@@ -119,9 +121,6 @@ export function traderCategoryAvailabilityLabel(
   const bits: string[] = [];
   if (c.ticket_cost > 0) {
     bits.push(formatRegionCurrency(c.ticket_cost, region));
-  }
-  if (c.payment_mode === "in_person") {
-    bits.push("Paid direct to event organiser");
   }
   if (c.spaces_remaining !== null) {
     bits.push(c.is_full ? "full" : `${c.spaces_remaining} left`);

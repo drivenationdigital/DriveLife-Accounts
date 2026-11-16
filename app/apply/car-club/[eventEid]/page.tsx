@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
+import { useIsEmbedded } from "@/components/embed/EmbedShell";
 import {
   useEffect,
   useState,
@@ -57,6 +58,7 @@ const INITIAL_FORM: FormState = {
   email: "",
   contactPhone: "",
   memberCount: "",
+  days: [],
   notes: "",
   marketingOrganiser: true,
   marketingCarevents: true,
@@ -74,6 +76,7 @@ export default function CarClubApplyPage({
   const site =
     useSearchParams()?.get("site")?.trim().toLowerCase() || undefined;
   const { data, isLoading, error } = useCarClubPublic(eventEid, site);
+  const embedded = useIsEmbedded();
   const region = regionFromSite(data?.site);
   const submit = useSubmitCarClubApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -162,11 +165,28 @@ export default function CarClubApplyPage({
       ? "Car club applications for this event are currently closed."
       : null;
 
+  // Multi-day events: the club picks the days it attends; the organiser
+  // then sets spaces and the member price for each at approval.
+  const dayOptions = data.attendance_days ?? [];
+  const daysRequired = dayOptions.length > 0;
+  // One offered day only: there is nothing to choose, so it is ticked
+  // for them and fixed.
+  const singleDay = dayOptions.length === 1 ? (dayOptions[0].days[0] ?? dayOptions[0].key.replace(/^day:/, "")) : null;
+  const chosenDays = singleDay ? [singleDay] : form.days;
+  const daysMissing = daysRequired && chosenDays.length === 0;
+  const toggleDay = (iso: string, checked: boolean) =>
+    setForm((f) => ({
+      ...f,
+      days: checked
+        ? [...f.days.filter((x) => x !== iso), iso].sort()
+        : f.days.filter((x) => x !== iso),
+    }));
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (closedReason) return;
+    if (closedReason || daysMissing) return;
     try {
-      await submit.mutateAsync({ ...form, eventEid, site });
+      await submit.mutateAsync({ ...form, days: chosenDays, eventEid, site });
     } catch {
       // surfaced below the button via submit.error
     }
@@ -191,7 +211,7 @@ export default function CarClubApplyPage({
         label="Submitting your application…"
       />
       <header className="mb-7">
-        {data.event_logo && (
+        {!embedded && data.event_logo && (
           // eslint-disable-next-line @next/next/no-img-element -- remote
           // Cloudflare/WordPress URL with unknown dimensions.
           <img
@@ -314,7 +334,55 @@ export default function CarClubApplyPage({
             </Field>
           </div>
 
-          <Field label="Approximate Number of Car Spaces Needed" required>
+          {daysRequired && (
+            // Explicit bottom margin: the section's vertical spacing does
+            // not reach the field after a fieldset, so the hint sat flush
+            // against the next label.
+            <fieldset
+              className="border-0 p-0 m-0 min-w-0"
+              style={{ marginBottom: 24 }}
+            >
+              <legend className="text-[11px] uppercase tracking-[0.08em] font-semibold text-ink-500 inline-flex items-center gap-1">
+                Which day(s) would your club like to attend?
+                <span className="text-gold-600 text-sm leading-none">*</span>
+              </legend>
+              <div className="mt-2 space-y-1.5">
+                {dayOptions.map((d) => {
+                  const iso = d.days[0] ?? d.key.replace(/^day:/, "");
+                  const checked = chosenDays.includes(iso);
+                  return (
+                    <label
+                      key={d.key}
+                      className="flex items-center gap-2 text-sm cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-gold-500 shrink-0"
+                        checked={checked}
+                        disabled={singleDay !== null}
+                        onChange={(e) => toggleDay(iso, e.target.checked)}
+                      />
+                      <span className="text-ink-900">{d.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-ink-500 mt-1.5">
+                {singleDay
+                  ? "Clubs attend on this day. The organiser confirms your spaces and the member ticket price."
+                  : "The organiser confirms your spaces and the member ticket price for each day."}
+              </p>
+            </fieldset>
+          )}
+
+          <Field
+            label={
+              daysRequired
+                ? "Approximate Number of Car Spaces Needed (per day)"
+                : "Approximate Number of Car Spaces Needed"
+            }
+            required
+          >
             <input
               className="input"
               type="number"
@@ -373,6 +441,7 @@ export default function CarClubApplyPage({
           disabled={
             submit.isPending ||
             !!closedReason ||
+            daysMissing ||
             (typeof data.remaining === "number" &&
               Number(form.memberCount) > data.remaining)
           }

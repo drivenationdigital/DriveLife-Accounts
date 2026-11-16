@@ -6,7 +6,7 @@ import { useUI } from "@/context/UIContext";
 import { statusPillClass } from "@/lib/utils";
 import { XIcon, CheckIcon, EditIcon, DownloadIcon } from "@/components/ui/Icons";
 import { downloadImage } from "@/lib/downloadImage";
-import type { ShowCar, Club, Trader } from "@/context/types";
+import type { ShowCar, Club, ClubTicketOption, Trader } from "@/context/types";
 import { useApproveShowCarApplication, useRejectShowCarApplication } from "@/lib/showCarApplications";
 import { useApproveClubApplication, useRejectClubApplication, useUpdateClubSpaces } from "@/lib/clubApplications";
 import { useApproveTraderApplication, useConfirmTraderApplication, useRejectTraderApplication } from "@/lib/traderApplications";
@@ -101,6 +101,12 @@ function ShowCarDetail({ car }: { car: ShowCar }) {
             <div className="detail-label">Category applied</div>
             <div className="detail-value">{car.category || "-"}</div>
           </div>
+          {car.attendance && (
+            <div className="detail-field">
+              <div className="detail-label">Attending</div>
+              <div className="detail-value">{car.attendance}</div>
+            </div>
+          )}
           {car.otherCategories.length > 0 && (
             <div className="detail-field">
               <div className="detail-label">Also applied for</div>
@@ -456,21 +462,48 @@ function ClubDetail({ club }: { club: Club }) {
             <div className="detail-value">{club.name}</div>
           </div>
           <div className="detail-field">
-            <div className="detail-label">Spaces requested</div>
+            <div className="detail-label">
+              Spaces requested{(club.days ?? []).length > 0 ? " (per day)" : ""}
+            </div>
             <div className="detail-value mono">{club.membersAttending}</div>
           </div>
+          {(club.days ?? []).length > 0 && (
+            <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+              <div className="detail-label">Days</div>
+              <div className="detail-value">{(club.days ?? []).join(" · ")}</div>
+            </div>
+          )}
           {/* A confirmed club has its own ticket: its allocation and
               member price are editable here (top up spaces, change the
               price). The allocated / sold pair sits on one row - they
               read as a comparison. */}
           {club.status === "approved" && (
             <>
-              <ClubSpacesField club={club} />
-              <div className="detail-field">
-                <div className="detail-label">Spaces sold</div>
-                <div className="detail-value mono">{club.ticketsSold}</div>
-              </div>
-              <ClubPriceField club={club} />
+              {(club.options ?? []).length > 0 &&
+              !(club.options ?? [])[0].pooled ? (
+                // Per-day club (multi-day events): each day has its own
+                // allocation and member price, both editable.
+                (club.options ?? []).map((o) => (
+                  <ClubDayFields key={o.key} club={club} option={o} />
+                ))
+              ) : (
+                <>
+                  <ClubSpacesField club={club} />
+                  <div className="detail-field">
+                    <div className="detail-label">Spaces sold</div>
+                    <div className="detail-value mono">{club.ticketsSold}</div>
+                  </div>
+                  {/* Pooled layout (earlier approvals): a price per
+                      option, each editable; otherwise the one price. */}
+                  {(club.options ?? []).length > 0 ? (
+                    (club.options ?? []).map((o) => (
+                      <ClubOptionPriceField key={o.key} club={club} option={o} />
+                    ))
+                  ) : (
+                    <ClubPriceField club={club} />
+                  )}
+                </>
+              )}
             </>
           )}
         </div>
@@ -745,6 +778,374 @@ function ClubPriceField({ club }: { club: Club }) {
         </div>
       )}
 
+      {error && <div className="field-error">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * One attendance option's member price (multi-day events), inline-
+ * editable like ClubPriceField. Sends `prices: {key: price}` so only
+ * this option changes; the sold count is shown for context.
+ */
+function ClubOptionPriceField({
+  club,
+  option,
+}: {
+  club: Club;
+  option: ClubTicketOption;
+}) {
+  const current = option.price;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<string>(current.toFixed(2));
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const update = useUpdateClubSpaces();
+  const saving = update.isPending;
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(current.toFixed(2));
+    setError(null);
+    setEditing(true);
+  };
+  const cancel = () => {
+    setEditing(false);
+    setError(null);
+  };
+  const save = () => {
+    const parsed = parseFloat(draft);
+    if (isNaN(parsed) || parsed < 0) {
+      setError("Enter a valid price");
+      return;
+    }
+    const rounded = Math.round(parsed * 100) / 100;
+    if (Math.abs(rounded - current) < 0.005) {
+      setEditing(false);
+      return;
+    }
+    if (rounded > 0 && rounded < 1) {
+      setError("At least 1.00, or 0 for free");
+      return;
+    }
+    setError(null);
+    update.mutate(
+      { applicationId: Number(club.id), prices: { [option.key]: rounded } },
+      {
+        onSuccess: () => setEditing(false),
+        onError: (e) => setError(e.message || "Save failed"),
+      },
+    );
+  };
+
+  return (
+    <div className="detail-field">
+      <div className="detail-label">Price · {option.label}</div>
+
+      {!editing ? (
+        <div className="detail-value mono spaces-view">
+          {current > 0
+            ? `${club.currencySymbol}${current.toFixed(2)}`
+            : "Free"}
+          <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
+            {option.sold} sold
+          </span>
+          <button
+            type="button"
+            className="icon-btn"
+            title={`Edit ${option.label} price`}
+            onClick={startEdit}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="spaces-edit">
+          <span className="mono" style={{ fontSize: 13 }}>
+            {club.currencySymbol}
+          </span>
+          <input
+            ref={inputRef}
+            className="spaces-input mono"
+            type="number"
+            min={0}
+            step="0.01"
+            inputMode="decimal"
+            value={draft}
+            disabled={saving}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+          />
+          <button
+            type="button"
+            className="icon-btn confirm"
+            onClick={save}
+            disabled={saving}
+            title="Save"
+          >
+            {saving ? <span className="spinner-xs" /> : "✓"}
+          </button>
+          <button
+            type="button"
+            className="icon-btn cancel"
+            onClick={cancel}
+            disabled={saving}
+            title="Cancel"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {error && <div className="field-error">{error}</div>}
+    </div>
+  );
+}
+
+/**
+ * One day of a per-day club: spaces allocated (editable, never below
+ * sold), sold, and the member price (editable). Each edit sends
+ * `days: {key: {...}}` so only that day's row changes.
+ */
+function ClubDayFields({
+  club,
+  option,
+}: {
+  club: Club;
+  option: ClubTicketOption;
+}) {
+  const update = useUpdateClubSpaces();
+  const allocated = option.allocated ?? 0;
+  return (
+    <div className="detail-field" style={{ gridColumn: "1 / -1" }}>
+      <div className="detail-label">
+        {option.label}
+        {option.allDays ? " · one ticket for every day" : ""}
+      </div>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))",
+          gap: 12,
+          marginTop: 4,
+        }}
+      >
+        {option.allDays ? (
+          // No allocation of its own: each sale takes a space on every
+          // day, so it is bounded by the day rows above.
+          <div>
+            <div className="detail-label">Spaces</div>
+            <div className="detail-value" style={{ color: "var(--muted)" }}>
+              From the days above
+            </div>
+          </div>
+        ) : (
+        <InlineNumberField
+          label="Spaces allocated"
+          display={String(allocated)}
+          initial={String(allocated)}
+          min={0}
+          step={1}
+          saving={update.isPending}
+          validate={(raw) => {
+            const parsed = parseInt(raw, 10);
+            if (isNaN(parsed) || parsed < 0) return "Enter a valid number";
+            if (parsed < option.sold) return `Can't go below ${option.sold} sold`;
+            return null;
+          }}
+          unchanged={(raw) => parseInt(raw, 10) === allocated}
+          onSave={(raw, done) =>
+            update.mutate(
+              {
+                applicationId: Number(club.id),
+                days: { [option.key]: { spaces: parseInt(raw, 10) } },
+              },
+              { onSuccess: () => done(null), onError: (e) => done(e.message || "Save failed") },
+            )
+          }
+        />
+        )}
+        <div>
+          <div className="detail-label">Sold</div>
+          <div className="detail-value mono">
+            {option.sold}
+            {!option.allDays && option.soldDayOnly !== option.sold && (
+              <span style={{ color: "var(--muted)", fontSize: 12, marginLeft: 6 }}>
+                {option.soldDayOnly} day-only
+              </span>
+            )}
+          </div>
+        </div>
+        <InlineNumberField
+          label="Member price"
+          display={option.price > 0 ? `${club.currencySymbol}${option.price.toFixed(2)}` : "Free"}
+          initial={option.price.toFixed(2)}
+          min={0}
+          step={0.01}
+          prefix={club.currencySymbol}
+          saving={update.isPending}
+          validate={(raw) => {
+            const parsed = parseFloat(raw);
+            if (isNaN(parsed) || parsed < 0) return "Enter a valid price";
+            const rounded = Math.round(parsed * 100) / 100;
+            if (rounded > 0 && rounded < 1) return "At least 1.00, or 0 for free";
+            return null;
+          }}
+          unchanged={(raw) => Math.abs(Math.round(parseFloat(raw) * 100) / 100 - option.price) < 0.005}
+          onSave={(raw, done) =>
+            update.mutate(
+              {
+                applicationId: Number(club.id),
+                days: { [option.key]: { price: Math.round(parseFloat(raw) * 100) / 100 } },
+              },
+              { onSuccess: () => done(null), onError: (e) => done(e.message || "Save failed") },
+            )
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+/** A small view / edit number field with the detail modal's inline styling. */
+function InlineNumberField({
+  label,
+  display,
+  initial,
+  min,
+  step,
+  prefix,
+  saving,
+  validate,
+  unchanged,
+  onSave,
+}: {
+  label: string;
+  display: string;
+  initial: string;
+  min: number;
+  step: number;
+  prefix?: string;
+  saving: boolean;
+  validate: (raw: string) => string | null;
+  unchanged: (raw: string) => boolean;
+  onSave: (raw: string, done: (error: string | null) => void) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(initial);
+  const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  const startEdit = () => {
+    setDraft(initial);
+    setError(null);
+    setEditing(true);
+  };
+  const cancel = () => {
+    setEditing(false);
+    setError(null);
+  };
+  const save = () => {
+    const problem = validate(draft);
+    if (problem) {
+      setError(problem);
+      return;
+    }
+    if (unchanged(draft)) {
+      setEditing(false);
+      return;
+    }
+    setError(null);
+    onSave(draft, (err) => {
+      if (err) setError(err);
+      else setEditing(false);
+    });
+  };
+
+  return (
+    <div>
+      <div className="detail-label">{label}</div>
+      {!editing ? (
+        <div className="detail-value mono spaces-view">
+          {display}
+          <button
+            type="button"
+            className="icon-btn"
+            title={`Edit ${label.toLowerCase()}`}
+            onClick={startEdit}
+          >
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </button>
+        </div>
+      ) : (
+        <div className="spaces-edit">
+          {prefix && (
+            <span className="mono" style={{ fontSize: 13 }}>
+              {prefix}
+            </span>
+          )}
+          <input
+            ref={inputRef}
+            className="spaces-input mono"
+            type="number"
+            min={min}
+            step={step}
+            inputMode={step < 1 ? "decimal" : "numeric"}
+            value={draft}
+            disabled={saving}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") save();
+              if (e.key === "Escape") cancel();
+            }}
+          />
+          <button
+            type="button"
+            className="icon-btn confirm"
+            onClick={save}
+            disabled={saving}
+            title="Save"
+          >
+            {saving ? <span className="spinner-xs" /> : "✓"}
+          </button>
+          <button
+            type="button"
+            className="icon-btn cancel"
+            onClick={cancel}
+            disabled={saving}
+            title="Cancel"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       {error && <div className="field-error">{error}</div>}
     </div>
   );

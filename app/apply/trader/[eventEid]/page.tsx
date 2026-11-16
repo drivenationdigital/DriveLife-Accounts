@@ -1,6 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 "use client";
 
+import { useIsEmbedded } from "@/components/embed/EmbedShell";
 import {
   useEffect,
   useState,
@@ -80,6 +81,7 @@ export default function TraderApplyPage({
   // Currency for the event's own site - see the note on the show-car
   // apply page; resolves to the default region until the public
   // endpoint echoes a site block.
+  const embedded = useIsEmbedded();
   const region = regionFromSite(data?.site);
   const submit = useSubmitTraderApplication();
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
@@ -212,7 +214,7 @@ export default function TraderApplyPage({
         label="Submitting your application…"
       />
       <header className="mb-7">
-        {data.event_logo && (
+        {!embedded && data.event_logo && (
           // eslint-disable-next-line @next/next/no-img-element -- remote
           // Cloudflare/WordPress URL with unknown dimensions.
           <img
@@ -315,24 +317,9 @@ export default function TraderApplyPage({
             </Field>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-ink-700">
-            <input
-              type="checkbox"
-              checked={form.powerRequired}
-              onChange={update("powerRequired")}
-            />
-            I need access to power
-          </label>
-          {form.powerRequired && (
-            <Field label="Power details (optional)">
-              <input
-                className="input"
-                value={form.powerDetails}
-                onChange={update("powerDetails")}
-                placeholder="e.g. 1x 13A socket"
-              />
-            </Field>
-          )}
+          {/* "I need access to power" removed from the form (Mark,
+              2026-11-09). powerRequired stays false in the body so the
+              application row keeps its column. */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Instagram (optional)">

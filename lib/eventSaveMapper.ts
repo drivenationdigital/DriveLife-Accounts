@@ -125,6 +125,12 @@ export interface ApiEventUpdateSection {
   max?: number | "" | null; // "" clears the cap
   info?: string;
   paid?: boolean;
+  /** Car clubs: default member price per attendance option (multi-day
+   *  events), {key: price}. Sent only while tickets are charged. */
+  attendance_prices?: Record<string, number>;
+  /** Car clubs: which day options clubs are offered - a tick per day
+   *  plus one for the all-days ticket (multi-day events). */
+  attendance_offer?: { days: string[]; all: boolean };
   ticket_cost?: number;
   /** Show cars only: apply-form requirements (vehicle photo, postal
    *  address). Stored as plain post meta server-side. */
@@ -478,6 +484,23 @@ function mapCarClubs(state: EventCreateState): ApiEventUpdateSection {
     if (cost !== undefined && !isBelowMinimumAmount(cost)) {
       section.ticket_cost = cost;
     }
+    // Per-option defaults (multi-day events). A sub-minimum entry is
+    // left out the same way, so the rest of the section still saves.
+    const prices: Record<string, number> = {};
+    for (const [key, value] of Object.entries(state.carClubsAttendancePrices ?? {})) {
+      if (Number.isFinite(value) && !isBelowMinimumAmount(value)) {
+        prices[key] = value;
+      }
+    }
+    section.attendance_prices = prices;
+  }
+  // Which days (and the all-days ticket) clubs may apply for. Left out
+  // while unset, so the server keeps offering everything.
+  if (state.carClubsAttendanceOffer) {
+    section.attendance_offer = {
+      days: state.carClubsAttendanceOffer.days,
+      all: state.carClubsAttendanceOffer.all,
+    };
   }
 
   return section;

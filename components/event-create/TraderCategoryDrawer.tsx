@@ -37,44 +37,53 @@ type DateTarget = "open" | "close";
 export function TraderCategoryDrawer({
   open,
   editing,
+  template = null,
   onClose,
   onSave,
   onRemove,
 }: {
   open: boolean;
   editing: TraderCategory | null;
+  /** "Duplicate": a trader type to pre-fill a NEW one from. Only read
+   *  when `editing` is null - the form opens as "Add trader type" and
+   *  saves as a brand-new row with its own secret code. */
+  template?: TraderCategory | null;
   onClose: () => void;
   onSave: (category: TraderCategory) => void;
   onRemove: (id: TraderCategoryId) => void;
 }) {
   // Drives the fee field's currency symbol and the date fields' order.
   const region = useEventRegion();
-  const [name, setName] = useState(() => editing?.name ?? "");
+  // What the form starts from: the type being edited, else the one
+  // being duplicated. `editing` alone still decides what makes a row
+  // an existing one (its id, its secret code, the Remove button).
+  const seed = editing ?? template;
+  const [name, setName] = useState(() => seed?.name ?? "");
   // Icon is no longer pickable in the UI; existing values are preserved
   // and new categories fall back to the generic default.
-  const icon: TraderIcon = editing?.icon ?? "utensils";
+  const icon: TraderIcon = seed?.icon ?? "utensils";
   const [paymentMode, setPaymentMode] = useState<"online" | "in_person">(
-    () => editing?.paymentMode ?? "online",
+    () => seed?.paymentMode ?? "online",
   );
   // Cost / spaces are stored as numbers (NaN ⇒ unset). The inputs are
   // strings so an empty field reads back as "" → NaN.
   const [costStr, setCostStr] = useState(() =>
-    editing && Number.isFinite(editing.ticketCost)
-      ? String(editing.ticketCost)
+    seed && Number.isFinite(seed.ticketCost)
+      ? String(seed.ticketCost)
       : "",
   );
   const [spacesStr, setSpacesStr] = useState(() =>
-    editing && Number.isFinite(editing.spacesAvailable)
-      ? String(editing.spacesAvailable)
+    seed && Number.isFinite(seed.spacesAvailable)
+      ? String(seed.spacesAvailable)
       : "",
   );
   const [applicationsOpen, setApplicationsOpen] = useState<string | null>(
-    () => editing?.applicationsOpen ?? null,
+    () => seed?.applicationsOpen ?? null,
   );
   const [applicationsClose, setApplicationsClose] = useState<string | null>(
-    () => editing?.applicationsClose ?? null,
+    () => seed?.applicationsClose ?? null,
   );
-  const [info, setInfo] = useState(() => editing?.info ?? "");
+  const [info, setInfo] = useState(() => seed?.info ?? "");
   // Auto-generated for new categories so a row never persists without
   // a code (the online ticket link is built from it). Preserved when
   // editing.

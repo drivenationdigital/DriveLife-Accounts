@@ -2130,7 +2130,10 @@
   font-weight: 500;
   color: var(--ink);
 }
-.category-tag::before {
+.category-tag.classic::before,
+.category-tag.retro::before,
+.category-tag.modern::before,
+.category-tag.supercar::before {
   content: "";
   width: 9px;
   height: 9px;
@@ -3683,7 +3686,10 @@
   font-weight: 500;
   color: var(--ink);
 }
-.category-tag::before {
+.category-tag.classic::before,
+.category-tag.retro::before,
+.category-tag.modern::before,
+.category-tag.supercar::before {
   content: "";
   width: 9px;
   height: 9px;
