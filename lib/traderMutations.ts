@@ -28,6 +28,8 @@ export interface ApiTraderSaveBody {
   name: string;
   icon: string;
   info: string;
+  /** Organiser-set stand size ("3m x 3m"); "" clears it. */
+  pitchSize: string;
   applicationsOpen: string | null;
   applicationsClose: string | null;
   /** null → unlimited (server stores null in the stock column). */
@@ -63,6 +65,7 @@ export function mapTraderCategoryToBody(c: TraderCategory): ApiTraderSaveBody {
     name: c.name,
     icon: c.icon,
     info: c.info,
+    pitchSize: c.pitchSize ?? "",
     applicationsOpen: c.applicationsOpen,
     applicationsClose: c.applicationsClose,
     spacesAvailable: Number.isFinite(c.spacesAvailable)

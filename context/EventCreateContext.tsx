@@ -427,6 +427,10 @@ export type TraderCategory = {
   applicationsClose: string | null;
   /** Per-category info text (the WYSIWYG textarea content). */
   info: string;
+  /** Stand size for this trader type, set by the organiser ("3m x 3m").
+   *  Shown to the trader on the apply form and copied onto each
+   *  application - traders no longer type their own. "" = not set. */
+  pitchSize: string;
   /** Payment mode - never free. 'online' takes payment at checkout
    *  via a hidden ticket; 'in_person' is invoice / bank transfer /
    *  pay-on-the-day (organiser marks confirmed once cleared). Both

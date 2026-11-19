@@ -1,83 +1,86 @@
 "use client";
 
 import { useTrackEdit } from "@/context/TrackEditContext";
-import {
-  FieldLabel,
-  ImageUploadRow,
-  TextField,
-  UploadStatus,
-  inputCls,
-} from "../shared";
+import { CoverImageField, IconTextField, LogoImageField } from "../shared";
 
 /**
- * Step 2 - logo, cover, and the track's contact/social details.
+ * Step 2 - cover, logo, and the track's contact/social details.
+ *
+ * Laid out like the event editor's Description step: a large cover
+ * preview at the shape the public page uses, the logo card under it,
+ * then a "Contact & links" block of icon-led inputs.
  *
  * Images upload immediately on pick (Cloudflare direct upload, recorded
- * server-side), so they're independent of the Update Track save.
+ * server-side), so they're independent of the track save.
  */
 export function TrackProfilePanel() {
   const { track, set, pickImage, uploadProgress, uploadError } = useTrackEdit();
 
   return (
     <div>
-      <div className="mb-6">
-        <ImageUploadRow
-          title="Track logo"
-          hint="Ideal size: 800px x 800px"
-          previewUrl={track.logo}
-          onPick={(file, url) => pickImage("logo", file, url)}
-        />
-        <UploadStatus percent={uploadProgress.logo} error={uploadError.logo} />
-      </div>
+      <CoverImageField
+        label="Cover image"
+        hint="This is the first thing visitors see. Ideal size 1100 × 500px."
+        previewUrl={track.cover}
+        percent={uploadProgress.cover}
+        error={uploadError.cover}
+        onPick={(file, url) => pickImage("cover", file, url)}
+      />
 
-      <div className="mb-8">
-        <ImageUploadRow
-          title="Track cover image"
-          description="Add an image that best represents the track."
-          hint="Ideal size: 1100px (width) x 500px (height)"
-          previewUrl={track.cover}
-          onPick={(file, url) => pickImage("cover", file, url)}
-        />
-        <UploadStatus
-          percent={uploadProgress.cover}
-          error={uploadError.cover}
-        />
-      </div>
-
-      <TextField
-        field="email"
-        label="Track email address"
-        hint="Shown publicly, in case anyone wants to contact the track directly"
-        type="email"
+      <LogoImageField
+        label="Track logo"
+        hint="Shown beside the track name on its page and in listings. A square logo works best - ideal size 800 × 800px."
+        uploadLabel="Upload track logo"
+        previewUrl={track.logo}
+        percent={uploadProgress.logo}
+        error={uploadError.logo}
+        onPick={(file, url) => pickImage("logo", file, url)}
       />
 
       <div className="mb-8">
-        <FieldLabel>Track phone number</FieldLabel>
-        <input
-          className={inputCls}
-          value={track.phone}
-          onChange={(e) => set("phone", e.target.value)}
-          type="tel"
-        />
+        <h3 className="text-sm font-semibold text-ink-900 mb-1">
+          Contact &amp; links
+        </h3>
+        <p className="text-xs text-ink-500 mb-4">
+          Public contact details and social profiles for this track. All
+          optional.
+        </p>
+
+        <div className="space-y-3">
+          <IconTextField
+            field="website"
+            icon="fa-solid fa-globe"
+            placeholder="Website URL"
+          />
+          <IconTextField
+            field="email"
+            icon="fa-regular fa-envelope"
+            placeholder="Track email address"
+            type="email"
+          />
+          <IconTextField
+            field="phone"
+            icon="fa-solid fa-phone"
+            placeholder="Track phone number"
+            type="tel"
+          />
+          <IconTextField
+            field="facebook"
+            icon="fa-brands fa-facebook-f"
+            placeholder="Facebook page URL"
+          />
+          <IconTextField
+            field="instagram"
+            icon="fa-brands fa-instagram"
+            placeholder="Instagram username"
+            onBlur={() => {
+              // Normalise the handle on blur: drop any leading @.
+              const cleaned = track.instagram.trim().replace(/^@+/, "");
+              if (cleaned !== track.instagram) set("instagram", cleaned);
+            }}
+          />
+        </div>
       </div>
-
-      <TextField field="website" label="Track website" placeholder="example.com" />
-
-      <TextField
-        field="facebook"
-        label="Facebook page URL"
-        placeholder="facebook.com/yourtrack"
-      />
-
-      <TextField
-        field="instagram"
-        label="Instagram username"
-        placeholder="yourtrack"
-        onBlur={() => {
-          const cleaned = track.instagram.trim().replace(/^@+/, "");
-          if (cleaned !== track.instagram) set("instagram", cleaned);
-        }}
-      />
     </div>
   );
 }

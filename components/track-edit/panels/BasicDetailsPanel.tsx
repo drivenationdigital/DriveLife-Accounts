@@ -4,6 +4,7 @@ import { useTrackEdit } from "@/context/TrackEditContext";
 import { LocationAutocomplete } from "@/components/event-create/LocationAutocomplete";
 import { resolveRegion } from "@/lib/regions";
 import { MapPreview } from "@/components/event-create/MapPreview";
+import { CountryFlag } from "@/components/ui/CountryFlag";
 import { useTrackOptions } from "@/lib/myTracks";
 import { FieldLabel, inputCls } from "../shared";
 
@@ -74,6 +75,27 @@ export function BasicDetailsPanel() {
             {track.title.length}/{TITLE_MAX}
           </span>
         </div>
+      </div>
+
+      {/* Country - read-only. Chosen on the create screen and fixed
+          from then on: a track lives on one site. Shown rather than
+          hidden because it explains why the address search below only
+          finds places in one country. */}
+      <div className="mb-8">
+        <p
+          id="f-track-country-label"
+          className="block text-sm font-semibold text-ink-900 mb-2"
+        >
+          Country
+        </p>
+        <div
+          className="input input-readonly"
+          aria-labelledby="f-track-country-label"
+        >
+          <CountryFlag country={region.country} label={region.label} />
+          <span>{region.label}</span>
+        </div>
+        <p className="mt-2 text-xs text-ink-500">Country cannot be changed.</p>
       </div>
 
       {/* Location - Google Places autocomplete + static map preview. */}

@@ -487,7 +487,7 @@ function PageShell({ children }: { children: ReactNode }) {
         .apply-shell .input::placeholder { color: #a8a59c; }
         .apply-shell .input:hover { border-color: #cfccc3; }
         .apply-shell .input:focus {
-          background: #fff;
+          background-color: #fff;
           border-color: var(--gold-deep, #bd7420);
           box-shadow: 0 0 0 3px rgba(189,116,32,.15);
         }

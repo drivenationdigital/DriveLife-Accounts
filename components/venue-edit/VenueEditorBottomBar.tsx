@@ -1,13 +1,8 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-
 import { useVenueEdit } from "@/context/VenueEditContext";
-import {
-  adjacentVenueSteps,
-  DEFAULT_VENUE_STEP,
-  type VenueEditStepKey,
-} from "@/lib/venueEditSteps";
+import { adjacentVenueSteps } from "@/lib/venueEditSteps";
+import { useVenueStepNav, venueSaveCta } from "./shared";
 
 /**
  * Mobile-only sticky bottom CTA bar (hidden at sm+). Matches the event
@@ -18,26 +13,15 @@ import {
  * The padding-bottom calc with safe-area-inset keeps the buttons clear of
  * the iOS home indicator.
  *
- * On the last step Continue becomes Update Venue - the same save the
- * topbar fires, through the same shared mutation.
+ * On the last step Continue becomes the save action - the same save the
+ * topbar fires, through the same shared mutation, and worded for what
+ * the tap will do (Publish venue / Save draft / Save).
  */
 export function VenueEditorBottomBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { isDirty, isSaving, save, validateStep } = useVenueEdit();
-
-  const activeStep =
-    (searchParams.get("step") as VenueEditStepKey | null) ?? DEFAULT_VENUE_STEP;
+  const { venue, liveStatus, isSaving, save, validateStep } = useVenueEdit();
+  const { activeStep, goToStep } = useVenueStepNav();
   const { prev, next } = adjacentVenueSteps(activeStep);
-
-  const goToStep = (key: VenueEditStepKey) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    // Land on the header of the next step, not mid-form.
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const cta = venueSaveCta(venue.status, liveStatus);
 
   const onContinue = () => {
     if (!next) return;
@@ -77,17 +61,17 @@ export function VenueEditorBottomBar() {
           type="button"
           className="flex-[2] px-4 py-3 text-sm font-semibold text-white bg-gold-500 rounded-lg inline-flex items-center justify-center gap-2 disabled:opacity-60"
           onClick={onSave}
-          disabled={isSaving || !isDirty}
+          disabled={isSaving}
         >
           {isSaving ? (
             <>
               <i className="fa-solid fa-spinner fa-spin text-xs" aria-hidden />{" "}
-              Saving…
+              {cta.busyLabel}
             </>
           ) : (
             <>
-              <i className="fa-solid fa-floppy-disk text-xs" aria-hidden />{" "}
-              Update Venue
+              <i className={`${cta.icon} text-xs`} aria-hidden />{" "}
+              {cta.longLabel}
             </>
           )}
         </button>

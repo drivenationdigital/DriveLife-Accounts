@@ -3,7 +3,7 @@
 import { resolveRegion, type RegionKey } from "@/lib/regions";
 import { parseRef } from "@/lib/siteRef";
 import { Suspense, use, useEffect, useRef } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 import { VenueEditProvider, useVenueEdit } from "@/context/VenueEditContext";
 import { useAction } from "@/context/ActionContext";
@@ -16,6 +16,7 @@ import { BasicDetailsPanel } from "@/components/venue-edit/panels/BasicDetailsPa
 import { VenueProfilePanel } from "@/components/venue-edit/panels/VenueProfilePanel";
 import { VenueDescriptionPanel } from "@/components/venue-edit/panels/VenueDescriptionPanel";
 import { PublishPanel } from "@/components/venue-edit/panels/PublishPanel";
+import { useVenueStepNav } from "@/components/venue-edit/shared";
 import {
   VENUE_EDIT_STEP_COUNT,
   DEFAULT_VENUE_STEP,
@@ -147,19 +148,10 @@ function ActivePanel() {
  * hidden below sm - matching the event and club panels' footers.
  */
 function PanelFooter({ stepKey }: { stepKey: VenueEditStepKey }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const { isDirty, isSaving, save, saveError, validateStep } = useVenueEdit();
+  const { saveError, validateStep } = useVenueEdit();
+  const { goToStep } = useVenueStepNav();
 
   const { prev, next } = adjacentVenueSteps(stepKey);
-
-  const goToStep = (key: VenueEditStepKey) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
 
   const onContinue = () => {
     if (!next) return;
@@ -168,24 +160,26 @@ function PanelFooter({ stepKey }: { stepKey: VenueEditStepKey }) {
     goToStep(next);
   };
 
-  const onSave = async () => {
-    const jumpTo = await save();
-    if (jumpTo) goToStep(jumpTo);
-  };
-
+  // Same row as the event editor's panels: Back on the left, Continue
+  // on the right. The last step has no Continue - its save action is
+  // the big button inside the Publish panel - so it is Back only.
   return (
     <>
-      <div className="hidden sm:flex items-center justify-end gap-3 pt-6 border-t border-ink-200">
+      <div
+        className={`hidden sm:flex items-center gap-3 pt-6 mt-6 border-t border-ink-200 ${
+          prev && next ? "justify-between" : next ? "justify-end" : "justify-start"
+        }`}
+      >
         {prev && (
           <button
             type="button"
             onClick={() => goToStep(prev)}
-            className="px-5 py-3 text-sm font-semibold text-ink-700 bg-ink-100 hover:bg-ink-200 rounded-lg transition inline-flex items-center gap-2"
+            className="px-5 py-3 text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-50 rounded-lg transition inline-flex items-center gap-2"
           >
             <i className="fa-solid fa-arrow-left text-xs" aria-hidden /> Back
           </button>
         )}
-        {next ? (
+        {next && (
           <button
             type="button"
             onClick={onContinue}
@@ -194,27 +188,12 @@ function PanelFooter({ stepKey }: { stepKey: VenueEditStepKey }) {
             Continue{" "}
             <i className="fa-solid fa-arrow-right text-xs" aria-hidden />
           </button>
-        ) : (
-          <button
-            type="button"
-            onClick={onSave}
-            disabled={isSaving || !isDirty}
-            className="px-5 py-3 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition inline-flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <i
-              className={`text-xs ${
-                isSaving
-                  ? "fa-solid fa-spinner fa-spin"
-                  : "fa-solid fa-floppy-disk"
-              }`}
-              aria-hidden
-            />
-            {isSaving ? "Saving…" : "Update Venue"}
-          </button>
         )}
       </div>
 
-      {saveError && (
+      {/* A save fired from the topbar can fail on any step; the Publish
+          panel shows its own copy under the big button. */}
+      {saveError && stepKey !== "publish" && (
         <p className="mt-3 text-sm text-red-500 sm:text-right">{saveError}</p>
       )}
 

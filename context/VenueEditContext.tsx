@@ -18,6 +18,7 @@ import {
   type VenueMediaGroup,
 } from "@/lib/myVenues";
 import type { VenueEditStepKey } from "@/lib/venueEditSteps";
+import { useToast } from "@/context/ToastContext";
 
 /**
  * Venue edit state + save controller.
@@ -105,6 +106,14 @@ interface VenueEditContextValue {
   /** Replace state from a load response (also resets the dirty baseline). */
   hydrate: (venue: VenueEditData) => void;
   isDirty: boolean;
+  /**
+   * What the server holds right now, as opposed to what the Publish
+   * step's status picker says. Drives the Publish-vs-Save wording and
+   * decides whether there is a public page to link to.
+   */
+  liveStatus: VenueForm["status"];
+  /** The venue's public URL ("" until the API has sent one). */
+  permalink: string;
 
   // Validation
   errors: Partial<Record<VenueFieldKey, string | null>>;
@@ -144,7 +153,12 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
     Partial<Record<VenueFieldKey, boolean>>
   >({});
   const [justSaved, setJustSaved] = useState(false);
+  // Server-side facts, kept out of `venue` so they never count as an
+  // unsaved edit.
+  const [liveStatus, setLiveStatus] = useState<VenueForm["status"]>("draft");
+  const [permalink, setPermalink] = useState("");
 
+  const toast = useToast();
   const updateVenue = useUpdateVenue();
   const uploadImage = useUploadVenueImage();
 
@@ -193,6 +207,8 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
     };
     setVenue(next);
     setBaseline(JSON.stringify(next));
+    setLiveStatus(data.status);
+    setPermalink(data.permalink ?? "");
   }, []);
 
   const markTouched = useCallback((key: VenueFieldKey) => {
@@ -234,8 +250,11 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
     }
 
     setJustSaved(false);
+    // Whether the venue was live before this save decides the toast
+    // wording below.
+    const wasLive = liveStatus === "publish";
     try {
-      await saveVenue({
+      const res = await saveVenue({
         vid: venue.vid,
         site: venue.site,
         post_title: venue.title.trim(),
@@ -252,28 +271,42 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
       });
       setBaseline(JSON.stringify(venue));
       setJustSaved(true);
+      // Publishing turns a draft's ?p= link into the real slug, and the
+      // Publish step shows the URL the moment the venue is live.
+      const nowLive = res.status === "publish";
+      setLiveStatus(nowLive ? "publish" : "draft");
+      if (typeof res.permalink === "string" && res.permalink !== "") {
+        setPermalink(res.permalink);
+      }
+      // Same feedback as the event editor - the status pill is hidden
+      // on phones, so without this a save there had no confirmation.
+      toast.success(
+        !nowLive ? "Draft saved." : wasLive ? "Venue saved." : "Venue published.",
+      );
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setJustSaved(false), 2500);
     } catch {
       // Surfaced through `saveError` / `phase` on the status pill.
     }
     return null;
-  }, [errors.title, errors.location, saveVenue, venue]);
+  }, [errors.title, errors.location, saveVenue, venue, liveStatus, toast]);
 
   const { mutateAsync: runUpload } = uploadImage;
 
   const pickImage = useCallback(
     async (group: VenueMediaGroup, file: File, previewUrl: string) => {
+      const key = group === "logo" ? "logo" : "cover";
+      // What to put back if the upload fails - a preview of an image
+      // that never reached the server would be a lie.
+      const previous = group === "logo" ? venue.logo : venue.cover;
       // Show the local preview straight away.
-      setVenue((v) => ({
-        ...v,
-        [group === "logo" ? "logo" : "cover"]: previewUrl,
-      }));
+      setVenue((v) => ({ ...v, [key]: previewUrl }));
       setUploadError((e) => ({ ...e, [group]: null }));
       setUploadProgress((p) => ({ ...p, [group]: 0 }));
 
       if (!venue.rawId) {
         setUploadError((e) => ({ ...e, [group]: "Venue not loaded yet." }));
+        setVenue((v) => ({ ...v, [key]: previous }));
         setUploadProgress((p) => {
           const next = { ...p };
           delete next[group];
@@ -291,7 +324,12 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
           onProgress: (percent) =>
             setUploadProgress((p) => ({ ...p, [group]: percent })),
         });
+        // The image is stored the moment the upload finishes, so it is
+        // not an unsaved edit - fold it into the dirty baseline or the
+        // status pill would read "Unsaved changes" after every upload.
+        setBaseline((b) => JSON.stringify({ ...JSON.parse(b), [key]: previewUrl }));
       } catch (err) {
+        setVenue((v) => ({ ...v, [key]: previous }));
         setUploadError((e) => ({
           ...e,
           [group]:
@@ -305,7 +343,7 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [runUpload, venue.rawId, venue.vid],
+    [runUpload, venue.rawId, venue.vid, venue.logo, venue.cover],
   );
 
   const isDirty = useMemo(
@@ -330,6 +368,8 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
       set,
       hydrate,
       isDirty,
+      liveStatus,
+      permalink,
       errors,
       touched,
       markTouched,
@@ -347,6 +387,8 @@ export function VenueEditProvider({ children }: { children: ReactNode }) {
       set,
       hydrate,
       isDirty,
+      liveStatus,
+      permalink,
       errors,
       touched,
       markTouched,

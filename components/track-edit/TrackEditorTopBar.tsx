@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import {
   useTrackEdit,
   type TrackSavePhase,
 } from "@/context/TrackEditContext";
-import type { TrackEditStepKey } from "@/lib/trackEditSteps";
+import { resolveRegion } from "@/lib/regions";
+import { CountryFlag } from "@/components/ui/CountryFlag";
+import { useTrackStepNav, trackSaveCta } from "./shared";
 
 /**
  * Sticky topbar for the track editor. Same height, same back link, same
@@ -17,25 +18,24 @@ import type { TrackEditStepKey } from "@/lib/trackEditSteps";
  * shows it, is hidden at those breakpoints). Desktop (lg+): the title is
  * in the sidebar and a flexible spacer pins the actions right.
  *
+ * The save button does what the Publish step's status says and its
+ * label says which: "Publish" (with the rocket) only for the click that
+ * takes the track live, "Save as draft" when a live track is being
+ * pulled back, plain "Save" otherwise.
+ *
  * Saving with a required field empty jumps back to the step that holds
  * it, so the revealed error is actually on screen.
  */
 export function TrackEditorTopBar() {
-  const { track, isDirty, save, phase, isSaving } = useTrackEdit();
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
+  const { track, liveStatus, isDirty, save, phase, isSaving } = useTrackEdit();
+  const { goToStep } = useTrackStepNav();
+  const region = resolveRegion(track.site);
+  const cta = trackSaveCta(track.status, liveStatus);
 
   const onSave = async () => {
+    if (isSaving) return;
     const jumpTo = await save();
     if (jumpTo) goToStep(jumpTo);
-  };
-
-  const goToStep = (key: TrackEditStepKey) => {
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
-    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -65,25 +65,33 @@ export function TrackEditorTopBar() {
 
         <div className="hidden lg:block flex-1" />
 
+        {/* Region, read-only - a track lives on one site. A marker, not
+            a control; same pill as the event editor. */}
+        <span
+          className="hidden sm:inline-flex items-center gap-2 rounded-full border border-ink-200 bg-ink-50 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-ink-600"
+          title={`This track is listed in ${region.label}. This can't be changed.`}
+        >
+          <CountryFlag country={region.country} label={region.label} />
+          {region.abbr}
+        </span>
+
         <SaveStatusPill phase={phase} isDirty={isDirty} />
 
         <button
           type="button"
           onClick={onSave}
-          disabled={isSaving || !isDirty}
+          disabled={isSaving}
           className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gold-500 hover:bg-gold-600 rounded-lg transition shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <i
             className={`text-xs ${
-              isSaving
-                ? "fa-solid fa-spinner fa-spin"
-                : "fa-solid fa-floppy-disk"
+              isSaving ? "fa-solid fa-spinner fa-spin" : cta.icon
             }`}
             aria-hidden
           />
-          <span className="hidden sm:inline">
-            {isSaving ? "Saving…" : "Update Track"}
-          </span>
+          {/* Label shows on all breakpoints - a bare icon on phones read
+              as ambiguous, and every variant is short enough to fit. */}
+          <span>{isSaving ? cta.busyLabel : cta.label}</span>
         </button>
       </div>
     </header>

@@ -1,42 +1,34 @@
 "use client";
 
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-
 import { useTrackEdit } from "@/context/TrackEditContext";
 import {
   TRACK_EDIT_STEPS,
   TRACK_EDIT_STEP_COUNT,
-  DEFAULT_TRACK_STEP,
   type TrackEditStepKey,
 } from "@/lib/trackEditSteps";
+import { useTrackStepNav } from "./shared";
 
 /**
  * Desktop sidebar - visible at lg+ only. Same structure and the same
  * `.side-tab` styling as the event and club editors.
  *
  * Step navigation is URL-driven (`?step=profile`) so individual steps are
- * deep-linkable and browser back/forward moves between them.
+ * deep-linkable and browser back/forward moves between them. The switch
+ * itself is shallow (see useTrackStepNav), so it is instant.
  *
  * Jumping backwards is always allowed; jumping forwards past a step with
  * invalid fields is not, matching the Continue button's gating. Skipping
  * ahead from the sidebar would otherwise be a way around validation.
  */
 export function TrackEditorSidebar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { track, validateStep } = useTrackEdit();
-
-  const activeStep =
-    (searchParams.get("step") as TrackEditStepKey | null) ?? DEFAULT_TRACK_STEP;
+  const { activeStep, goToStep: pushStep } = useTrackStepNav();
   const activeIndex = TRACK_EDIT_STEPS.findIndex((s) => s.key === activeStep);
 
   const goToStep = (key: TrackEditStepKey, targetIndex: number) => {
     // Moving forward re-checks the step we're leaving.
     if (targetIndex > activeIndex && !validateStep(activeStep)) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStep(key, { scrollTop: false });
   };
 
   const activeStepNumber = activeIndex >= 0 ? activeIndex + 1 : 1;

@@ -20,7 +20,13 @@ import {
 } from "@/lib/applyTheme";
 import { ApiError } from "@/lib/apiClient";
 import { eventPageUrl } from "@/lib/eventPageUrl";
-import { formatRegionDateRange, regionFromSite } from "@/lib/regions";
+import {
+  formatRegionCurrency,
+  formatRegionDateRange,
+  regionFromSite,
+  type Region,
+} from "@/lib/regions";
+import { sanitizeRichText } from "@/lib/sanitizeHtml";
 import { SubmitOverlay } from "@/components/apply/SubmitOverlay";
 import { MarketingConsent } from "@/components/apply/MarketingConsent";
 import {
@@ -34,6 +40,7 @@ import {
   isTraderCategoryOpenToday,
   traderCategoryAvailabilityLabel,
   type TraderApplicationBody,
+  type TraderPublicCategory,
 } from "@/lib/traderApply";
 
 /**
@@ -52,7 +59,6 @@ const INITIAL_FORM: FormState = {
   categoryEid: "",
   businessName: "",
   description: "",
-  pitchSize: "",
   powerRequired: false,
   powerDetails: "",
   website: "",
@@ -271,8 +277,8 @@ export default function TraderApplyPage({
               })}
             </select>
           </Field>
-          {selected?.description && (
-            <p className="text-xs text-ink-500 mt-1">{selected.description}</p>
+          {selected && (
+            <SelectedCategoryDetails category={selected} region={region} />
           )}
         </Section>
 
@@ -296,26 +302,15 @@ export default function TraderApplyPage({
             />
           </Field>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Pitch size" required>
-              <input
-                className="input"
-                value={form.pitchSize}
-                onChange={update("pitchSize")}
-                placeholder="e.g. 3m x 3m"
-                required
-              />
-            </Field>
-            <Field label="Website (optional)">
-              <input
-                className="input"
-                type="url"
-                value={form.website}
-                onChange={update("website")}
-                placeholder="https://…"
-              />
-            </Field>
-          </div>
+          <Field label="Website (optional)">
+            <input
+              className="input"
+              type="url"
+              value={form.website}
+              onChange={update("website")}
+              placeholder="https://…"
+            />
+          </Field>
 
           {/* "I need access to power" removed from the form (Mark,
               2026-11-09). powerRequired stays false in the body so the
@@ -440,6 +435,63 @@ export default function TraderApplyPage({
   );
 }
 
+/**
+ * What the organiser set for the chosen trader type, under the
+ * dropdown: pitch size and fee, then their "Trader information" copy.
+ *
+ * - Pitch size is the organiser's to set, per category (editor, trader
+ *   type drawer) - traders used to type the size they wanted on this
+ *   form (Mark, 2026-11-18).
+ * - The fee shows whenever the category has one, including categories
+ *   paid direct to the organiser. How it is paid is deliberately not
+ *   mentioned (Mark, 2026-11-09).
+ * - The information is rich text from the editor (TipTap HTML), so it is
+ *   sanitised and rendered as markup. It used to be printed as plain
+ *   text, tags and all.
+ *
+ * Renders nothing when the category has none of the three.
+ */
+function SelectedCategoryDetails({
+  category,
+  region,
+}: {
+  category: TraderPublicCategory;
+  region: Region;
+}) {
+  const info = sanitizeRichText(category.description);
+  // "<p></p>" and friends: markup with nothing to read in it.
+  const hasInfo = info.replace(/<[^>]*>|&nbsp;|\s/g, "") !== "";
+  const pitchSize = category.pitch_size?.trim() ?? "";
+  const fee = category.ticket_cost > 0 ? category.ticket_cost : 0;
+  if (!hasInfo && !pitchSize && !fee) return null;
+  return (
+    <div className="p-3 bg-ink-50 border border-ink-100 rounded-lg space-y-2">
+      {(pitchSize || fee > 0) && (
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm text-ink-700">
+          {pitchSize && (
+            <span>
+              <span className="font-semibold text-ink-900">Pitch size:</span>{" "}
+              {pitchSize}
+            </span>
+          )}
+          {fee > 0 && (
+            <span>
+              <span className="font-semibold text-ink-900">Pitch fee:</span>{" "}
+              {formatRegionCurrency(fee, region)}
+            </span>
+          )}
+        </div>
+      )}
+      {hasInfo && (
+        <div
+          className="text-sm leading-relaxed text-ink-700 [&_a]:text-gold-600 [&_a]:underline [&_h1]:mb-2 [&_h1]:text-base [&_h1]:font-bold [&_h2]:mb-2 [&_h2]:text-sm [&_h2]:font-bold [&_h3]:mb-2 [&_h3]:text-sm [&_h3]:font-bold [&_ol]:mb-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:mb-2 [&_p:last-child]:mb-0 [&_ul]:mb-2 [&_ul]:list-disc [&_ul]:pl-5"
+          dangerouslySetInnerHTML={{ __html: info }}
+        />
+      )}
+    </div>
+  );
+}
+
 function PageShell({ children }: { children: ReactNode }) {
   // `?theme=dark` inverts the palette - see lib/applyTheme.ts. Read
   // here rather than passed down so the standalone page and the
@@ -472,7 +524,7 @@ function PageShell({ children }: { children: ReactNode }) {
         .apply-shell .input::placeholder { color: #a8a59c; }
         .apply-shell .input:hover { border-color: #cfccc3; }
         .apply-shell .input:focus {
-          background: #fff;
+          background-color: #fff;
           border-color: var(--gold-deep, #bd7420);
           box-shadow: 0 0 0 3px rgba(189,116,32,.15);
         }

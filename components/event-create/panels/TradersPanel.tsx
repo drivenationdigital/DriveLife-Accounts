@@ -479,6 +479,7 @@ function subtitleForCategory(c: TraderCategory, region: Region): string {
   if (Number.isFinite(c.ticketCost) && c.ticketCost > 0) {
     bits.push(formatRegionAmount(c.ticketCost, region));
   }
+  if (c.pitchSize) bits.push(c.pitchSize);
   // Window
   if (c.applicationsOpen || c.applicationsClose) {
     const win = [

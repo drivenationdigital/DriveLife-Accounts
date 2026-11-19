@@ -4479,7 +4479,11 @@
 .apply-shell.is-dark select.input,
 .apply-shell.is-dark textarea.input {
   color: var(--color-ink-900);
-  background: #1c1c1c;
+  /* background-color, not the `background` shorthand: the shorthand
+     also resets background-repeat / -position, and this rule outranks
+     the pages' own `select.input` rule - so the chevron below tiled
+     across the whole dropdown (2026-11-18). */
+  background-color: #1c1c1c;
   border-color: #383838;
 }
 .apply-shell.is-dark .input::placeholder {
@@ -4489,7 +4493,7 @@
   border-color: #4a4a4a;
 }
 .apply-shell.is-dark .input:focus {
-  background: #232323;
+  background-color: #232323;
   border-color: var(--color-gold-400);
   box-shadow: 0 0 0 3px rgba(203, 167, 95, 0.2);
 }
@@ -4497,6 +4501,10 @@
    so it needs its own light-on-dark copy. */
 .apply-shell.is-dark select.input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a8a8a8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  /* Stated here too, so the single chevron never depends on a page's
+     own rule surviving the cascade. */
+  background-repeat: no-repeat;
+  background-position: right 14px center;
 }
 
 /* Tinted status blocks. Amber (closed / warning) and red (errors) are

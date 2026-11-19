@@ -733,6 +733,8 @@ export interface ApiTraderCategory {
   name: string;
   icon: string;
   info: string;
+  /** Organiser-set stand size. Optional until every backend sends it. */
+  pitch_size?: string;
   payment_mode: "online" | "in_person";
   ticket_cost: number;
   spaces_available: number | null;

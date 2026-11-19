@@ -17,6 +17,10 @@ export interface TraderPublicCategory {
   name: string;
   description: string;
   icon: string;
+  /** Stand size the organiser set for this trader type ("3m x 3m").
+   *  Empty / absent = none set. Shown under the category dropdown; the
+   *  API copies it onto the application. */
+  pitch_size?: string;
   /** 'online' = pay at checkout via ticket; 'in_person' = invoice /
    *  bank transfer / pay on the day. Never free. */
   payment_mode: "online" | "in_person";
@@ -53,7 +57,8 @@ export interface TraderApplicationBody {
   categoryEid: string;
   businessName: string;
   description: string;
-  pitchSize: string;
+  // No pitch size: the organiser sets it per category (2026-11-18) and
+  // the API copies the category's size onto the application.
   powerRequired: boolean;
   powerDetails: string;
   website: string;

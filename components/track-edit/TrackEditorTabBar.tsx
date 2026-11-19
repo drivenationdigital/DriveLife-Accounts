@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useTrackEdit } from "@/context/TrackEditContext";
 import {
   TRACK_EDIT_STEPS,
-  DEFAULT_TRACK_STEP,
   type TrackEditStepKey,
 } from "@/lib/trackEditSteps";
+import { useTrackStepNav } from "./shared";
 
 /**
  * Mobile / tablet horizontal tab bar - visible below lg. Sticky directly
@@ -20,21 +19,14 @@ import {
  * sidebar and the Continue button.
  */
 export function TrackEditorTabBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const { validateStep } = useTrackEdit();
-
-  const activeStep =
-    (searchParams.get("step") as TrackEditStepKey | null) ?? DEFAULT_TRACK_STEP;
+  const { activeStep, goToStep: pushStep } = useTrackStepNav();
   const activeIndex = TRACK_EDIT_STEPS.findIndex((s) => s.key === activeStep);
 
   const goToStep = (key: TrackEditStepKey, targetIndex: number) => {
     if (targetIndex > activeIndex && !validateStep(activeStep)) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStep(key, { scrollTop: false });
   };
 
   useEffect(() => {

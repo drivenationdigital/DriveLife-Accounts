@@ -21,7 +21,7 @@ import { FullScreenDatePicker } from "./FullScreenDatePicker";
  * Trader category add/edit drawer.
  *
  * Form sections:
- *   1. Name
+ *   1. Name + pitch size (organiser-set; traders don't pick one)
  *   2. Payment mode (online ticket vs. pay in person) + fee + spaces
  *   3. Application window (open/close dates)
  *   4. Per-category info textarea
@@ -67,8 +67,12 @@ export function TraderCategoryDrawer({
   );
   // Cost / spaces are stored as numbers (NaN ⇒ unset). The inputs are
   // strings so an empty field reads back as "" → NaN.
+  // A "Direct to you" category with no fee comes back from the API as 0;
+  // its fee is optional, so that reads as an empty field, not "0".
   const [costStr, setCostStr] = useState(() =>
-    seed && Number.isFinite(seed.ticketCost)
+    seed &&
+    Number.isFinite(seed.ticketCost) &&
+    !(seed.paymentMode === "in_person" && seed.ticketCost === 0)
       ? String(seed.ticketCost)
       : "",
   );
@@ -84,6 +88,9 @@ export function TraderCategoryDrawer({
     () => seed?.applicationsClose ?? null,
   );
   const [info, setInfo] = useState(() => seed?.info ?? "");
+  // The stand size traders in this category get. Set here by the
+  // organiser - the apply form shows it instead of asking the trader.
+  const [pitchSize, setPitchSize] = useState(() => seed?.pitchSize ?? "");
   // Auto-generated for new categories so a row never persists without
   // a code (the online ticket link is built from it). Preserved when
   // editing.
@@ -102,12 +109,14 @@ export function TraderCategoryDrawer({
     const trimmed = name.trim();
     if (!trimmed || feeTooLow) return;
     const id = editing?.id ?? (makeLocalId("tc") as TraderCategoryId);
-    // In-person categories are priced and allocated by hand when the
-    // organiser reviews each application (2026-11-04), so the fee and
-    // spaces fields are hidden for them and nothing is persisted - a
-    // value typed before switching modes must not linger in the DB.
+    // In-person categories are allocated by hand when the organiser
+    // reviews each application (2026-11-04), so the spaces field is
+    // hidden for them and nothing is persisted - a value typed before
+    // switching modes must not linger in the DB. Their fee is optional:
+    // when the organiser lists one it is kept and shown on the apply
+    // form, though they still collect it themselves (2026-11-18).
     const inPerson = paymentMode === "in_person";
-    const cost = inPerson || costStr.trim() === "" ? NaN : Number(costStr);
+    const cost = costStr.trim() === "" ? NaN : Number(costStr);
     const spaces =
       inPerson || spacesStr.trim() === "" ? NaN : Number(spacesStr);
     onSave({
@@ -120,6 +129,7 @@ export function TraderCategoryDrawer({
       applicationsOpen,
       applicationsClose,
       info: info.trim(),
+      pitchSize: pitchSize.trim(),
       secretCode: secretCode.trim() || generateSecretCode(),
     });
     onClose();
@@ -195,6 +205,24 @@ export function TraderCategoryDrawer({
           />
         </div>
 
+        <div>
+          <label className="block text-sm font-semibold text-ink-900 mb-2">
+            Pitch size
+          </label>
+          <input
+            type="text"
+            className="input"
+            placeholder="e.g. 3m x 3m"
+            maxLength={100}
+            value={pitchSize}
+            onChange={(e) => setPitchSize(e.target.value)}
+          />
+          <p className="text-xs text-ink-500 mt-2">
+            The stand size traders in this category get. Shown on the
+            application form.
+          </p>
+        </div>
+
         {/* Payment mode - never free. */}
         <div className="pt-3 border-t border-ink-200">
           <label className="block text-sm font-semibold text-ink-900 mb-2">
@@ -242,10 +270,25 @@ export function TraderCategoryDrawer({
           </div>
 
           {paymentMode === "in_person" && (
-            <p className="text-xs text-ink-500 mt-3">
-              Pitch fees and spaces are agreed with each trader when you review
-              their application.
-            </p>
+            <div className="mt-3">
+              <label className="block text-xs uppercase tracking-wider font-semibold text-ink-500 mb-2">
+                Pitch fee ({region.currencySymbol}) (optional)
+              </label>
+              <input
+                type="number"
+                min={0}
+                step="0.01"
+                className="input"
+                placeholder="Agreed with each trader"
+                value={costStr}
+                onChange={(e) => setCostStr(e.target.value)}
+              />
+              <p className="text-xs text-ink-500 mt-2">
+                Shown on the application form if you set one - you still
+                collect it from the trader yourself. Spaces are agreed with
+                each trader when you review their application.
+              </p>
+            </div>
           )}
 
           {paymentMode === "online" && (
@@ -312,13 +355,13 @@ export function TraderCategoryDrawer({
             Trader information
           </label>
           <p className="text-xs text-ink-500 mb-3">
-            Perks, arrival times, pitch sizes, power availability - what traders
-            need to know.
+            Perks, arrival times, power availability - what traders need to
+            know.
           </p>
           <EditorTextarea
             value={info}
             onChange={setInfo}
-            placeholder="e.g. 3m × 3m pitch. Arrival from 6am for setup. Power and water at extra cost. Public liability insurance required."
+            placeholder="e.g. Arrival from 6am for setup. Power and water at extra cost. Public liability insurance required."
           />
         </div>
       </EditorDrawer>

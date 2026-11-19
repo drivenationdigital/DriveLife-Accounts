@@ -17,6 +17,7 @@ import {
   type TrackMediaGroup,
 } from "@/lib/uploadTrackImage";
 import type { TrackEditStepKey } from "@/lib/trackEditSteps";
+import { useToast } from "@/context/ToastContext";
 
 /**
  * Track edit state + save controller.
@@ -109,6 +110,15 @@ interface TrackEditContextValue {
   /** Replace state from a load response (also resets the dirty baseline). */
   hydrate: (track: TrackEditData) => void;
   isDirty: boolean;
+  /**
+   * What the server holds right now, as opposed to what the Publish
+   * step's status picker says. Drives the Publish-vs-Save wording and
+   * decides whether there is a public page to link to.
+   */
+  liveStatus: TrackForm["status"];
+  /** The track's public URL - `track.permalink`, surfaced under the
+   *  same name the venue editor uses so the two panels stay copies. */
+  permalink: string;
 
   // Validation
   errors: Partial<Record<TrackFieldKey, string | null>>;
@@ -139,7 +149,11 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
     Partial<Record<TrackFieldKey, boolean>>
   >({});
   const [justSaved, setJustSaved] = useState(false);
+  // Server-side fact, kept out of `track` so it never counts as an
+  // unsaved edit.
+  const [liveStatus, setLiveStatus] = useState<TrackForm["status"]>("draft");
 
+  const toast = useToast();
   const updateTrack = useUpdateTrack();
   const uploadImage = useUploadTrackImage();
 
@@ -205,6 +219,7 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
     };
     setTrack(next);
     setBaseline(JSON.stringify(next));
+    setLiveStatus(data.status);
   }, []);
 
   const markTouched = useCallback((key: TrackFieldKey) => {
@@ -244,6 +259,9 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
     }
 
     setJustSaved(false);
+    // Whether the track was live before this save decides the toast
+    // wording below.
+    const wasLive = liveStatus === "publish";
     try {
       const res = await saveTrack({
         tid: track.tid,
@@ -269,13 +287,20 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
       setTrack(saved);
       setBaseline(JSON.stringify(saved));
       setJustSaved(true);
+      const nowLive = res.status === "publish";
+      setLiveStatus(nowLive ? "publish" : "draft");
+      // Same feedback as the event editor - the status pill is hidden
+      // on phones, so without this a save there had no confirmation.
+      toast.success(
+        !nowLive ? "Draft saved." : wasLive ? "Track saved." : "Track published.",
+      );
       if (timer.current !== null) window.clearTimeout(timer.current);
       timer.current = window.setTimeout(() => setJustSaved(false), 2500);
     } catch {
       // Surfaced through `saveError` / `phase` on the status pill.
     }
     return null;
-  }, [errors.title, errors.location, saveTrack, track]);
+  }, [errors.title, errors.location, saveTrack, track, liveStatus, toast]);
 
   const { mutateAsync: runUpload } = uploadImage;
 
@@ -287,8 +312,12 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
       setUploadProgress((p) => ({ ...p, [group]: 10 }));
 
       const current = liveRef.current;
+      // What to put back if the upload fails - a preview of an image
+      // that never reached the server would be a lie.
+      const previous = current[group];
       if (!current.tid) {
         setUploadError((e) => ({ ...e, [group]: "Track not loaded yet." }));
+        setTrack((t) => ({ ...t, [group]: previous }));
         setUploadProgress((p) => {
           const next = { ...p };
           delete next[group];
@@ -321,6 +350,7 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
           return next;
         });
       } catch (err) {
+        setTrack((t) => ({ ...t, [group]: previous }));
         setUploadError((e) => ({
           ...e,
           [group]:
@@ -366,6 +396,8 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
       toggleType,
       hydrate,
       isDirty,
+      liveStatus,
+      permalink: track.permalink,
       errors,
       touched,
       markTouched,
@@ -384,6 +416,7 @@ export function TrackEditProvider({ children }: { children: ReactNode }) {
       toggleType,
       hydrate,
       isDirty,
+      liveStatus,
       errors,
       touched,
       markTouched,

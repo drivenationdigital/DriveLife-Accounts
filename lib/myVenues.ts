@@ -134,6 +134,9 @@ export interface VenueEditData {
   instagram: string;
   description: string;
   status: "publish" | "draft";
+  /** The venue's public page. Optional - an API that predates the
+   *  Publish step's summary card doesn't send it. */
+  permalink?: string;
 }
 
 /** What /venue-edit actually returns. `site` is absent - the endpoint

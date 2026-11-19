@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 
 import { useVenueEdit } from "@/context/VenueEditContext";
 import {
   VENUE_EDIT_STEPS,
-  DEFAULT_VENUE_STEP,
   type VenueEditStepKey,
 } from "@/lib/venueEditSteps";
+import { useVenueStepNav } from "./shared";
 
 /**
  * Mobile / tablet horizontal tab bar - visible below lg. Sticky directly
@@ -20,21 +19,14 @@ import {
  * sidebar and the Continue button.
  */
 export function VenueEditorTabBar() {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const containerRef = useRef<HTMLDivElement>(null);
   const { validateStep } = useVenueEdit();
-
-  const activeStep =
-    (searchParams.get("step") as VenueEditStepKey | null) ?? DEFAULT_VENUE_STEP;
+  const { activeStep, goToStep: pushStep } = useVenueStepNav();
   const activeIndex = VENUE_EDIT_STEPS.findIndex((s) => s.key === activeStep);
 
   const goToStep = (key: VenueEditStepKey, targetIndex: number) => {
     if (targetIndex > activeIndex && !validateStep(activeStep)) return;
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("step", key);
-    router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    pushStep(key, { scrollTop: false });
   };
 
   useEffect(() => {

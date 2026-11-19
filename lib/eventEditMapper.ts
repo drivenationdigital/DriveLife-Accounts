@@ -545,6 +545,7 @@ function mapTraderCategory(api: ApiTraderCategory): TraderCategory {
     name: api.name,
     icon,
     info: api.info ?? "",
+    pitchSize: api.pitch_size ?? "",
     paymentMode: mode,
     ticketCost: Number.isFinite(api.ticket_cost) ? api.ticket_cost : NaN,
     spacesAvailable:
